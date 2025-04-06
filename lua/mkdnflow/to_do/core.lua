@@ -21,6 +21,39 @@ local vim_indent = vim.api.nvim_buf_get_option(0, 'expandtab') == true
         and string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
     or '\t'
 
+-- Item cache to avoid re-parsing the same lines during a single operation
+local item_cache = {
+    active = false,
+    items = {},
+}
+
+-- Initialize the cache before a user-initiated operation
+local function init_cache()
+    item_cache.active = true
+    item_cache.items = {}
+end
+
+-- Clear the cache after a user-initiated operation
+local function clear_cache()
+    item_cache.active = false
+    item_cache.items = {}
+end
+
+-- Get item from cache by line number if it exists
+local function get_cached_item(line_nr)
+    if item_cache.active and item_cache.items[line_nr] then
+        return item_cache.items[line_nr]
+    end
+    return nil
+end
+
+-- Add item to cache
+local function cache_item(item)
+    if item_cache.active and item.valid and item.line_nr > 0 then
+        item_cache.items[item.line_nr] = item
+    end
+end
+
 local status_methods = {
     __index = {
         get_marker = function(self)
@@ -283,6 +316,12 @@ end
 --- @param line_nr integer A (one-based) buffer line number from which to read the to-do item
 --- @return to_do_item # A complete to-do item
 function to_do_item:read(line_nr)
+    -- Check cache first
+    local cached_item = get_cached_item(line_nr)
+    if cached_item then
+        return cached_item
+    end
+    
     local new_to_do_item = to_do_item:new() -- Create a new instance
     -- Get the line
     local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)
@@ -298,10 +337,13 @@ function to_do_item:read(line_nr)
 
         -- Figure out the level of the new_to_do_item (based on indentation)
         _, new_to_do_item.level = string.gsub(new_to_do_item.content:match('^%s*'), vim_indent, '')
-        -- TODO: Add this to-do item to a cache
+        -- Add this to-do item to the cache
+        cache_item(new_to_do_item)
         return new_to_do_item
     end
     new_to_do_item.valid = false
+    -- Cache invalid items too, to avoid re-parsing non-to-do lines
+    cache_item(new_to_do_item)
     return new_to_do_item
 end
 
@@ -574,10 +616,20 @@ local M = {}
 
 --- Function to retrieve a to-do item
 --- @param line_nr? integer A table, optionally including line_nr (int) and find_ancestors (bool)
+--- @param use_cache? boolean Whether to use the cache for this operation, defaults to true
 --- @return to_do_item # A processed to-do item
-function M.get_to_do_item(line_nr)
+function M.get_to_do_item(line_nr, use_cache)
     -- Use the current (cursor) line if no line number was provided
     line_nr = line_nr or vim.api.nvim_win_get_cursor(0)[1] -- Use cur. line if no line provided
+    
+    -- Activate cache if not already active and use_cache not explicitly false
+    if use_cache ~= false and not item_cache.active then
+        init_cache()
+        local item = to_do_item:get(line_nr)
+        clear_cache()
+        return item
+    end
+    
     -- TODO If we have a visual selection spanning multiple lines, take a different approach
     local item = to_do_item:get(line_nr)
     return item
@@ -585,15 +637,28 @@ end
 
 --- Function to retrieve an entire to-do list
 --- @param line_nr integer A line number (anywhere in the list) from which to look for to-do items
+--- @param use_cache? boolean Whether to use the cache for this operation, defaults to true
 --- @return to_do_list # A complete to-do list
-function M.get_to_do_list(line_nr)
+function M.get_to_do_list(line_nr, use_cache)
     line_nr = line_nr or vim.api.nvim_win_get_cursor(0)[1] -- Use cur. line if no line provided
+    
+    -- Activate cache if not already active and use_cache not explicitly false
+    if use_cache ~= false and not item_cache.active then
+        init_cache()
+        local list = to_do_list:new():read(line_nr)
+        clear_cache()
+        return list
+    end
+    
     local list = to_do_list:new():read(line_nr)
     return list
 end
 
 --- Function to cycle through the to-do status markers for the item on the current line
 function M.toggle_to_do()
+    -- Initialize the cache for this operation
+    init_cache()
+    
     local mode = vim.api.nvim_get_mode()['mode']
     -- If we're in visual mode, toggle the to-do items on all selected lines
     if mode == 'v' then
@@ -618,6 +683,13 @@ function M.toggle_to_do()
     else
         M.get_to_do_item():rotate_status()
     end
+    
+    -- Clear the cache after the operation
+    clear_cache()
 end
+
+-- Add cache control functions to the module
+M.init_cache = init_cache
+M.clear_cache = clear_cache
 
 return M
