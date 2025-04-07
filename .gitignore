@@ -10,3 +10,7 @@ assets/logo/*.pdf
 assets/logo/*.aux
 assets/logo/*.fdb_latexmk
 assets/demo/sources
+
+# Claude reference files
+.cursor/
+CLAUDE.md
