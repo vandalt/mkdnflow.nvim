@@ -377,21 +377,81 @@ end
 function to_do_item:set_status(target, dependent_call, propagation_direction)
     dependent_call = dependent_call == nil and false or dependent_call
     local config = require('mkdnflow').config.to_do
+    
+    -- Save cursor position before changing the line
+    local cursor_pos = vim.api.nvim_win_get_cursor(0)
+    local cursor_col = cursor_pos[2]
+    local cursor_row = cursor_pos[1]
+    
+    -- Get the line content before changes
+    local old_line = self.content
+    local marker_pos = old_line:find('%[.-%]')
+    local old_marker = self:current_marker()
+    
     -- Create the new line, substituting the current status with the target status
     -- Get the status object
     local target_status = type(target) == 'table' and target or to_do_statuses:get(target)
+    local new_marker = target_status ~= nil and target_status:get_marker() or old_marker
+    
     -- Prep the updated text for the line
     local new_line = self.content:gsub(
-        string.format('%%[(%s)%%]', self:current_marker()), -- The current marker
+        string.format('%%[(%s)%%]', old_marker), -- The current marker
         -- Recycle the current marker if the target status is not recognized
-        string.format('%%[%s%%]', target_status ~= nil and target_status:get_marker() or '%1'),
+        string.format('%%[%s%%]', new_marker),
         1
     )
+    
+    -- Update the buffer
     vim.api.nvim_buf_set_lines(0, self.line_nr - 1, self.line_nr, false, { new_line })
+    
     -- Update status (or keep the same if no target was found)
     self.status = target_status ~= nil and target_status or self.status
     -- Update the item's content attribute
     self.content = new_line
+    
+    -- If this is the cursor's line, restore proper cursor position
+    if cursor_row == self.line_nr and marker_pos and cursor_col >= marker_pos then
+        -- Calculate cursor position adjustment for marker change
+        local old_effective_len = #old_marker
+        local new_effective_len = #new_marker
+        
+        -- Special handling for blank space - crucially important for cursor position!
+        -- When the marker is just a space, effectively treat it as having zero width
+        -- for visual cursor positioning purposes
+        if old_marker == " " then 
+            old_effective_len = 0 
+        end
+        if new_marker == " " then 
+            new_effective_len = 0
+        end
+        
+        -- Handle offset correction factor:
+        -- If we're departing from a blank status and cursor is at or right after
+        -- the marker, we need to adjust by -1 to account for the visual offset
+        local correction = 0
+        if old_marker == " " and new_marker ~= " " then
+            correction = -1
+        elseif old_marker ~= " " and new_marker == " " then
+            correction = 1
+        end
+        
+        -- Compute difference in effective length with correction
+        local diff = (new_effective_len - old_effective_len) + correction
+        
+        -- Only adjust cursor if after the marker
+        if cursor_col >= marker_pos then
+            local new_col = cursor_col + diff
+            
+            -- Ensure cursor doesn't go beyond end of line or before marker
+            local line_length = #new_line
+            if new_col > line_length then
+                new_col = line_length
+            end
+            
+            vim.api.nvim_win_set_cursor(0, {cursor_row, new_col})
+        end
+    end
+    
     -- Update parents if possible and desired
     if
         not vim.tbl_isempty(self.parent) and config.status_propagation.up
@@ -399,6 +459,7 @@ function to_do_item:set_status(target, dependent_call, propagation_direction)
     then
         self:propagate_status(dependent_call, propagation_direction)
     end
+    
     -- Sort the to-do list if desired
     if config.sort.on_status_change and not dependent_call then
         self.host_list:sort(self)
