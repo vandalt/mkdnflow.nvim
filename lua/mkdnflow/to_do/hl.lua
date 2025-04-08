@@ -31,12 +31,18 @@ local match_ids = {}
 local function set_highlights(to_do_statuses)
     for _, status in ipairs(to_do_statuses) do
         if status.highlight.marker then
-            vim.api.nvim_set_hl(0, string.format('MkdnflowToDoMarker%s', status.name:pascal()),
-                status.highlight.marker)
+            vim.api.nvim_set_hl(
+                0,
+                string.format('MkdnflowToDoMarker%s', status.name:pascal()),
+                status.highlight.marker
+            )
         end
         if status.highlight.content then
-            vim.api.nvim_set_hl(0, string.format('MkdnflowToDoContent%s', status.name:pascal()),
-                status.highlight.content)
+            vim.api.nvim_set_hl(
+                0,
+                string.format('MkdnflowToDoContent%s', status.name:pascal()),
+                status.highlight.content
+            )
         end
     end
 end
@@ -58,17 +64,16 @@ local function highlight_to_dos()
         -- Marker highlighting
         local marker_pattern = string.format(
             '\\v(^[ \\t]*[-*+]\\s+)\\zs\\[%s\\]\\ze',
-            status:get_marker(), status:get_marker()
+            status:get_marker(),
+            status:get_marker()
         )
         local marker_id = vim.fn.matchadd(
             string.format('MkdnflowToDoMarker%s', status.name:pascal()),
             marker_pattern
         )
         -- Content highlighting
-        local content_pattern = string.format(
-            '\\v(^[ \\t]*[-*+]\\s+\\[%s\\]\\s+\\zs.+)',
-            status:get_marker()
-        )
+        local content_pattern =
+            string.format('\\v(^[ \\t]*[-*+]\\s+\\[%s\\]\\s+\\zs.+)', status:get_marker())
         local content_id = vim.fn.matchadd(
             string.format('MkdnflowToDoContent%s', status.name:pascal()),
             content_pattern

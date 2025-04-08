@@ -321,7 +321,7 @@ function to_do_item:read(line_nr)
     if cached_item then
         return cached_item
     end
-    
+
     local new_to_do_item = to_do_item:new() -- Create a new instance
     -- Get the line
     local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)
@@ -377,22 +377,22 @@ end
 function to_do_item:set_status(target, dependent_call, propagation_direction)
     dependent_call = dependent_call == nil and false or dependent_call
     local config = require('mkdnflow').config.to_do
-    
+
     -- Save cursor position before changing the line
     local cursor_pos = vim.api.nvim_win_get_cursor(0)
     local cursor_col = cursor_pos[2]
     local cursor_row = cursor_pos[1]
-    
+
     -- Get the line content before changes
     local old_line = self.content
     local marker_pos = old_line:find('%[.-%]')
     local old_marker = self:current_marker()
-    
+
     -- Create the new line, substituting the current status with the target status
     -- Get the status object
     local target_status = type(target) == 'table' and target or to_do_statuses:get(target)
     local new_marker = target_status ~= nil and target_status:get_marker() or old_marker
-    
+
     -- Prep the updated text for the line
     local new_line = self.content:gsub(
         string.format('%%[(%s)%%]', old_marker), -- The current marker
@@ -400,58 +400,58 @@ function to_do_item:set_status(target, dependent_call, propagation_direction)
         string.format('%%[%s%%]', new_marker),
         1
     )
-    
+
     -- Update the buffer
     vim.api.nvim_buf_set_lines(0, self.line_nr - 1, self.line_nr, false, { new_line })
-    
+
     -- Update status (or keep the same if no target was found)
     self.status = target_status ~= nil and target_status or self.status
     -- Update the item's content attribute
     self.content = new_line
-    
+
     -- If this is the cursor's line, restore proper cursor position
     if cursor_row == self.line_nr and marker_pos and cursor_col >= marker_pos then
         -- Calculate cursor position adjustment for marker change
         local old_effective_len = #old_marker
         local new_effective_len = #new_marker
-        
+
         -- Special handling for blank space - crucially important for cursor position!
         -- When the marker is just a space, effectively treat it as having zero width
         -- for visual cursor positioning purposes
-        if old_marker == " " then 
-            old_effective_len = 0 
+        if old_marker == ' ' then
+            old_effective_len = 0
         end
-        if new_marker == " " then 
+        if new_marker == ' ' then
             new_effective_len = 0
         end
-        
+
         -- Handle offset correction factor:
         -- If we're departing from a blank status and cursor is at or right after
         -- the marker, we need to adjust by -1 to account for the visual offset
         local correction = 0
-        if old_marker == " " and new_marker ~= " " then
+        if old_marker == ' ' and new_marker ~= ' ' then
             correction = -1
-        elseif old_marker ~= " " and new_marker == " " then
+        elseif old_marker ~= ' ' and new_marker == ' ' then
             correction = 1
         end
-        
+
         -- Compute difference in effective length with correction
         local diff = (new_effective_len - old_effective_len) + correction
-        
+
         -- Only adjust cursor if after the marker
         if cursor_col >= marker_pos then
             local new_col = cursor_col + diff
-            
+
             -- Ensure cursor doesn't go beyond end of line or before marker
             local line_length = #new_line
             if new_col > line_length then
                 new_col = line_length
             end
-            
-            vim.api.nvim_win_set_cursor(0, {cursor_row, new_col})
+
+            vim.api.nvim_win_set_cursor(0, { cursor_row, new_col })
         end
     end
-    
+
     -- Update parents if possible and desired
     if
         not vim.tbl_isempty(self.parent) and config.status_propagation.up
@@ -459,7 +459,7 @@ function to_do_item:set_status(target, dependent_call, propagation_direction)
     then
         self:propagate_status(dependent_call, propagation_direction)
     end
-    
+
     -- Sort the to-do list if desired
     if config.sort.on_status_change and not dependent_call then
         self.host_list:sort(self)
@@ -603,17 +603,23 @@ end
 --- Method to sort a to-do list
 --- @param target_item? to_do_item The item whose status change triggered the sort call
 function to_do_list:sort(target_item)
-    local sections, cursor = {}, { 
-        new_line = 0, 
-        old_position = vim.api.nvim_win_get_cursor(0),
-        old_column_bytes = 0
-    }
-    
+    local sections, cursor =
+        {}, {
+            new_line = 0,
+            old_position = vim.api.nvim_win_get_cursor(0),
+            old_column_bytes = 0,
+        }
+
     -- If the cursor is on a to-do item, save the byte position before the marker
     if cursor.old_position[1] > 0 then
-        local line_content = vim.api.nvim_buf_get_lines(0, cursor.old_position[1]-1, cursor.old_position[1], false)[1]
+        local line_content = vim.api.nvim_buf_get_lines(
+            0,
+            cursor.old_position[1] - 1,
+            cursor.old_position[1],
+            false
+        )[1]
         local marker_pos = line_content:find('%[.-%]')
-        
+
         if marker_pos and cursor.old_position[2] > 0 then
             -- Calculate cursor position relative to the marker
             if cursor.old_position[2] < marker_pos then
@@ -623,7 +629,7 @@ function to_do_list:sort(target_item)
                 -- Cursor is at or after the marker
                 -- Store the offset from the beginning of line to the cursor
                 cursor.old_column_bytes = cursor.old_position[2]
-                
+
                 -- Also store the marker for reference (to detect changes)
                 local marker = line_content:match('%[(.-)%]')
                 if marker then
@@ -635,7 +641,7 @@ function to_do_list:sort(target_item)
             cursor.old_column_bytes = cursor.old_position[2]
         end
     end
-    
+
     -- Put the siblings in their respective section
     local hold = {}
     for _, item in ipairs(self.items) do
@@ -652,7 +658,7 @@ function to_do_list:sort(target_item)
             table.insert(sections[item.status.sort.section], item)
         end
     end
-    
+
     -- Now add the held items (if any)
     for _, item in ipairs(hold) do
         if not sections[item.status.sort.section] then
@@ -664,7 +670,7 @@ function to_do_list:sort(target_item)
             table.insert(sections[item.status.sort.section], item)
         end
     end
-    
+
     local replacement_lines = {}
     -- Gather the sections, flattening any descendants
     local cur_replacee_line = self.line_range.start
@@ -689,7 +695,7 @@ function to_do_list:sort(target_item)
             end
         end
     end
-    
+
     -- Replace the lines in the buffer
     vim.api.nvim_buf_set_lines(
         0,
@@ -698,7 +704,7 @@ function to_do_list:sort(target_item)
         false,
         replacement_lines
     )
-    
+
     -- Move the cursor if desired
     if
         require('mkdnflow').config.to_do.sort.on_status_change
@@ -707,16 +713,16 @@ function to_do_list:sort(target_item)
     then
         -- Calculate correct cursor column position accounting for marker changes
         local new_col = cursor.old_column_bytes
-        
+
         if cursor.new_content and cursor.old_marker then
             local new_marker_pos = cursor.new_content:find('%[.-%]')
             local new_marker = cursor.new_content:match('%[(.-)%]')
-            
+
             if new_marker_pos and new_marker and cursor.old_position[2] >= new_marker_pos then
                 -- Cursor was after marker, adjust for any change in marker length
                 local marker_len_diff = #new_marker - #cursor.old_marker
                 new_col = cursor.old_column_bytes + marker_len_diff
-                
+
                 -- Make sure we don't go beyond line end or before marker
                 local line_length = #cursor.new_content
                 if new_col > line_length then
@@ -726,7 +732,7 @@ function to_do_list:sort(target_item)
                 end
             end
         end
-        
+
         vim.api.nvim_win_set_cursor(0, { cursor.new_line, new_col })
     end
 end
@@ -741,7 +747,7 @@ local M = {}
 function M.get_to_do_item(line_nr, use_cache)
     -- Use the current (cursor) line if no line number was provided
     line_nr = line_nr or vim.api.nvim_win_get_cursor(0)[1] -- Use cur. line if no line provided
-    
+
     -- Activate cache if not already active and use_cache not explicitly false
     if use_cache ~= false and not item_cache.active then
         init_cache()
@@ -749,7 +755,7 @@ function M.get_to_do_item(line_nr, use_cache)
         clear_cache()
         return item
     end
-    
+
     -- TODO If we have a visual selection spanning multiple lines, take a different approach
     local item = to_do_item:get(line_nr)
     return item
@@ -761,7 +767,7 @@ end
 --- @return to_do_list # A complete to-do list
 function M.get_to_do_list(line_nr, use_cache)
     line_nr = line_nr or vim.api.nvim_win_get_cursor(0)[1] -- Use cur. line if no line provided
-    
+
     -- Activate cache if not already active and use_cache not explicitly false
     if use_cache ~= false and not item_cache.active then
         init_cache()
@@ -769,7 +775,7 @@ function M.get_to_do_list(line_nr, use_cache)
         clear_cache()
         return list
     end
-    
+
     local list = to_do_list:new():read(line_nr)
     return list
 end
@@ -778,7 +784,7 @@ end
 function M.toggle_to_do()
     -- Initialize the cache for this operation
     init_cache()
-    
+
     local mode = vim.api.nvim_get_mode()['mode']
     -- If we're in visual mode, toggle the to-do items on all selected lines
     if mode == 'v' then
@@ -803,7 +809,7 @@ function M.toggle_to_do()
     else
         M.get_to_do_item():rotate_status()
     end
-    
+
     -- Clear the cache after the operation
     clear_cache()
 end
