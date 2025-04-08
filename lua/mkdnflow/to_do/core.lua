@@ -542,7 +542,39 @@ end
 --- Method to sort a to-do list
 --- @param target_item? to_do_item The item whose status change triggered the sort call
 function to_do_list:sort(target_item)
-    local sections, cursor = {}, { new_line = 0, old_position = vim.api.nvim_win_get_cursor(0) }
+    local sections, cursor = {}, { 
+        new_line = 0, 
+        old_position = vim.api.nvim_win_get_cursor(0),
+        old_column_bytes = 0
+    }
+    
+    -- If the cursor is on a to-do item, save the byte position before the marker
+    if cursor.old_position[1] > 0 then
+        local line_content = vim.api.nvim_buf_get_lines(0, cursor.old_position[1]-1, cursor.old_position[1], false)[1]
+        local marker_pos = line_content:find('%[.-%]')
+        
+        if marker_pos and cursor.old_position[2] > 0 then
+            -- Calculate cursor position relative to the marker
+            if cursor.old_position[2] < marker_pos then
+                -- Cursor is before the marker, keep byte position as is
+                cursor.old_column_bytes = cursor.old_position[2]
+            else
+                -- Cursor is at or after the marker
+                -- Store the offset from the beginning of line to the cursor
+                cursor.old_column_bytes = cursor.old_position[2]
+                
+                -- Also store the marker for reference (to detect changes)
+                local marker = line_content:match('%[(.-)%]')
+                if marker then
+                    cursor.old_marker = marker
+                end
+            end
+        else
+            -- No marker found or cursor at start, just keep original position
+            cursor.old_column_bytes = cursor.old_position[2]
+        end
+    end
+    
     -- Put the siblings in their respective section
     local hold = {}
     for _, item in ipairs(self.items) do
@@ -559,6 +591,7 @@ function to_do_list:sort(target_item)
             table.insert(sections[item.status.sort.section], item)
         end
     end
+    
     -- Now add the held items (if any)
     for _, item in ipairs(hold) do
         if not sections[item.status.sort.section] then
@@ -570,6 +603,7 @@ function to_do_list:sort(target_item)
             table.insert(sections[item.status.sort.section], item)
         end
     end
+    
     local replacement_lines = {}
     -- Gather the sections, flattening any descendants
     local cur_replacee_line = self.line_range.start
@@ -578,6 +612,7 @@ function to_do_list:sort(target_item)
             table.insert(replacement_lines, item.content)
             if item.line_nr == cursor.old_position[1] then
                 cursor.new_line = cur_replacee_line
+                cursor.new_content = item.content
             end
             cur_replacee_line = cur_replacee_line + 1
             if item:has_children() then
@@ -585,6 +620,7 @@ function to_do_list:sort(target_item)
                 for _, item_ in ipairs(descendants) do
                     if item_.line_nr == cursor.old_position[1] then
                         cursor.new_line = cur_replacee_line
+                        cursor.new_content = item_.content
                     end
                     cur_replacee_line = cur_replacee_line + 1
                     table.insert(replacement_lines, item_.content)
@@ -592,6 +628,7 @@ function to_do_list:sort(target_item)
             end
         end
     end
+    
     -- Replace the lines in the buffer
     vim.api.nvim_buf_set_lines(
         0,
@@ -600,14 +637,36 @@ function to_do_list:sort(target_item)
         false,
         replacement_lines
     )
+    
     -- Move the cursor if desired
-    -- TODO: Account for unicode bytes
     if
         require('mkdnflow').config.to_do.sort.on_status_change
         and require('mkdnflow').config.to_do.sort.cursor_behavior.track
         and cursor.new_line > 0
     then
-        vim.api.nvim_win_set_cursor(0, { cursor.new_line, 0 })
+        -- Calculate correct cursor column position accounting for marker changes
+        local new_col = cursor.old_column_bytes
+        
+        if cursor.new_content and cursor.old_marker then
+            local new_marker_pos = cursor.new_content:find('%[.-%]')
+            local new_marker = cursor.new_content:match('%[(.-)%]')
+            
+            if new_marker_pos and new_marker and cursor.old_position[2] >= new_marker_pos then
+                -- Cursor was after marker, adjust for any change in marker length
+                local marker_len_diff = #new_marker - #cursor.old_marker
+                new_col = cursor.old_column_bytes + marker_len_diff
+                
+                -- Make sure we don't go beyond line end or before marker
+                local line_length = #cursor.new_content
+                if new_col > line_length then
+                    new_col = line_length
+                elseif new_col < new_marker_pos then
+                    new_col = new_marker_pos
+                end
+            end
+        end
+        
+        vim.api.nvim_win_set_cursor(0, { cursor.new_line, new_col })
     end
 end
 
