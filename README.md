@@ -1517,6 +1517,19 @@ Handles a citation, potentially linking to a bibliography entry or external sour
 
 See [CONTRIBUTING.md](https://github.com/jakewvincent/mkdnflow.nvim/blob/main/CONTRIBUTING.md)
 
+## 🔢 Version information
+
+Current stable version: **1.2.4**
+
+Mkdnflow follows [Semantic Versioning](https://semver.org/) for its releases.
+
+For detailed release information and changes, please consult the [CHANGELOG.md](https://github.com/jakewvincent/mkdnflow.nvim/blob/main/CHANGELOG.md).
+
+### Compatibility notes
+- Neovim >= 0.10.0 recommended
+- Neovim 0.9.x should be mostly compatible
+- Breaking changes are only introduced in major version updates
+
 ## 🔗 Related projects
 
 ### Competition
