@@ -140,6 +140,8 @@ M.formatTemplate = function(timing, template)
         elseif replacement == 'os_date' then
             replacement = os.date('%Y-%m-%d')
         end
+        -- Use empty string if replacement is nil (e.g., no link under cursor)
+        replacement = replacement or ''
         template = string.gsub(template, '{{%s?' .. placeholder_name .. '%s?}}', replacement)
     end
     return template

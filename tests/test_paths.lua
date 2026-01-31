@@ -212,19 +212,37 @@ T['formatTemplate']['after timing uses after placeholders'] = function()
     eq(result, 'Static text')
 end
 
--- BUG TEST: This test documents a bug where formatTemplate crashes when
--- there's no link under cursor but the placeholder uses 'link_title'.
--- The gsub receives nil as replacement, causing: "bad argument #3 to 'gsub'"
--- Uncomment to verify the bug exists:
---
--- T['formatTemplate']['BUG: crashes when no link under cursor'] = function()
---     set_lines({ 'No link here' })
---     set_cursor(1, 5)
---     -- This should gracefully handle the missing link, but currently crashes
---     local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('before')]])
---     -- Expected: either return template unchanged or return empty title
---     -- Actual: crashes with "bad argument #3 to 'gsub'"
--- end
+T['formatTemplate']['handles no link under cursor gracefully'] = function()
+    set_lines({ 'No link here' })
+    set_cursor(1, 5)
+    -- Should return template with placeholder removed (empty string for title)
+    local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('before')]])
+    -- The default template is "# {{title}}" - with no link, title should be empty
+    eq(result, '# ')
+end
+
+T['formatTemplate']['handles empty buffer'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('before')]])
+    eq(result, '# ')
+end
+
+T['formatTemplate']['handles cursor at end of line with no link'] = function()
+    set_lines({ 'Some text without links' })
+    set_cursor(1, 20)
+    local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('before')]])
+    eq(result, '# ')
+end
+
+T['formatTemplate']['os_date still works when no link'] = function()
+    set_lines({ 'No link here' })
+    set_cursor(1, 5)
+    local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('before', 'Date: {{date}}')]])
+    -- Should still replace date placeholder
+    local matches_date = result:match('^Date: %d%d%d%d%-%d%d%-%d%d$') ~= nil
+    eq(matches_date, true)
+end
 
 -- =============================================================================
 -- handlePath() - Integration tests for path handling
