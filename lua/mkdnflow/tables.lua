@@ -384,6 +384,33 @@ M.moveToCell = function(row_offset, cell_offset)
     row_offset = row_offset or 0
     cell_offset = cell_offset or 0
     local position = vim.api.nvim_win_get_cursor(0)
+
+    -- Check if this is a complete table (has separator row)
+    -- If not, treat as normal text - don't navigate within incomplete tables
+    local current_line = vim.api.nvim_buf_get_lines(0, position[1] - 1, position[1], false)[1]
+    if M.isPartOfTable(current_line, position[1]) then
+        local table_data = read_table(position[1])
+        if not table_data.metadata.midrule_row then
+            -- Incomplete table (no separator row), pass through the keypress
+            if row_offset ~= 0 then
+                -- Moving vertically (Enter key) - insert newline
+                vim.api.nvim_feedkeys(
+                    vim.api.nvim_replace_termcodes('<CR>', true, false, true),
+                    'n',
+                    true
+                )
+            else
+                -- Moving horizontally (Tab key) - insert tab
+                vim.api.nvim_feedkeys(
+                    vim.api.nvim_replace_termcodes('<C-I>', true, false, true),
+                    'n',
+                    true
+                )
+            end
+            return
+        end
+    end
+
     -- Figure out which cell the cursor is currently in
     local cursor_cell = which_cell(position[1], position[2])
     local row = position[1] + row_offset

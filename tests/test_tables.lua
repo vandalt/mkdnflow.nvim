@@ -359,14 +359,34 @@ T['edge_cases']['handles partial table without separator row'] = function()
     set_cursor(1, 5)
     -- Enter insert mode and run MkdnEnter command (simulates user pressing mapped key)
     -- In insert mode, MkdnEnter calls newListItemOrNextTableRow which calls moveToCell(1, 0)
-    -- This should not crash even though there's no separator row yet
-    -- Currently fails with: attempt to index field 'col_alignments' (a nil value)
+    -- Without a separator row, this should treat it as normal text and insert a newline
+    -- (which splits the line at cursor position, like normal insert mode Enter)
     child.type_keys('i')  -- Enter insert mode
     child.cmd('MkdnEnter')  -- Run the command
     child.type_keys('<Esc>')  -- Exit insert mode
-    -- Should not crash - just verify we're still functional
+    -- Should create a new line (newline inserted, splitting the line at cursor)
     local cursor = get_cursor()
-    eq(cursor[1] >= 1, true)
+    eq(cursor[1], 2)  -- Cursor should be on line 2
+    local lines = get_lines()
+    eq(#lines, 2)  -- Should now have 2 lines (line was split)
+end
+
+T['edge_cases']['handles Enter at end of header-only row'] = function()
+    -- User has typed only the header row and presses Enter at the very end
+    set_lines({
+        '| Col1 | Col2 | Col3 |',
+    })
+    -- Use append mode to go to end of line
+    child.type_keys('A')  -- Append mode - cursor at end
+    child.cmd('MkdnEnter')  -- Run the command
+    child.type_keys('<Esc>')  -- Exit insert mode
+    -- Should create a new line below (not navigate within "table")
+    local cursor = get_cursor()
+    eq(cursor[1], 2)  -- Cursor should be on line 2
+    local lines = get_lines()
+    eq(#lines, 2)  -- Should have 2 lines
+    eq(lines[1], '| Col1 | Col2 | Col3 |')  -- Original header intact
+    eq(lines[2], '')  -- New empty line
 end
 
 T['edge_cases']['handles table with only header and separator row'] = function()
