@@ -152,4 +152,74 @@ T['compat']['does not overwrite new key with old key'] = function()
     eq(get_line(1), '- [x] Test item')
 end
 
+-- =============================================================================
+-- Backwards compatibility for individual keys → statuses array
+-- =============================================================================
+T['compat']['migrates individual keys to statuses array'] = function()
+    -- Setup with old config format using individual keys
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                not_started = ' ',
+                in_progress = '-',
+                complete = 'X',
+            }
+        })
+    ]])
+    -- Set buffer with to-do item
+    set_lines({ '- [ ] Test item' })
+    set_cursor(1, 0)
+    -- Toggle to-do - this should work if individual keys were migrated to statuses
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] Test item')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [X] Test item')
+end
+
+T['compat']['does not create statuses from nil individual keys'] = function()
+    -- Setup with empty to_do config - should use defaults, not create nil statuses
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {}
+        })
+    ]])
+    -- Set buffer with to-do item
+    set_lines({ '- [ ] Test item' })
+    set_cursor(1, 0)
+    -- Toggle should work with default statuses
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] Test item')
+end
+
+-- =============================================================================
+-- Backwards compatibility for update_parents → status_propagation.up
+-- =============================================================================
+T['compat']['migrates update_parents to status_propagation'] = function()
+    -- Setup with old config format using update_parents
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                update_parents = true,
+            }
+        })
+    ]])
+    -- Verify the config was migrated
+    local up = child.lua_get("require('mkdnflow').config.to_do.status_propagation.up")
+    eq(up, true)
+end
+
+T['compat']['migrates update_parents false value'] = function()
+    -- Setup with update_parents = false
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                update_parents = false,
+            }
+        })
+    ]])
+    -- Verify the config was migrated (false should be preserved)
+    local up = child.lua_get("require('mkdnflow').config.to_do.status_propagation.up")
+    eq(up, false)
+end
+
 return T
