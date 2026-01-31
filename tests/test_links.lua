@@ -670,4 +670,151 @@ T['getBracketedSpanPart']['handles multiple spans on line'] = function()
     eq(result, 'second')
 end
 
+-- =============================================================================
+-- Task list edge cases (Issue #269)
+-- =============================================================================
+T['task_list_edge_cases'] = new_set()
+
+-- Issue #269: Error following link in a task list
+-- When cursor is on checkbox [ ], it gets matched as ref_style_link pattern
+-- and causes crash in get_ref() when trying to concatenate nil refnr
+T['task_list_edge_cases']['does not crash when cursor on checkbox before link'] = function()
+    set_lines({ '- [ ] [Foo](bar.md)' })
+    set_cursor(1, 3) -- cursor on the checkbox '['
+    -- This should not crash - getLinkPart with nil should be handled gracefully
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            local link = require('mkdnflow.links').getLinkUnderCursor()
+            if link then
+                require('mkdnflow.links').getLinkPart(link, 'source')
+            end
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    -- If it failed, show the error message for debugging
+    if not success then
+        local err = child.lua_get('tostring(_G.test_err)')
+        error('getLinkPart crashed: ' .. err)
+    end
+    eq(success, true)
+end
+
+-- This test verifies that following a link in a task list doesn't crash
+-- Reproduces the exact scenario from issue #269
+T['task_list_edge_cases']['followLink does not crash on task list with link'] = function()
+    set_lines({ '- [ ] [Foo](bar.md)', '', '[ref]: http://example.com' })
+    set_cursor(1, 3) -- cursor on the checkbox '['
+    -- followLink should not crash even if cursor is on checkbox
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            require('mkdnflow.links').followLink()
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    if not success then
+        local err = child.lua_get('tostring(_G.test_err)')
+        -- The bug causes: "attempt to concatenate local 'refnr' (a nil value)"
+        if err:match('concatenate') and err:match('nil') then
+            error('Issue #269 bug reproduced: ' .. err)
+        end
+        error('followLink crashed: ' .. err)
+    end
+    eq(success, true)
+end
+
+-- Pattern priority: md_link should be detected before ref_style_link
+-- even when checkbox "[ ]" precedes the link (which could match ref_style_link pattern)
+T['task_list_edge_cases']['detects md_link when cursor on link text in task list'] = function()
+    set_lines({ '- [ ] [Foo](bar.md)' })
+    set_cursor(1, 8) -- cursor on 'Foo' inside the link
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.test_link and _G.test_link[3]')
+    eq(link_type, 'md_link')
+end
+
+T['task_list_edge_cases']['extracts source from link in task list'] = function()
+    set_lines({ '- [ ] [Foo](bar.md)' })
+    set_cursor(1, 8) -- cursor on 'Foo' inside the link
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_source = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    local source = child.lua_get('_G.test_source')
+    eq(source, 'bar.md')
+end
+
+T['task_list_edge_cases']['handles checked task with link'] = function()
+    set_lines({ '- [x] [Link](page.md)' })
+    set_cursor(1, 3) -- cursor on the checkbox 'x'
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            local link = require('mkdnflow.links').getLinkUnderCursor()
+            if link then
+                require('mkdnflow.links').getLinkPart(link, 'source')
+            end
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    eq(success, true)
+end
+
+T['task_list_edge_cases']['handles in-progress task with link'] = function()
+    set_lines({ '- [-] [Link](page.md)' })
+    set_cursor(1, 3) -- cursor on the checkbox '-'
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            local link = require('mkdnflow.links').getLinkUnderCursor()
+            if link then
+                require('mkdnflow.links').getLinkPart(link, 'source')
+            end
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    eq(success, true)
+end
+
+T['task_list_edge_cases']['handles nested task list with link'] = function()
+    set_lines({ '  - [ ] [Nested](nested.md)' })
+    set_cursor(1, 5) -- cursor on the checkbox '['
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            local link = require('mkdnflow.links').getLinkUnderCursor()
+            if link then
+                require('mkdnflow.links').getLinkPart(link, 'source')
+            end
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    eq(success, true)
+end
+
+T['task_list_edge_cases']['handles task list item without link'] = function()
+    set_lines({ '- [ ] Just a task' })
+    set_cursor(1, 3) -- cursor on the checkbox '['
+    -- The checkbox might be detected as something, but getLinkPart should not crash
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            local link = require('mkdnflow.links').getLinkUnderCursor()
+            if link then
+                require('mkdnflow.links').getLinkPart(link, 'source')
+            end
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    eq(success, true)
+end
+
+T['task_list_edge_cases']['handles wiki link in task list'] = function()
+    set_lines({ '- [ ] [[WikiPage]]' })
+    set_cursor(1, 3) -- cursor on the checkbox '['
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            local link = require('mkdnflow.links').getLinkUnderCursor()
+            if link then
+                require('mkdnflow.links').getLinkPart(link, 'source')
+            end
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    eq(success, true)
+end
+
 return T

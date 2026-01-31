@@ -43,6 +43,10 @@ M.getLinkUnderCursor = function(col)
     local position = vim.api.nvim_win_get_cursor(0)
     local capture, start_row, start_col, end_row, end_col, match, match_lines
     col = col or position[2]
+    -- Patterns ordered from most specific to least specific.
+    -- More specific patterns (like md_link with parentheses) should be checked
+    -- before less specific ones (like ref_style_link which just has two brackets).
+    local pattern_order = { 'md_link', 'wiki_link', 'auto_link', 'ref_style_link', 'citation' }
     local patterns = {
         md_link = '(%b[]%b())',
         wiki_link = '(%[%b[]%])',
@@ -52,8 +56,9 @@ M.getLinkUnderCursor = function(col)
     }
     local row = position[1]
     local lines = vim.api.nvim_buf_get_lines(0, row - 1 - links.context, row + links.context, false)
-    -- Iterate through the patterns to see if there's a matching link under the cursor
-    for link_type, pattern in pairs(patterns) do
+    -- Iterate through the patterns in order to see if there's a matching link under the cursor
+    for _, link_type in ipairs(pattern_order) do
+        local pattern = patterns[link_type]
         local init_row, init_col = 1, 1
         local continue = true
         while continue do
@@ -92,6 +97,10 @@ end
 get_ref()
 --]]
 local get_ref = function(refnr, start_row)
+    -- Return early if refnr is nil (e.g., checkbox mistakenly matched as ref_style_link)
+    if not refnr then
+        return nil
+    end
     start_row = start_row or vim.api.nvim_win_get_cursor(0)[1]
     local row = start_row + 1
     local line_count, continue = vim.api.nvim_buf_line_count(0), true
