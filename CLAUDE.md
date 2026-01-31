@@ -109,6 +109,8 @@ make test_file FILE=tests/test_utils.lua  # Run specific file
 - Pure utility functions in `utils.lua` are good test targets
 - For buffer manipulation tests, use `MiniTest.new_child_neovim()`
 
+**When tests fail:** Tests define expected behavior. If a test fails, fix the **code**, not the test. Never modify a test to make it pass when the underlying bug still exists. If a bug can't be fixed immediately, leave the test failing and document the issue.
+
 ## Code Style
 
 ### Formatting
