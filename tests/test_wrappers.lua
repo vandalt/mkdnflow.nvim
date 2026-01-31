@@ -261,4 +261,79 @@ T['edge_cases']['indentation with spaces'] = function()
     eq(line:match('^%s+%-') ~= nil, true)
 end
 
+-- =============================================================================
+-- Command robustness (Issue #255)
+-- Commands should not crash when modules are not loaded
+-- =============================================================================
+T['command_robustness'] = new_set({
+    hooks = {
+        pre_case = function()
+            -- Start fresh without calling setup
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+            ]])
+        end,
+    },
+})
+
+-- Issue #255: MkdnCreateLinkFromClipboard crashes when setup() not called
+T['command_robustness']['MkdnCreateLinkFromClipboard does not crash without setup'] = function()
+    set_lines({ 'some text here' })
+    set_cursor(1, 5)
+    -- Run command directly (no visual selection to simplify test)
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            vim.cmd('MkdnCreateLinkFromClipboard')
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    if not success then
+        local err = child.lua_get('tostring(_G.test_err)')
+        if err:match("index field.*links.*nil") then
+            error('Issue #255 bug reproduced: ' .. err)
+        end
+        -- If error is something else, show it for debugging
+        error('Unexpected error: ' .. err)
+    end
+    eq(success, true)
+end
+
+T['command_robustness']['MkdnFollowLink does not crash without setup'] = function()
+    set_lines({ '[link](page.md)' })
+    set_cursor(1, 3)
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            vim.cmd('MkdnFollowLink')
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    eq(success, true)
+end
+
+T['command_robustness']['MkdnCreateLink does not crash without setup'] = function()
+    set_lines({ 'word here' })
+    set_cursor(1, 2)
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            vim.cmd('MkdnCreateLink')
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    eq(success, true)
+end
+
+T['command_robustness']['MkdnToggleToDo does not crash without setup'] = function()
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            vim.cmd('MkdnToggleToDo')
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    eq(success, true)
+end
+
 return T
