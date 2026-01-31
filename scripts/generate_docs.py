@@ -2022,8 +2022,16 @@ def build_documentation() -> List[Section]:
                             content=[
                                 BulletList(
                                     items=[
-                                        ListItem("Open Markdown files in the current window", done=True),
+                                        ListItem(
+                                            "Link following",
+                                            done=True,
+                                            children=[
+                                                ListItem("Open markdown and other text filetypes in the current window", done=True),
+                                                ListItem("Open other filetypes and URLs with your system's default application", done=True),
+                                            ],
+                                        ),
                                         ListItem("Browser-like 'Back' and 'Forward' functionality", done=True),
+                                        ListItem("Table of contents window", done=False),
                                     ]
                                 ),
                             ],
@@ -2039,14 +2047,25 @@ def build_documentation() -> List[Section]:
                             items=[
                                 ListItem("Link creation from a visual selection or the word under the cursor", done=True),
                                 ListItem("Link destruction", done=True),
-                                ListItem("Follow links to local paths, other Markdown files, and websites", done=True),
-                                ListItem("Follow external links", done=True),
+                                ListItem("Follow links to local paths and other Markdown files", done=True),
+                                ListItem("Follow external links (open using default application)", done=True),
                                 ListItem(
                                     "Follow `.bib`-based references",
                                     done=True,
                                     children=[
                                         ListItem("Open `url` or `doi` field in the default browser", done=True),
                                         ListItem("Open documents specified in `file` field", done=True),
+                                    ],
+                                ),
+                                ListItem("Implicit filetype extensions", done=True),
+                                ListItem(
+                                    "Support for various link types",
+                                    done=True,
+                                    children=[
+                                        ListItem("Standard Markdown links (`[my page](my_page.md)`)", done=True),
+                                        ListItem("Wiki links (direct `[[my page]]` or piped `[[my_page.md|my page]]`)", done=True),
+                                        ListItem("Automatic links (`<https://my.page>`)", done=True),
+                                        ListItem("Reference-style links (`[my page][1]` with `[1]: my_page.md`)", done=True),
                                     ],
                                 ),
                             ]
@@ -2094,7 +2113,7 @@ def build_documentation() -> List[Section]:
                                 ListItem("Status propagation", done=True),
                                 ListItem("To-do list sorting", done=True),
                                 ListItem("Create to-do items from plain ordered or unordered list items", done=True),
-                                ListItem("Highlighting", done=True),
+                                ListItem("Customizable highlighting for to-do status markers and content", done=True),
                             ]
                         ),
                     ],
@@ -2120,7 +2139,15 @@ def build_documentation() -> List[Section]:
                         BulletList(
                             items=[
                                 ListItem("Section folding and fold toggling", done=True),
-                                ListItem("Enhanced foldtext", done=True),
+                                ListItem(
+                                    "Helpful indicators for folded section contents",
+                                    done=True,
+                                    children=[
+                                        ListItem("Section heading level", done=True),
+                                        ListItem("Counts of Markdown objects (tables, lists, code blocks, etc.)", done=True),
+                                        ListItem("Line and word counts", done=True),
+                                    ],
+                                ),
                                 ListItem("YAML block folding", done=False),
                             ]
                         ),
@@ -2155,50 +2182,11 @@ def build_documentation() -> List[Section]:
                     title="Visual enhancements",
                     tag="visual",
                     emoji="🖌️",
-                    children=[
-                        Section(
-                            title="Enhanced foldtext",
-                            tag="foldtext-feature",
-                            emoji="🗂️",
-                            content=[
-                                BulletList(
-                                    items=[
-                                        ListItem(
-                                            "Helpful visualization of folded section contents:",
-                                            done=True,
-                                            children=[
-                                                ListItem("Section heading level", done=True),
-                                                ListItem("Object counts", done=True),
-                                                ListItem("Line and word counts", done=True),
-                                            ],
-                                        ),
-                                    ]
-                                ),
-                            ],
-                        ),
-                        Section(
-                            title="Conceal",
-                            tag="conceal-feature",
-                            emoji="🙈",
-                            content=[
-                                BulletList(
-                                    items=[
-                                        ListItem("Conceal markdown and wiki link syntax", done=True),
-                                    ]
-                                ),
-                            ],
-                        ),
-                        Section(
-                            title="Highlighting",
-                            tag="highlighting",
-                            emoji="🖍️",
-                            content=[
-                                BulletList(
-                                    items=[
-                                        ListItem("Custom(izable) highlighting for to-do status markers and content", done=False),
-                                    ]
-                                ),
-                            ],
+                    content=[
+                        BulletList(
+                            items=[
+                                ListItem("Conceal markdown and wiki link syntax", done=True),
+                            ]
                         ),
                     ],
                 ),

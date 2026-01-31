@@ -75,18 +75,27 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 
 #### Within-notebook navigation
 
-- [x] Open Markdown files in the current window
+- [x] Link following
+    - [x] Open markdown and other text filetypes in the current window
+    - [x] Open other filetypes and URLs with your system's default application
 - [x] Browser-like 'Back' and 'Forward' functionality
+- [ ] Table of contents window
 
 ### 🔗 Link and reference handling
 
 - [x] Link creation from a visual selection or the word under the cursor
 - [x] Link destruction
-- [x] Follow links to local paths, other Markdown files, and websites
-- [x] Follow external links
+- [x] Follow links to local paths and other Markdown files
+- [x] Follow external links (open using default application)
 - [x] Follow `.bib`-based references
     - [x] Open `url` or `doi` field in the default browser
     - [x] Open documents specified in `file` field
+- [x] Implicit filetype extensions
+- [x] Support for various link types
+    - [x] Standard Markdown links (`[my page](my_page.md)`)
+    - [x] Wiki links (direct `[[my page]]` or piped `[[my_page.md|my page]]`)
+    - [x] Automatic links (`<https://my.page>`)
+    - [x] Reference-style links (`[my page][1]` with `[1]: my_page.md`)
 
 ### 📊 Table support
 
@@ -108,7 +117,7 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 - [x] Status propagation
 - [x] To-do list sorting
 - [x] Create to-do items from plain ordered or unordered list items
-- [x] Highlighting
+- [x] Customizable highlighting for to-do status markers and content
 
 ### 📁 File management
 
@@ -118,7 +127,10 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 ### 🪗 Folding
 
 - [x] Section folding and fold toggling
-- [x] Enhanced foldtext
+- [x] Helpful indicators for folded section contents
+    - [x] Section heading level
+    - [x] Counts of Markdown objects (tables, lists, code blocks, etc.)
+    - [x] Line and word counts
 - [ ] YAML block folding
 
 ### 🔮 Completion
@@ -132,20 +144,7 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 
 ### 🖌️ Visual enhancements
 
-#### 🗂️ Enhanced foldtext
-
-- [x] Helpful visualization of folded section contents:
-    - [x] Section heading level
-    - [x] Object counts
-    - [x] Line and word counts
-
-#### 🙈 Conceal
-
 - [x] Conceal markdown and wiki link syntax
-
-#### 🖍️ Highlighting
-
-- [ ] Custom(izable) highlighting for to-do status markers and content
 
 ## 💾 Installation
 
