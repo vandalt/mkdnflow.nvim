@@ -1,0 +1,31 @@
+name: Docs Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Regenerate docs
+        run: make docs
+
+      - name: Check for differences
+        run: |
+          if ! git diff --exit-code README.md doc/mkdnflow.txt; then
+            echo ""
+            echo "::error::Documentation is out of sync!"
+            echo ""
+            echo "The generated documentation does not match the source."
+            echo "Please run 'make docs' locally and commit the changes."
+            exit 1
+          fi
+          echo "Documentation is up to date."

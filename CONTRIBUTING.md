@@ -27,7 +27,19 @@ Pull requests are welcome for both bugfixes and new features. I reserve the righ
 * Clearly describe what the pull request does
 * Include screenshots or animated GIFs in your pull request when sensible.
 * Use [**Conventional Commits**](https://www.conventionalcommits.org/)! Otherwise, I will ask you to revise your PR.
-* When a PR adds or changes a feature, update the documentation as well.
+* When a PR adds or changes a feature, update the documentation as well (see [Documentation](#documentation) below).
+
+## Documentation
+
+Both `README.md` and `doc/mkdnflow.txt` are generated from a single source: `scripts/generate_docs.py`. **Do not edit README.md or doc/mkdnflow.txt directly**—your changes will be overwritten.
+
+To update documentation:
+
+1. Edit the content in `scripts/generate_docs.py`
+2. Run `make docs` to regenerate both files
+3. Commit all three files together (`generate_docs.py`, `README.md`, `doc/mkdnflow.txt`)
+
+CI will verify that documentation is in sync. If you forget to run `make docs`, the CI check will fail.
 
 ## Styleguides
 
