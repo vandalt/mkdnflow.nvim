@@ -74,15 +74,12 @@ T['hasYaml']['handles empty YAML block'] = function()
     eq(finish, 1)
 end
 
--- BUG: This test documents a bug where hasYaml() crashes when the YAML block
--- is not closed. The while loop tries to access lines beyond the buffer end.
--- Uncomment to verify the bug:
--- T['hasYaml']['returns nil for unclosed YAML block'] = function()
---     set_lines({ '---', 'title: Test', 'No closing delimiter' })
---     child.lua('_start, _finish = require("mkdnflow.yaml").hasYaml()')
---     local result = child.lua_get('_start == nil')
---     eq(result, true)
--- end
+T['hasYaml']['returns nil for unclosed YAML block'] = function()
+    set_lines({ '---', 'title: Test', 'No closing delimiter' })
+    child.lua('_start, _finish = require("mkdnflow.yaml").hasYaml()')
+    local result = child.lua_get('_start == nil')
+    eq(result, true)
+end
 
 T['hasYaml']['handles long YAML block'] = function()
     set_lines({
@@ -101,6 +98,22 @@ T['hasYaml']['handles long YAML block'] = function()
     local finish = child.lua_get('_finish')
     eq(start, 0)
     eq(finish, 7)
+end
+
+T['hasYaml']['handles single line buffer with just ---'] = function()
+    set_lines({ '---' })
+    child.lua('_start, _finish = require("mkdnflow.yaml").hasYaml()')
+    local result = child.lua_get('_start == nil')
+    eq(result, true)
+end
+
+T['hasYaml']['handles YAML with empty lines inside'] = function()
+    set_lines({ '---', 'title: Test', '', 'author: Someone', '---' })
+    child.lua('_start, _finish = require("mkdnflow.yaml").hasYaml()')
+    local start = child.lua_get('_start')
+    local finish = child.lua_get('_finish')
+    eq(start, 0)
+    eq(finish, 4)
 end
 
 -- =============================================================================
@@ -184,6 +197,60 @@ T['ingestYamlBlock']['handles empty list values'] = function()
     eq(#emptylist, 0)
 end
 
+T['ingestYamlBlock']['handles URL with colons'] = function()
+    set_lines({ '---', 'url: https://example.com', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    eq(child.lua_get('_data.url[1]'), 'https://example.com')
+end
+
+T['ingestYamlBlock']['handles quoted values with colons'] = function()
+    set_lines({ '---', 'title: "A: Special Title"', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    eq(child.lua_get('_data.title[1]'), '"A: Special Title"')
+end
+
+T['ingestYamlBlock']['handles time values with multiple colons'] = function()
+    set_lines({ '---', 'time: 10:30:45', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    eq(child.lua_get('_data.time[1]'), '10:30:45')
+end
+
+T['ingestYamlBlock']['handles value with leading spaces'] = function()
+    set_lines({ '---', 'title:   Spaced Title', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    -- Should trim the leading space after colon
+    local title = child.lua_get('_data.title[1]')
+    eq(title:match('^%s'), nil) -- No leading whitespace
+end
+
+T['ingestYamlBlock']['handles empty value'] = function()
+    set_lines({ '---', 'empty:', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    local empty = child.lua_get('_data.empty')
+    eq(type(empty), 'table')
+    eq(#empty, 0)
+end
+
 -- =============================================================================
 -- Bibliography paths from YAML
 -- =============================================================================
@@ -224,66 +291,6 @@ T['edge_cases']['handles empty buffer'] = function()
     eq(result, true)
 end
 
--- BUG: Same issue as unclosed YAML - crashes when accessing beyond buffer end.
--- Uncomment to verify the bug:
--- T['edge_cases']['handles single line buffer'] = function()
---     set_lines({ '---' })
---     child.lua('_start, _finish = require("mkdnflow.yaml").hasYaml()')
---     local result = child.lua_get('_start == nil')
---     eq(result, true)
--- end
-
--- BUG: This test documents a bug where values containing colons are parsed incorrectly.
--- The regex `.*:%s?(.+)$` captures after the FIRST colon, so:
--- `url: https://example.com` becomes `//example.com` instead of `https://example.com`
--- Uncomment to verify the bug:
--- T['edge_cases']['handles value with colon'] = function()
---     set_lines({ '---', 'url: https://example.com', '---' })
---     child.lua([[
---         local yaml = require('mkdnflow.yaml')
---         _start, _finish = yaml.hasYaml()
---         _data = yaml.ingestYamlBlock(_start, _finish)
---     ]])
---     eq(child.lua_get('_data.url[1]'), 'https://example.com')
--- end
-
--- Test showing actual behavior (not ideal, but doesn't crash)
-T['edge_cases']['parses value after first colon'] = function()
-    set_lines({ '---', 'url: https://example.com', '---' })
-    child.lua([[
-        local yaml = require('mkdnflow.yaml')
-        _start, _finish = yaml.hasYaml()
-        _data = yaml.ingestYamlBlock(_start, _finish)
-    ]])
-    -- Due to regex, only gets content after first colon
-    eq(child.lua_get('_data.url[1]'), '//example.com')
-end
-
--- BUG: Same colon parsing issue - quoted values with colons are truncated.
--- `"A: Special Title"` becomes `Special Title"` (after the inner colon)
--- Uncomment to verify the bug:
--- T['edge_cases']['handles quoted values'] = function()
---     set_lines({ '---', 'title: "A: Special Title"', '---' })
---     child.lua([[
---         local yaml = require('mkdnflow.yaml')
---         _start, _finish = yaml.hasYaml()
---         _data = yaml.ingestYamlBlock(_start, _finish)
---     ]])
---     eq(child.lua_get('_data.title[1]'), '"A: Special Title"')
--- end
-
--- Test showing actual behavior with quoted colons
-T['edge_cases']['quoted values with colons truncated'] = function()
-    set_lines({ '---', 'title: "A: Special Title"', '---' })
-    child.lua([[
-        local yaml = require('mkdnflow.yaml')
-        _start, _finish = yaml.hasYaml()
-        _data = yaml.ingestYamlBlock(_start, _finish)
-    ]])
-    -- Due to regex, gets content after inner colon
-    eq(child.lua_get('_data.title[1]'), 'Special Title"')
-end
-
 T['edge_cases']['handles --- in content after YAML'] = function()
     set_lines({ '---', 'title: Test', '---', '', '---', 'This is a horizontal rule' })
     child.lua('_start, _finish = require("mkdnflow.yaml").hasYaml()')
@@ -292,6 +299,52 @@ T['edge_cases']['handles --- in content after YAML'] = function()
     -- Should only find the first YAML block
     eq(start, 0)
     eq(finish, 2)
+end
+
+T['edge_cases']['handles numeric values'] = function()
+    set_lines({ '---', 'count: 42', 'price: 19.99', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    eq(child.lua_get('_data.count[1]'), '42')
+    eq(child.lua_get('_data.price[1]'), '19.99')
+end
+
+T['edge_cases']['handles boolean-like values'] = function()
+    set_lines({ '---', 'draft: true', 'published: false', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    eq(child.lua_get('_data.draft[1]'), 'true')
+    eq(child.lua_get('_data.published[1]'), 'false')
+end
+
+T['edge_cases']['handles file path values'] = function()
+    set_lines({ '---', 'image: /path/to/image.png', 'file: ./relative/path.md', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    eq(child.lua_get('_data.image[1]'), '/path/to/image.png')
+    eq(child.lua_get('_data.file[1]'), './relative/path.md')
+end
+
+T['edge_cases']['handles list items with colons'] = function()
+    set_lines({ '---', 'links:', '  - https://example.com', '  - http://test.org', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    local links = child.lua_get('_data.links')
+    eq(#links, 2)
+    eq(links[1], 'https://example.com')
+    eq(links[2], 'http://test.org')
 end
 
 return T

@@ -40,15 +40,18 @@ vim.api.nvim_create_autocmd('BufWinEnter', {
 M.hasYaml = function()
     local first_line, row, line_count =
         vim.api.nvim_buf_get_lines(0, 0, 1, false)[1], 1, vim.api.nvim_buf_line_count(0)
-    if first_line:match('^---$') then
+    if first_line and first_line:match('^---$') then
         local continue = true
         while continue and row <= line_count do
             local line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
-            if line:match('^---$') then
+            if line and line:match('^---$') then
                 continue = false
                 return 0, row
-            else
+            elseif line then
                 row = row + 1
+            else
+                -- Reached end of buffer without finding closing ---
+                continue = false
             end
         end
     end
@@ -61,11 +64,10 @@ M.ingestYamlBlock = function(start, finish)
         for i = 0, finish, 1 do
             local line = vim.api.nvim_buf_get_lines(0, i, i + 1, false)[1]
             local key = line:match('^([%a_-]*):')
-            local value = line:match('.*:%s?(.+)$')
+            -- Use non-greedy match: [^:]* matches up to first colon only
+            -- Use %s* to strip all leading whitespace after colon
+            local value = line:match('^[^:]*:%s*(.+)$')
             local item = line:match('^  %- (.*)')
-            if item then
-                print(item)
-            end
             if key and value then
                 yaml[key] = { value }
             elseif key and not item then
