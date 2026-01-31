@@ -275,4 +275,25 @@ T['edge_cases']['handles to-do with special characters'] = function()
     eq(get_line(1), '- [-] task with `code` and *emphasis*')
 end
 
+T['edge_cases']['toggle_to_do does nothing on plain text'] = function()
+    set_lines({ 'just plain text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), 'just plain text') -- unchanged
+end
+
+T['edge_cases']['toggle_to_do does nothing on plain list item'] = function()
+    set_lines({ '- plain list item without checkbox' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- plain list item without checkbox') -- unchanged
+end
+
+T['edge_cases']['toggle_to_do does nothing on empty buffer'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '') -- unchanged
+end
+
 return T
