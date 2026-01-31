@@ -387,4 +387,29 @@ T['edge_cases']['handles table with only header and separator row'] = function()
     eq(cursor[1] >= 1, true)
 end
 
+T['edge_cases']['handles cursor at end of table row'] = function()
+    -- User has a complete table and cursor is at the very end of a data row
+    -- The cursor is positioned ON the last pipe character
+    set_lines({
+        '| Col1 | Col2 | Col3 |',
+        '| - | - | - |',
+        '| cell1 | cell2 | cell3 |',
+    })
+    -- Place cursor ON the last | character (0-indexed, so length - 1)
+    -- Line is: | cell1 | cell2 | cell3 |
+    -- The last | is at position 26 (0-indexed) for a 27-char line
+    local line_len = #'| cell1 | cell2 | cell3 |'
+    set_cursor(3, line_len - 1)  -- On the last pipe
+    -- Enter insert mode at end of line and run MkdnEnter command
+    child.type_keys('A')  -- Append mode - cursor goes to end of line
+    child.cmd('MkdnEnter')  -- Run the command
+    child.type_keys('<Esc>')  -- Exit insert mode
+    -- which_cell returns nil for cursor at/past last pipe, then moveToCell
+    -- tries to do arithmetic on nil cursor_cell
+    -- Currently fails with: attempt to perform arithmetic on local 'cursor_cell' (a nil value)
+    -- Should not crash - just verify we're still functional
+    local cursor = get_cursor()
+    eq(cursor[1] >= 1, true)
+end
+
 return T
