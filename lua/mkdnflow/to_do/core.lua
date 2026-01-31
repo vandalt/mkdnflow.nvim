@@ -92,7 +92,7 @@ function to_do_statuses:name(marker)
     end
     -- If the name has not been found yet, look in legacy markers
     for _, status_tbl in ipairs(self) do
-        if vim.list_contains(status_tbl:get_extra_markers(), marker) then
+        if vim.tbl_contains(status_tbl:get_extra_markers(), marker) then
             return status_tbl.name
         end
     end
@@ -121,7 +121,7 @@ function to_do_statuses:index(status)
     end
     -- If the status has not been found yet, look in legacy markers
     for i, status_tbl in ipairs(self) do
-        if vim.list_contains(status_tbl:get_extra_markers(), status) then
+        if vim.tbl_contains(status_tbl:get_extra_markers(), status) then
             return i
         end
     end
@@ -139,7 +139,7 @@ function to_do_statuses:get(status)
     end
     -- If the status has not been found yet, look in legacy markers
     for _, status_tbl in ipairs(self) do
-        if vim.list_contains(status_tbl:get_extra_markers(), status) then
+        if vim.tbl_contains(status_tbl:get_extra_markers(), status) then
             return status_tbl
         end
     end
