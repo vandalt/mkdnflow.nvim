@@ -110,6 +110,12 @@ source.new = function()
 end
 
 function source:complete(params, callback)
+    -- Only provide suggestions if the current word in the context starts with the trigger character '@'
+    local line = params.context.cursor_before_line
+    if not line or not (line:match('^@%w*$') or line:match('%W@%w*$')) then
+        callback({})
+        return
+    end
     local items = get_files_items()
     if bib_paths then
         -- For bib files, there are three lists (tables) in mkdnflow where we might find the paths for a bib file
