@@ -35,8 +35,10 @@ local T = new_set({
     hooks = {
         pre_case = function()
             child.restart({ '-u', 'scripts/minimal_init.lua' })
-            -- Set filetype to markdown and initialize mkdnflow
+            -- Give buffer a .md filename so mkdnflow recognizes it and loads modules
+            -- Then set filetype and initialize mkdnflow
             child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({})
             ]])
@@ -345,6 +347,24 @@ T['edge_cases']['handles table at end of buffer'] = function()
     -- Moving down from last row should not crash
     child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
     -- Should still be functional
+    local cursor = get_cursor()
+    eq(cursor[1] >= 1, true)
+end
+
+T['edge_cases']['handles partial table without separator row'] = function()
+    -- User is creating a table manually and has only typed the header row
+    set_lines({
+        '| Col1 | Col2 | Col3 |',
+    })
+    set_cursor(1, 5)
+    -- Enter insert mode and run MkdnEnter command (simulates user pressing mapped key)
+    -- In insert mode, MkdnEnter calls newListItemOrNextTableRow which calls moveToCell(1, 0)
+    -- This should not crash even though there's no separator row yet
+    -- Currently fails with: attempt to index field 'col_alignments' (a nil value)
+    child.type_keys('i')  -- Enter insert mode
+    child.cmd('MkdnEnter')  -- Run the command
+    child.type_keys('<Esc>')  -- Exit insert mode
+    -- Should not crash - just verify we're still functional
     local cursor = get_cursor()
     eq(cursor[1] >= 1, true)
 end
