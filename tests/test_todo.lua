@@ -35,8 +35,10 @@ local T = new_set({
     hooks = {
         pre_case = function()
             child.restart({ '-u', 'scripts/minimal_init.lua' })
-            -- Set filetype to markdown and initialize mkdnflow
+            -- Give buffer a .md filename so mkdnflow recognizes it and loads modules
+            -- Then set filetype and initialize mkdnflow
             child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({})
             ]])
