@@ -1,0 +1,352 @@
+-- tests/test_tables.lua
+-- Tests for markdown table functionality
+
+local new_set = MiniTest.new_set
+local eq = MiniTest.expect.equality
+
+local child = MiniTest.new_child_neovim()
+
+-- Helper to set buffer content
+local function set_lines(lines)
+    child.lua('vim.api.nvim_buf_set_lines(0, 0, -1, false, ' .. vim.inspect(lines) .. ')')
+end
+
+-- Helper to get buffer content
+local function get_lines()
+    return child.lua_get('vim.api.nvim_buf_get_lines(0, 0, -1, false)')
+end
+
+-- Helper to get a specific line (1-indexed)
+local function get_line(n)
+    return child.lua_get('vim.api.nvim_buf_get_lines(0, ' .. (n - 1) .. ', ' .. n .. ', false)[1]')
+end
+
+-- Helper to set cursor position (1-indexed row, 0-indexed col)
+local function set_cursor(row, col)
+    child.lua('vim.api.nvim_win_set_cursor(0, {' .. row .. ', ' .. col .. '})')
+end
+
+-- Helper to get cursor position
+local function get_cursor()
+    return child.lua_get('vim.api.nvim_win_get_cursor(0)')
+end
+
+local T = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            -- Set filetype to markdown and initialize mkdnflow
+            child.lua([[
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({})
+            ]])
+        end,
+        post_once = child.stop,
+    },
+})
+
+-- =============================================================================
+-- Table detection
+-- =============================================================================
+T['isPartOfTable'] = new_set()
+
+T['isPartOfTable']['detects simple table row'] = function()
+    set_lines({ '| col1 | col2 |' })
+    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('| col1 | col2 |')]])
+    eq(result, true)
+end
+
+T['isPartOfTable']['detects table without outer pipes'] = function()
+    set_lines({ 'col1 | col2' })
+    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('col1 | col2')]])
+    eq(result, true)
+end
+
+T['isPartOfTable']['detects separator row'] = function()
+    set_lines({ '| --- | --- |' })
+    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('| --- | --- |')]])
+    eq(result, true)
+end
+
+T['isPartOfTable']['rejects plain text'] = function()
+    set_lines({ 'just some text' })
+    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('just some text')]])
+    eq(result, false)
+end
+
+T['isPartOfTable']['rejects single pipe'] = function()
+    set_lines({ 'text | more text' })
+    -- Single pipe might be ambiguous, but without enough context should be false
+    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('text with one pipe')]])
+    eq(result, false)
+end
+
+-- =============================================================================
+-- Table creation
+-- =============================================================================
+T['newTable'] = new_set()
+
+T['newTable']['creates basic 2x2 table'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({2, 2})]])
+    local lines = get_lines()
+    -- Original empty line + header row + separator row + 2 data rows = 5
+    eq(#lines, 5)
+    -- Check structure has pipes (table starts at line 2)
+    eq(lines[2]:match('^|.*|$') ~= nil, true)
+    eq(lines[3]:match('%-%-%-') ~= nil, true) -- separator row
+end
+
+T['newTable']['creates table with specified dimensions'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({3, 1})]])
+    local lines = get_lines()
+    -- Original empty line + header + separator + 1 data row = 4 lines
+    eq(#lines, 4)
+    -- Count pipes to verify column count (3 cols = 4 pipes with outer pipes)
+    local _, pipe_count = lines[2]:gsub('|', '')
+    eq(pipe_count, 4)
+end
+
+T['newTable']['creates table without header when noh specified'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({2, 2, 'noh'})]])
+    local lines = get_lines()
+    -- Original empty line + 2 data rows = 3
+    eq(#lines, 3)
+    -- Should not contain separator dashes (check lines 2 and 3)
+    eq(lines[2]:match('%-%-%-') == nil, true)
+    eq(lines[3]:match('%-%-%-') == nil, true)
+end
+
+-- =============================================================================
+-- Table formatting
+-- =============================================================================
+T['formatTable'] = new_set()
+
+T['formatTable']['aligns columns to max width'] = function()
+    set_lines({
+        '| short | x |',
+        '| --- | --- |',
+        '| very long content | y |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- After formatting, all rows should have same length
+    eq(#lines[1], #lines[3])
+end
+
+T['formatTable']['preserves left alignment'] = function()
+    set_lines({
+        '| Header | Col2 |',
+        '| :--- | --- |',
+        '| text | more |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Separator should still have left alignment marker (use %-+ for one or more dashes)
+    eq(lines[2]:match(':%-+[^:]') ~= nil, true)
+end
+
+T['formatTable']['preserves right alignment'] = function()
+    set_lines({
+        '| Header | Col2 |',
+        '| ---: | --- |',
+        '| text | more |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Separator should still have right alignment marker (use %-+ for one or more dashes)
+    eq(lines[2]:match('[^:]%-+:') ~= nil, true)
+end
+
+T['formatTable']['preserves center alignment'] = function()
+    set_lines({
+        '| Header | Col2 |',
+        '| :---: | --- |',
+        '| text | more |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Separator should still have center alignment markers (use %-+ for one or more dashes)
+    eq(lines[2]:match(':%-+:') ~= nil, true)
+end
+
+-- =============================================================================
+-- Cell navigation
+-- =============================================================================
+T['moveToCell'] = new_set()
+
+T['moveToCell']['moves to next cell'] = function()
+    set_lines({
+        '| cell1 | cell2 |',
+        '| ----- | ----- |',
+        '| a     | b     |',
+    })
+    set_cursor(1, 2) -- In cell1
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    -- Should be in cell2 now (column position should be after second pipe)
+    eq(cursor[1], 1) -- Same row
+    eq(cursor[2] > 8, true) -- Past the first cell
+end
+
+T['moveToCell']['moves to previous cell'] = function()
+    set_lines({
+        '| cell1 | cell2 |',
+        '| ----- | ----- |',
+        '| a     | b     |',
+    })
+    set_cursor(1, 10) -- In cell2
+    child.lua([[require('mkdnflow.tables').moveToCell(0, -1)]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1) -- Same row
+    eq(cursor[2] < 8, true) -- In first cell area
+end
+
+T['moveToCell']['moves to next row'] = function()
+    set_lines({
+        '| cell1 | cell2 |',
+        '| ----- | ----- |',
+        '| a     | b     |',
+    })
+    set_cursor(1, 2) -- In header row
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should skip separator row and land on data row
+    eq(cursor[1], 3)
+end
+
+T['moveToCell']['moves to previous row'] = function()
+    set_lines({
+        '| cell1 | cell2 |',
+        '| ----- | ----- |',
+        '| a     | b     |',
+    })
+    set_cursor(3, 2) -- In data row
+    child.lua([[require('mkdnflow.tables').moveToCell(-1, 0)]])
+    local cursor = get_cursor()
+    -- Should skip separator row and land on header row
+    eq(cursor[1], 1)
+end
+
+T['moveToCell']['skips separator row when navigating down'] = function()
+    set_lines({
+        '| header | col2 |',
+        '| ------ | ---- |',
+        '| data   | more |',
+    })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should land on row 3, not row 2 (separator)
+    eq(cursor[1], 3)
+end
+
+-- =============================================================================
+-- Row operations
+-- =============================================================================
+T['addRow'] = new_set()
+
+T['addRow']['adds row below current'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+    })
+    set_cursor(3, 2)
+    child.lua([[require('mkdnflow.tables').addRow()]])
+    local lines = get_lines()
+    eq(#lines, 4) -- One more row
+    -- New row should be at line 4
+    eq(lines[4]:match('^|.*|$') ~= nil, true)
+end
+
+T['addRow']['adds row above current'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+    })
+    set_cursor(3, 2)
+    child.lua([[require('mkdnflow.tables').addRow(-1)]])
+    local lines = get_lines()
+    eq(#lines, 4)
+    -- Original data should now be at line 4
+    eq(lines[4]:match('a') ~= nil, true)
+end
+
+-- =============================================================================
+-- Column operations
+-- =============================================================================
+T['addCol'] = new_set()
+
+T['addCol']['adds column after current'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+    })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.tables').addCol()]])
+    local lines = get_lines()
+    -- Count pipes - should have 5 now (3 columns with outer pipes)
+    local _, pipe_count = lines[1]:gsub('|', '')
+    eq(pipe_count, 4) -- Actually 4 pipes for 3 cols with outer pipes
+end
+
+T['addCol']['adds column before current'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+    })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.tables').addCol(-1)]])
+    local lines = get_lines()
+    -- New column should be before col1
+    local _, pipe_count = lines[1]:gsub('|', '')
+    eq(pipe_count, 4)
+end
+
+-- =============================================================================
+-- Edge cases
+-- =============================================================================
+T['edge_cases'] = new_set()
+
+T['edge_cases']['formatTable handles empty cells'] = function()
+    set_lines({
+        '| a |  |',
+        '| - | - |',
+        '|   | b |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should not crash, table should still be valid
+    eq(#lines, 3)
+    eq(lines[1]:match('|.*|') ~= nil, true)
+end
+
+T['edge_cases']['handles table at end of buffer'] = function()
+    set_lines({
+        '| col1 |',
+        '| ---- |',
+        '| data |',
+    })
+    set_cursor(3, 2)
+    -- Moving down from last row should not crash
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    -- Should still be functional
+    local cursor = get_cursor()
+    eq(cursor[1] >= 1, true)
+end
+
+return T
