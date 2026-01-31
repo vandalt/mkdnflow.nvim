@@ -369,4 +369,22 @@ T['edge_cases']['handles partial table without separator row'] = function()
     eq(cursor[1] >= 1, true)
 end
 
+T['edge_cases']['handles table with only header and separator row'] = function()
+    -- User is creating a table and has typed header + separator, but no data rows yet
+    set_lines({
+        '| Col1 | Col2 | Col3 |',
+        '| - | - | - |',
+    })
+    set_cursor(2, 5)  -- Cursor on separator row
+    -- Enter insert mode and run MkdnEnter command
+    -- moveToCell tries to skip separator row but there's no data row to land on
+    -- Currently fails with: stack overflow (infinite recursion in moveToCell)
+    child.type_keys('i')  -- Enter insert mode
+    child.cmd('MkdnEnter')  -- Run the command
+    child.type_keys('<Esc>')  -- Exit insert mode
+    -- Should not crash - just verify we're still functional
+    local cursor = get_cursor()
+    eq(cursor[1] >= 1, true)
+end
+
 return T
