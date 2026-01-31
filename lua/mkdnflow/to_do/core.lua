@@ -294,7 +294,8 @@ function to_do_list:add_relatives(parent)
         end
     end
     self.relatives_added = true
-    self.line_range.finish = self:terminus().line_nr
+    local terminus = self:terminus()
+    self.line_range.finish = terminus and terminus.line_nr or self.line_range.start
     return self
 end
 
@@ -303,6 +304,9 @@ end
 --- @return to_do_item # The last to-do item in the list
 function to_do_list:terminus()
     local function last_item(list)
+        if #list.items == 0 then
+            return nil
+        end
         local last_sib = list.items[#list.items]
         if last_sib:has_children() then
             last_sib = last_item(last_sib.children)
@@ -348,10 +352,16 @@ function to_do_item:read(line_nr)
 end
 
 function to_do_item:get(line_nr)
+    -- Check validity first to avoid building an empty list
+    local item = to_do_item:read(line_nr)
+    if not item.valid then
+        return item
+    end
+    -- Build the full list with relationships
     local list = to_do_list:new():read(line_nr)
-    local item = list.items[list.requester_idx]
-    item.host_list = list
-    return item
+    local list_item = list.items[list.requester_idx]
+    list_item.host_list = list
+    return list_item
 end
 
 --- Method to retrieve the default marker of a to-do status
@@ -468,6 +478,9 @@ end
 
 --- Method to change a to-do item's status to the next status in the config list
 function to_do_item:rotate_status(dependent_call)
+    if not self.valid then
+        return
+    end
     dependent_call = dependent_call == nil and false or dependent_call
     local next_status = to_do_statuses:next(self.status)
     self:set_status(next_status, dependent_call)
