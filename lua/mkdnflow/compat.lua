@@ -61,12 +61,22 @@ M.userConfigCheck = function(user_config)
         end
         -- Update to June 2024 format
         -- Removal will be breaking
-        if not user_config.to_do.statuses then
+        if
+            not user_config.to_do.statuses
+            and (
+                user_config.to_do.not_started
+                or user_config.to_do.in_progress
+                or user_config.to_do.complete
+            )
+        then
             user_config.to_do['statuses'] = {
                 { name = 'not_started', marker = user_config.to_do.not_started },
                 { name = 'in_progress', marker = user_config.to_do.in_progress },
                 { name = 'complete', marker = user_config.to_do.complete },
             }
+            warn(
+                "⬇️  The 'not_started', 'in_progress', and 'complete' keys in to_do are deprecated. Use 'statuses' instead. See :h mkdnflow-configuration."
+            )
         end
         -- Propagation (added July 2024)
         -- Removal will be breaking
