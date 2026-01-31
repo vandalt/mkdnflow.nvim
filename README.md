@@ -155,7 +155,6 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 
 * Linux, macOS, or Windows
 * Neovim >= 0.10.0 (older versions may work, but the plugin is only tested on Neovim 0.10.x)
-* [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) is currently required for the completion module
 
 Install Mkdnflow using your preferred package manager for Neovim. Once installed,
 Mkdnflow is configured and initialized using a setup function.

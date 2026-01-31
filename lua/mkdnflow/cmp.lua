@@ -17,14 +17,16 @@
 local mkdnflow_root_dir = require('mkdnflow').root_dir
 -- Only try to load bib paths if the bib module is enabled
 local bib_paths = require('mkdnflow').bib and require('mkdnflow').bib.bib_paths or nil
-local plenary_scandir = require('plenary').scandir.scan_dir
 local cmp = require('cmp')
 local extension = '.md' -- Keep the '.'
 
 local transform_explicit = require('mkdnflow').config.links.transform_explicit
 
 local function get_files_items()
-    local filepaths_in_root = plenary_scandir(mkdnflow_root_dir)
+    -- Find all markdown files recursively in the root directory
+    local filepaths_in_root = vim.fs.find(function(name)
+        return name:match('%' .. extension .. '$')
+    end, { path = mkdnflow_root_dir, type = 'file', limit = math.huge })
     local items = {}
     -- Iterate over files in the root directory & prepare for completion (if md file)
     for _, path in ipairs(filepaths_in_root) do
