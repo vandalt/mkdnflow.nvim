@@ -111,7 +111,8 @@ end
 
 function source:complete(params, callback)
     -- Only provide suggestions if the current word in the context starts with the trigger character '@'
-    if not params.context.cursor_before_line or not params.context.cursor_before_line:match('%W@%w*$') then
+    local line = params.context.cursor_before_line
+    if not line or not (line:match('^@%w*$') or line:match('%W@%w*$')) then
         callback({})
         return
     end
