@@ -2186,6 +2186,14 @@ def build_documentation() -> List[Section]:
                         BulletList(
                             items=[
                                 ListItem("Conceal markdown and wiki link syntax", done=True),
+                                ListItem(
+                                    "Extended link highlighting",
+                                    done=False,
+                                    children=[
+                                        ListItem("Automatic links", done=False),
+                                        ListItem("Wiki links", done=False),
+                                    ],
+                                ),
                             ]
                         ),
                     ],

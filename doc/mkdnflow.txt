@@ -175,6 +175,9 @@ YAML block parsing                                     *Mkdnflow-yaml-parsing*
 Visual enhancements                                          *Mkdnflow-visual*
 
 [x] Conceal markdown and wiki link syntax
+[ ] Extended link highlighting
+    [ ] Automatic links
+    [ ] Wiki links
 
 
 ==============================================================================

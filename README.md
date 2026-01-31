@@ -145,6 +145,9 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 ### 🖌️ Visual enhancements
 
 - [x] Conceal markdown and wiki link syntax
+- [ ] Extended link highlighting
+    - [ ] Automatic links
+    - [ ] Wiki links
 
 ## 💾 Installation
 
