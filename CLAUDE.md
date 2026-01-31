@@ -106,8 +106,30 @@ make test_file FILE=tests/test_utils.lua  # Run specific file
 
 - Test files go in `tests/` with `test_` prefix
 - CI runs tests on Neovim v0.9.5, v0.10.0, and stable
-- Pure utility functions in `utils.lua` are good test targets
-- For buffer manipulation tests, use `MiniTest.new_child_neovim()`
+
+### Test Levels
+
+| Level | Approach | Example |
+|-------|----------|---------|
+| **Unit** | Pure functions, no Neovim state | `utils.luaEscape('test')` |
+| **Integration** | Child Neovim + Lua API calls | `child.lua([[require('mkdnflow.to_do').toggle_to_do()]])` |
+| **E2E** | Child Neovim + keystroke simulation | `child.type_keys('<C-Space>')` |
+
+### Child Neovim Testing
+
+Use `MiniTest.new_child_neovim()` for tests that need buffer state, cursor position, or plugin functionality:
+
+```lua
+local child = MiniTest.new_child_neovim()
+
+-- Available methods:
+child.lua([[code]])           -- Execute Lua in child process
+child.lua_get([[expr]])       -- Execute and return result
+child.type_keys('i', 'text')  -- Simulate keystrokes
+child.api.nvim_*              -- Full Neovim API access
+```
+
+See `tests/test_todo.lua` for examples of integration tests with buffer manipulation.
 
 **When tests fail:** Tests define expected behavior. If a test fails, fix the **code**, not the test. Never modify a test to make it pass when the underlying bug still exists. If a bug can't be fixed immediately, leave the test failing and document the issue.
 
