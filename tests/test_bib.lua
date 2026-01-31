@@ -116,13 +116,10 @@ end
 -- =============================================================================
 T['edge_cases'] = new_set()
 
--- Note: Empty citation "@" actually matches the first entry in the bib file
--- because the citekey becomes empty and the pattern matches any entry.
--- This could be considered a bug, but documenting actual behavior here.
-T['edge_cases']['empty citation matches first entry'] = function()
+T['edge_cases']['empty citation returns nil'] = function()
     local result = child.lua_get([[require('mkdnflow.bib').handleCitation('@')]])
-    -- Returns the URL from smith2020 (first entry)
-    eq(result, 'https://example.com/smith2020')
+    -- Empty citekey should not match any entry
+    eq(result, vim.NIL)
 end
 
 T['edge_cases']['handles citation without @ prefix'] = function()

@@ -133,6 +133,10 @@ end
 
 local find_bib_entry = function(citation)
     local citekey = string.sub(citation, 2, -1)
+    -- Return early if citekey is empty (just "@" with no key)
+    if citekey == '' then
+        return nil
+    end
     local entry
     if yaml.bib.override and M.bib_paths.yaml[1] then
         entry = search_bib_source(citekey, 'yaml')
