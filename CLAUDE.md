@@ -38,9 +38,12 @@ mkdnflow.nvim/
 ├── doc/
 │   └── mkdnflow.txt          # Vim help file (GENERATED - do not edit)
 ├── scripts/
-│   └── generate_docs.py      # Documentation generator (single source of truth)
+│   ├── generate_docs.py      # Documentation generator (single source of truth)
+│   └── minimal_init.lua      # Test initialization script
+├── tests/
+│   └── test_*.lua            # Test files (mini.test framework)
 ├── README.md                  # GitHub readme (GENERATED - do not edit)
-├── Makefile                   # `make docs` to regenerate documentation
+├── Makefile                   # `make docs`, `make test`
 ├── CONTRIBUTING.md
 ├── CHANGELOG.md
 └── LICENSE
@@ -89,7 +92,22 @@ Modules are loaded conditionally based on config. The main entry point `lua/mkdn
 
 - **Linting/Formatting:** `stylua` with config in `.stylua.toml`
 - **Documentation:** `make docs` regenerates README.md and doc/mkdnflow.txt
-- **Testing:** No automated tests currently exist
+- **Testing:** `make test` runs all tests, `make test_file FILE=path` runs one file
+
+## Testing
+
+Tests use [mini.test](https://github.com/echasnovski/mini.test) framework (zero runtime dependencies).
+
+```bash
+make deps/mini.nvim   # One-time: download test dependency
+make test             # Run all tests
+make test_file FILE=tests/test_utils.lua  # Run specific file
+```
+
+- Test files go in `tests/` with `test_` prefix
+- CI runs tests on Neovim v0.9.5, v0.10.0, and stable
+- Pure utility functions in `utils.lua` are good test targets
+- For buffer manipulation tests, use `MiniTest.new_child_neovim()`
 
 ## Code Style
 
