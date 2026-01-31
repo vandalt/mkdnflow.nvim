@@ -147,6 +147,7 @@ return M
 - Imperative present tense: "Add feature" not "Added feature"
 - First line ≤ 72 characters
 - Reference issues/PRs after first line
+- **No AI co-attribution** — do not add "Co-Authored-By" or similar for coding agents
 
 ## Error Handling
 - Use `vim.api.nvim_echo()` with highlight groups for user messages
