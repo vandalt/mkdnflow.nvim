@@ -78,6 +78,34 @@ M.userConfigCheck = function(user_config)
                 "⬇️  The 'update_parents' key in to_do is deprecated. Use 'status_propagation.up' instead. See :h mkdnflow-configuration."
             )
         end
+        -- Migration for symbol → marker and colors → highlight (added January 2025)
+        -- Removal will be breaking
+        if user_config.to_do.statuses then
+            local warned_symbol = false
+            local warned_colors = false
+            for _, status in ipairs(user_config.to_do.statuses) do
+                -- Migrate symbol → marker
+                if status.symbol ~= nil and status.marker == nil then
+                    status.marker = status.symbol
+                    if not warned_symbol then
+                        warn(
+                            "⬇️  The 'symbol' key in to_do.statuses is deprecated. Use 'marker' instead. See :h mkdnflow-configuration."
+                        )
+                        warned_symbol = true
+                    end
+                end
+                -- Migrate colors → highlight
+                if status.colors ~= nil and status.highlight == nil then
+                    status.highlight = status.colors
+                    if not warned_colors then
+                        warn(
+                            "⬇️  The 'colors' key in to_do.statuses is deprecated. Use 'highlight' instead. See :h mkdnflow-configuration."
+                        )
+                        warned_colors = true
+                    end
+                end
+            end
+        end
     end
 
     -- Look for default bib path
