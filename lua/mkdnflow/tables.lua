@@ -277,16 +277,14 @@ local format_table = function(table_data)
                 local diff = max_lengths[idx] - width(value)
                 local aligned_value
                 local end_sep = idx == #row_data and '' or '|'
-                if
-                    table_data.metadata.col_alignments[idx] == 'right'
-                    and config.tables.style.mimic_alignment
-                then
+                -- Safely get column alignment, defaulting to 'default' if col_alignments is nil
+                local col_alignment = table_data.metadata.col_alignments
+                    and table_data.metadata.col_alignments[idx]
+                    or 'default'
+                if col_alignment == 'right' and config.tables.style.mimic_alignment then
                     aligned_value = string.rep(' ', diff) .. value
                     new_line = new_line .. cell_padding .. aligned_value .. cell_padding .. end_sep
-                elseif
-                    table_data.metadata.col_alignments[idx] == 'center'
-                    and config.tables.style.mimic_alignment
-                then
+                elseif col_alignment == 'center' and config.tables.style.mimic_alignment then
                     local left_fill = string.rep(' ', math.floor(diff / 2))
                     local right_fill = string.rep(' ', diff - #left_fill)
                     aligned_value = left_fill .. value .. right_fill
@@ -335,13 +333,22 @@ local which_cell = function(row, col)
     local cursorline = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
     cursorline = cursorline:gsub('\\|', '##')
     local init, cell, cursor_cell = 1, 1, nil
+    local last_cell = nil -- Track the last cell we passed
     for start, finish in utils.gmatch(cursorline, '[^|]+') do
         -- Find the indices of the match
         if col + 1 >= start and col <= finish then
             cursor_cell = cell
         end
+        -- Track this cell in case cursor is on a pipe after it
+        if col >= finish then
+            last_cell = cell
+        end
         init = finish or init
         cell = cell + 1
+    end
+    -- If cursor is on a pipe (cursor_cell nil), use the cell to its left
+    if cursor_cell == nil then
+        cursor_cell = last_cell or 1 -- Default to 1 for leading pipe
     end
     return cursor_cell
 end
@@ -386,7 +393,33 @@ M.moveToCell = function(row_offset, cell_offset)
     end
     local target_line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
     if is_separator_row(target_line) then
-        M.moveToCell(row_offset + (row_offset < 0 and -1 or 1), cell_offset)
+        local next_offset = row_offset + (row_offset < 0 and -1 or 1)
+        local next_row = position[1] + next_offset
+        -- Prevent infinite recursion: verify next row exists and is a valid non-separator table row
+        if next_row >= 1 and next_row <= line_count then
+            local next_line = vim.api.nvim_buf_get_lines(0, next_row - 1, next_row, false)[1]
+            if M.isPartOfTable(next_line, next_row) and not is_separator_row(next_line) then
+                M.moveToCell(next_offset, cell_offset)
+                return
+            end
+        end
+        -- No valid non-separator row found, exit table (moving down)
+        if row_offset > 0 then
+            if config.tables.auto_extend_rows then
+                M.addRow()
+                M.moveToCell(1, 0)
+            else
+                local current_line_count = vim.api.nvim_buf_line_count(0)
+                if current_line_count == position[1] then
+                    vim.api.nvim_buf_set_lines(0, position[1], position[1], false, { '' })
+                end
+                if config.tables.format_on_move then
+                    format_table(read_table(position[1]))
+                end
+                vim.api.nvim_win_set_cursor(0, { position[1] + 1, 0 })
+            end
+        end
+        -- If moving up (row_offset <= 0), stay put since there's no valid row above
     elseif M.isPartOfTable(target_line, row) then
         local table_rows = read_table(row)
         if config.tables.format_on_move then
