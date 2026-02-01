@@ -432,6 +432,31 @@ T['edge_cases']['handles cursor at end of table row'] = function()
     eq(cursor[1] >= 1, true)
 end
 
+-- Issue #263: Pipe character in text causes table-related error
+-- The bug: text containing a pipe (e.g., LaTeX $p(x|y)$) is mistakenly
+-- detected as a table, causing format_table to crash on nil col_alignments
+T['edge_cases']['pipe in text does not cause table error (#263)'] = function()
+    set_lines({ 'Conditional probability $p(x|y)$' })
+    set_cursor(1, 30)  -- Cursor at end of line
+    child.type_keys('A')  -- Enter insert mode at end
+    -- Press Enter which triggers MkdnEnter
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            vim.cmd('MkdnEnter')
+        end)
+    ]])
+    child.type_keys('<Esc>')
+    local success = child.lua_get('_G.test_ok')
+    if not success then
+        local err = child.lua_get('tostring(_G.test_err)')
+        if err:match('col_alignments') then
+            error('Issue #263 reproduced: col_alignments nil error: ' .. err)
+        end
+        error('MkdnEnter failed: ' .. err)
+    end
+    eq(success, true)
+end
+
 -- Issue #257: S-Tab on list item after todo causes stack overflow
 -- The bug: pressing S-Tab in insert mode on a list item causes
 -- infinite recursion in moveToCell when there's a todo item above
