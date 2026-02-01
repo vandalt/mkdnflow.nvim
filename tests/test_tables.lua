@@ -432,4 +432,32 @@ T['edge_cases']['handles cursor at end of table row'] = function()
     eq(cursor[1] >= 1, true)
 end
 
+-- Issue #257: S-Tab on list item after todo causes stack overflow
+-- The bug: pressing S-Tab in insert mode on a list item causes
+-- infinite recursion in moveToCell when there's a todo item above
+T['edge_cases']['S-Tab on list item does not cause stack overflow (#257)'] = function()
+    set_lines({
+        '- [ ] This is a todo item',
+        '- ',
+    })
+    set_cursor(2, 2)  -- Cursor at end of second line "- "
+    child.type_keys('A')  -- Enter insert mode at end of line
+    -- Run MkdnSTab command which calls indentListItemOrJumpTableCell(-1)
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            vim.cmd('MkdnSTab')
+        end)
+    ]])
+    child.type_keys('<Esc>')
+    local success = child.lua_get('_G.test_ok')
+    if not success then
+        local err = child.lua_get('tostring(_G.test_err)')
+        if err:match('stack overflow') then
+            error('Issue #257 reproduced: stack overflow on S-Tab: ' .. err)
+        end
+        error('MkdnSTab failed: ' .. err)
+    end
+    eq(success, true)
+end
+
 return T
