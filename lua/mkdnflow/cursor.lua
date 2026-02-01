@@ -161,8 +161,14 @@ local go_to_heading = function(anchor_text, reverse)
                     continue = false
                 else
                     -- Format current heading to see if it matches our search term
+                    -- Try new Unicode-aware anchor first
                     local heading_as_anchor = links.formatLink(line[1], nil, 2)
-                    if anchor_text == heading_as_anchor then
+                    -- Also generate legacy ASCII-only anchor for fallback matching
+                    local heading_as_anchor_legacy = links.formatAnchorLegacy(line[1])
+                    if
+                        anchor_text == heading_as_anchor
+                        or anchor_text == heading_as_anchor_legacy
+                    then
                         -- Set a mark
                         vim.api.nvim_buf_set_mark(0, '`', position[1], position[2], {})
                         -- Send the cursor to the row w/ the matching heading

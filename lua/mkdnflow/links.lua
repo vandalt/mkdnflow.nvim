@@ -46,7 +46,8 @@ M.getLinkUnderCursor = function(col)
     -- Patterns ordered from most specific to least specific.
     -- More specific patterns (like image_link and md_link with parentheses) should be checked
     -- before less specific ones (like ref_style_link which just has two brackets).
-    local pattern_order = { 'image_link', 'md_link', 'wiki_link', 'auto_link', 'ref_style_link', 'citation' }
+    local pattern_order =
+        { 'image_link', 'md_link', 'wiki_link', 'auto_link', 'ref_style_link', 'citation' }
     local patterns = {
         image_link = '(!%b[]%b())', -- Must come before md_link
         md_link = '(%b[]%b())',
@@ -159,7 +160,13 @@ M.getLinkPart = function(link_table, part)
         local get_from = { -- Table of functions by link type
             image_link = function(part_)
                 local part_start_row, part_start_col, part_end_row, part_end_col, match, rematch_lines =
-                    utils.mFind(match_lines, patterns[part_]['image_link'], start_row, nil, start_col)
+                    utils.mFind(
+                        match_lines,
+                        patterns[part_]['image_link'],
+                        start_row,
+                        nil,
+                        start_col
+                    )
                 if part_ == 'source' then
                     -- Check for angle brackets
                     if match and match:find('^<.*>$') then
@@ -801,6 +808,26 @@ M.transformPath = function(text)
 end
 
 --[[
+formatAnchorLegacy() converts a heading to an anchor using the legacy ASCII-only behavior.
+Used for backwards compatibility fallback when following anchor links.
+Note: The order of operations must match the original formatLink() behavior exactly.
+--]]
+M.formatAnchorLegacy = function(heading_text)
+    local path_text = heading_text
+    -- Step 1: Strip non-ASCII chars (original behavior - this leaves spaces from stripped chars)
+    path_text = string.gsub(path_text, '[^%a%s%d%-_]', '')
+    -- Step 2: Remove leading single space (NOT the space after stripped # chars)
+    path_text = string.gsub(path_text, '^ ', '')
+    -- Step 3: Replace spaces with hyphens
+    path_text = string.gsub(path_text, ' ', '-')
+    -- Step 4: Collapse double hyphens to single
+    path_text = string.gsub(path_text, '%-%-', '-')
+    -- Step 5: Add # prefix and lowercase
+    path_text = '#' .. string.lower(path_text)
+    return path_text
+end
+
+--[[
 formatLink() creates a formatted link from whatever text is passed to it
 Returns a string:
      1. '[string of text](<prefix>_string-of-text.md)' in most cases
@@ -810,12 +837,16 @@ M.formatLink = function(text, source, part)
     local replacement, path_text
     -- If the text starts with a hash, format the link as an anchor link
     if string.sub(text, 0, 1) == '#' and not source then
-        path_text = string.gsub(text, '[^%a%s%d%-_]', '')
+        -- Remove leading hashes and spaces from display text
         text = string.gsub(text, '^#* *', '')
-        path_text = string.gsub(path_text, '^ ', '')
+        -- Start with the cleaned text
+        path_text = text
+        -- Remove ASCII punctuation (blacklist approach, preserves Unicode letters)
+        path_text = string.gsub(path_text, '[!"#$%%&\'%(%)%*%+,%./:;<=>%?@%[%]\\^`{|}~]', '')
+        -- Replace each space with a hyphen (matches GitHub behavior - no collapsing)
         path_text = string.gsub(path_text, ' ', '-')
-        path_text = string.gsub(path_text, '%-%-', '-')
-        path_text = '#' .. string.lower(path_text)
+        -- Lowercase using vim.fn.tolower for Unicode support
+        path_text = '#' .. vim.fn.tolower(path_text)
     elseif not source then
         path_text = M.transformPath(text)
         -- If no path_text, end here
@@ -986,16 +1017,12 @@ M.createLink = function(args)
             -- Retain original cursor position
             vim.api.nvim_win_set_cursor(0, { row, col + 1 })
         else
-            vim.api.nvim_echo(
+            vim.api.nvim_echo({
                 {
-                    {
-                        '⬇️  Creating links from multi-line visual selection not supported',
-                        'WarningMsg',
-                    },
+                    '⬇️  Creating links from multi-line visual selection not supported',
+                    'WarningMsg',
                 },
-                true,
-                {}
-            )
+            }, true, {})
         end
     end
 end

@@ -67,17 +67,20 @@ T['hasUrl']['detects https URL'] = function()
 end
 
 T['hasUrl']['detects URL with path'] = function()
-    local result = child.lua_get([[require('mkdnflow.links').hasUrl('https://example.com/path/to/page')]])
+    local result =
+        child.lua_get([[require('mkdnflow.links').hasUrl('https://example.com/path/to/page')]])
     eq(result, true)
 end
 
 T['hasUrl']['detects URL with query string'] = function()
-    local result = child.lua_get([[require('mkdnflow.links').hasUrl('https://example.com/search?q=test')]])
+    local result =
+        child.lua_get([[require('mkdnflow.links').hasUrl('https://example.com/search?q=test')]])
     eq(result, true)
 end
 
 T['hasUrl']['detects URL with fragment'] = function()
-    local result = child.lua_get([[require('mkdnflow.links').hasUrl('https://example.com/page#section')]])
+    local result =
+        child.lua_get([[require('mkdnflow.links').hasUrl('https://example.com/page#section')]])
     eq(result, true)
 end
 
@@ -159,13 +162,17 @@ end
 
 -- URL in context
 T['hasUrl']['detects URL within text'] = function()
-    local result = child.lua_get([[require('mkdnflow.links').hasUrl('Check out https://example.com for more')]])
+    local result = child.lua_get(
+        [[require('mkdnflow.links').hasUrl('Check out https://example.com for more')]]
+    )
     eq(result, true)
 end
 
 -- Position detection
 T['hasUrl']['returns positions when requested'] = function()
-    child.lua([[_G.test_first, _G.test_last = require('mkdnflow.links').hasUrl('Visit https://example.com today', 'positions', 10)]])
+    child.lua(
+        [[_G.test_first, _G.test_last = require('mkdnflow.links').hasUrl('Visit https://example.com today', 'positions', 10)]]
+    )
     local first = child.lua_get('_G.test_first')
     local last = child.lua_get('_G.test_last')
     -- URL starts at position 7 ("https://example.com")
@@ -174,7 +181,9 @@ T['hasUrl']['returns positions when requested'] = function()
 end
 
 T['hasUrl']['returns nil positions when cursor not on URL'] = function()
-    child.lua([[_G.test_first, _G.test_last = require('mkdnflow.links').hasUrl('Visit https://example.com today', 'positions', 0)]])
+    child.lua(
+        [[_G.test_first, _G.test_last = require('mkdnflow.links').hasUrl('Visit https://example.com today', 'positions', 0)]]
+    )
     local result = child.lua_get('_G.test_first')
     eq(result, vim.NIL)
 end
@@ -191,7 +200,8 @@ T['formatLink']['creates markdown link from text'] = function()
 end
 
 T['formatLink']['creates markdown link with source'] = function()
-    local result = child.lua_get([[require('mkdnflow.links').formatLink('display text', 'path/to/file.md')]])
+    local result =
+        child.lua_get([[require('mkdnflow.links').formatLink('display text', 'path/to/file.md')]])
     eq(result[1], '[display text](path/to/file.md)')
 end
 
@@ -203,15 +213,16 @@ end
 
 T['formatLink']['normalizes anchor link text'] = function()
     -- Should lowercase, replace spaces with dashes, remove special chars
-    local result = child.lua_get([[require('mkdnflow.links').formatLink('# Complex Heading! With @Special# Chars')]])
+    local result = child.lua_get(
+        [[require('mkdnflow.links').formatLink('# Complex Heading! With @Special# Chars')]]
+    )
     eq(result[1], '[Complex Heading! With @Special# Chars](#complex-heading-with-special-chars)')
 end
 
 T['formatLink']['handles anchor with multiple spaces'] = function()
     local result = child.lua_get([[require('mkdnflow.links').formatLink('#Multiple   Spaces')]])
-    -- Note: The gsub('%-%-', '-') only runs once, so 3 spaces → 3 dashes → 2 dashes
-    -- This means multiple consecutive spaces leave double-dashes in the anchor
-    eq(result[1], '[Multiple   Spaces](#multiple--spaces)')
+    -- Each space becomes a hyphen (matches GitHub behavior - no collapsing)
+    eq(result[1], '[Multiple   Spaces](#multiple---spaces)')
 end
 
 -- Part extraction
@@ -366,7 +377,8 @@ T['getLinkUnderCursor']['returns correct positions'] = function()
     set_lines({ '[link](file.md)' })
     set_cursor(1, 5)
     child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
-    local result = child.lua_get('{ _G.test_link[4], _G.test_link[5], _G.test_link[6], _G.test_link[7] }')
+    local result =
+        child.lua_get('{ _G.test_link[4], _G.test_link[5], _G.test_link[6], _G.test_link[7] }')
     -- start_row, start_col, end_row, end_col
     eq(result[1], 1) -- start_row
     eq(result[2], 1) -- start_col
@@ -393,7 +405,9 @@ T['getLinkPart']['extracts source with anchor from markdown link'] = function()
     set_lines({ '[text](file.md#section)' })
     set_cursor(1, 5)
     child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
-    child.lua('_G.test_source, _G.test_anchor = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    child.lua(
+        '_G.test_source, _G.test_anchor = require("mkdnflow.links").getLinkPart(_G.test_link, "source")'
+    )
     local source = child.lua_get('_G.test_source')
     local anchor = child.lua_get('_G.test_anchor')
     eq(source, 'file.md')
@@ -442,7 +456,9 @@ T['getLinkPart']['extracts source with anchor from wiki link'] = function()
     set_lines({ '[[page#section]]' })
     set_cursor(1, 5)
     child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
-    child.lua('_G.test_source, _G.test_anchor = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    child.lua(
+        '_G.test_source, _G.test_anchor = require("mkdnflow.links").getLinkPart(_G.test_link, "source")'
+    )
     local source = child.lua_get('_G.test_source')
     local anchor = child.lua_get('_G.test_anchor')
     eq(source, 'page')
@@ -519,7 +535,9 @@ T['getLinkPart']['extracts source with anchor from auto link'] = function()
     set_lines({ '<https://example.com#section>' })
     set_cursor(1, 10)
     child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
-    child.lua('_G.test_source, _G.test_anchor = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    child.lua(
+        '_G.test_source, _G.test_anchor = require("mkdnflow.links").getLinkPart(_G.test_link, "source")'
+    )
     local source = child.lua_get('_G.test_source')
     local anchor = child.lua_get('_G.test_anchor')
     eq(source, 'https://example.com')
@@ -592,7 +610,7 @@ end
 -- Issue #252: Link destruction doesn't work properly if multiple links on a line
 T['destroyLink']['destroys first of multiple links on line (#252)'] = function()
     set_lines({ '[first](a.md) and [second](b.md)' })
-    set_cursor(1, 3)  -- Cursor on "first"
+    set_cursor(1, 3) -- Cursor on "first"
     child.lua([[require('mkdnflow.links').destroyLink()]])
     local result = get_line(1)
     eq(result, 'first and [second](b.md)')
@@ -600,7 +618,7 @@ end
 
 T['destroyLink']['destroys second of multiple links on line'] = function()
     set_lines({ '[first](a.md) and [second](b.md)' })
-    set_cursor(1, 22)  -- Cursor on "second"
+    set_cursor(1, 22) -- Cursor on "second"
     child.lua([[require('mkdnflow.links').destroyLink()]])
     local result = get_line(1)
     eq(result, '[first](a.md) and second')
@@ -608,7 +626,7 @@ end
 
 T['destroyLink']['destroys middle link of three'] = function()
     set_lines({ '[one](1.md) [two](2.md) [three](3.md)' })
-    set_cursor(1, 14)  -- Cursor on "two"
+    set_cursor(1, 14) -- Cursor on "two"
     child.lua([[require('mkdnflow.links').destroyLink()]])
     local result = get_line(1)
     eq(result, '[one](1.md) two [three](3.md)')
@@ -907,10 +925,10 @@ T['tagSpan'] = new_set()
 T['tagSpan']['creates bracketed span from visual selection'] = function()
     set_lines({ 'some text here' })
     -- Enter visual mode, select "text", then call tagSpan
-    child.type_keys('0')        -- go to start of line
-    child.type_keys('w')        -- move to "text"
-    child.type_keys('v')        -- enter visual mode
-    child.type_keys('e')        -- select to end of word "text"
+    child.type_keys('0') -- go to start of line
+    child.type_keys('w') -- move to "text"
+    child.type_keys('v') -- enter visual mode
+    child.type_keys('e') -- select to end of word "text"
     child.lua([[require('mkdnflow.links').tagSpan()]])
     local result = get_line(1)
     eq(result, 'some [text]{#text} here')
@@ -918,10 +936,10 @@ end
 
 T['tagSpan']['creates span with spaces converted to dashes in id'] = function()
     set_lines({ 'hello world text' })
-    child.type_keys('0')        -- go to start
-    child.type_keys('v')        -- enter visual mode
-    child.type_keys('e')        -- select "hello"
-    child.type_keys('e')        -- extend to "world"
+    child.type_keys('0') -- go to start
+    child.type_keys('v') -- enter visual mode
+    child.type_keys('e') -- select "hello"
+    child.type_keys('e') -- extend to "world"
     child.lua([[require('mkdnflow.links').tagSpan()]])
     local result = get_line(1)
     -- The ID should have spaces converted to dashes
@@ -950,9 +968,9 @@ end
 T['tagSpan']['handles inverted selection (right to left)'] = function()
     set_lines({ 'select this word' })
     child.type_keys('0')
-    child.type_keys('2w')       -- move to "word"
-    child.type_keys('v')        -- enter visual mode
-    child.type_keys('b')        -- select backwards to "this"
+    child.type_keys('2w') -- move to "word"
+    child.type_keys('v') -- enter visual mode
+    child.type_keys('b') -- select backwards to "this"
     child.lua([[require('mkdnflow.links').tagSpan()]])
     local result = get_line(1)
     -- Should create span for "this word" (or "this wor" depending on exact selection)
