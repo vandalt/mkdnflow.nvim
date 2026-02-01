@@ -589,6 +589,31 @@ T['destroyLink']['handles link at end of line'] = function()
     eq(result, 'Text before link')
 end
 
+-- Issue #252: Link destruction doesn't work properly if multiple links on a line
+T['destroyLink']['destroys first of multiple links on line (#252)'] = function()
+    set_lines({ '[first](a.md) and [second](b.md)' })
+    set_cursor(1, 3)  -- Cursor on "first"
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local result = get_line(1)
+    eq(result, 'first and [second](b.md)')
+end
+
+T['destroyLink']['destroys second of multiple links on line'] = function()
+    set_lines({ '[first](a.md) and [second](b.md)' })
+    set_cursor(1, 22)  -- Cursor on "second"
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local result = get_line(1)
+    eq(result, '[first](a.md) and second')
+end
+
+T['destroyLink']['destroys middle link of three'] = function()
+    set_lines({ '[one](1.md) [two](2.md) [three](3.md)' })
+    set_cursor(1, 14)  -- Cursor on "two"
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local result = get_line(1)
+    eq(result, '[one](1.md) two [three](3.md)')
+end
+
 -- =============================================================================
 -- createLink() - Create links from text
 -- =============================================================================

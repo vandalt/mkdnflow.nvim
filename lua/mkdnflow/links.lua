@@ -130,18 +130,18 @@ M.getLinkPart = function(link_table, part)
         part = part or 'source'
         local patterns = {
             name = {
-                md_link = '%[(.*)%]',
+                md_link = '%[(.-)%]',
                 wiki_link = '|(.-)%]',
                 wiki_link_no_bar = '%[%[(.-)%]%]',
                 wiki_link_anchor_no_bar = '%[%[(.-)#.-%]%]',
-                ref_style_link = '%[(.*)%]%s?%[',
+                ref_style_link = '%[(.-)%]%s?%[',
                 citation = '(@.*)',
             },
             source = {
-                md_link = { '%](%b())', '%((.*)%)' }, -- 3 thru length of match
+                md_link = { '%](%b())', '%((.-)%)' }, -- 3 thru length of match
                 wiki_link = '%[%[(.-)|.-%]%]', -- 3 thru length of match
                 wiki_link_no_bar = '%[%[(.-)%]%]', -- 3 thru length of match
-                ref_style_link = '%]%[(.*)%]', -- 3 or 4 thru length of match
+                ref_style_link = '%]%[(.-)%]', -- 3 or 4 thru length of match
                 auto_link = '<(.-)>',
                 citation = '(@.*)', -- find indices will work
             },
