@@ -96,6 +96,7 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
     - [x] Wiki links (direct `[[my page]]` or piped `[[my_page.md|my page]]`)
     - [x] Automatic links (`<https://my.page>`)
     - [x] Reference-style links (`[my page][1]` with `[1]: my_page.md`)
+    - [x] Image links (`![alt text](image.png)`) — opened in system viewer
 
 ### 📊 Table support
 
@@ -971,7 +972,7 @@ Configuration options.
 | `MkdnGoForward` | `{ 'n', '<Del>' }` | Open the buffer that was historically navigated away from in the current window. |
 | `MkdnCreateLink` | -- | Create a link from the word under the cursor (in normal mode) or from the visual selection (in visual mode). |
 | `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the word under cursor or visual selection as the link text. |
-| `MkdnFollowLink` | -- | Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the word under the cursor. |
+| `MkdnFollowLink` | -- | Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the word under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer. |
 | `MkdnDestroyLink` | `{ 'n', '<M-CR>' }` | Destroy the link under the cursor, replacing it with just the text from the link name. |
 | `MkdnTagSpan` | `{ 'v', '<M-CR>' }` | Tag a visually-selected span of text with an ID, allowing it to be linked to with an anchor link. |
 | `MkdnMoveSource` | `{ 'n', '<F2>' }` | Open a dialog where you can provide a new source for a link and the plugin will rename and move the associated file on the backend (and rename the link source). |
@@ -1062,7 +1063,7 @@ Creates a markdown link from the word under the cursor or visual selection.
 
 `require('mkdnflow').links.followLink(args)`
 
-Follows the link under the cursor, opening the corresponding file, URL, or directory.
+Follows the link under the cursor, opening the corresponding file, URL, or directory. Image links are opened in the system's default image viewer.
 
 - **Parameters:**
     - `args`: (table) Arguments for following the link.

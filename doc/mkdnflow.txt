@@ -110,6 +110,7 @@ Link and reference handling                           *Mkdnflow-link-handling*
     [x] Wiki links (direct `[[my page]]` or piped `[[my_page.md|my page]]`)
     [x] Automatic links (``)
     [x] Reference-style links (`[my page][1]` with `[1]: my_page.md`)
+    [x] Image links (`!alt text`) — opened in system viewer
 
 
 ------------------------------------------------------------------------------
@@ -1544,7 +1545,8 @@ Configuration options.
 
     Open the link under the cursor, creating missing directories if desired,
     or if there is no link under the cursor, make a link from the word under
-    the cursor.
+    the cursor. Image links (`!alt`) are opened in the system's default
+    viewer.
 
 :MkdnDestroyLink                                *Mkdnflow-cmd-MkdnDestroyLink*
     Default mapping: { 'n', '<M-CR>' }
@@ -1770,7 +1772,7 @@ Creates a markdown link from the word under the cursor or visual selection.
 
 
 Follows the link under the cursor, opening the corresponding file, URL, or
-directory.
+directory. Image links are opened in the system's default image viewer.
 
 - **Parameters:**
     - `args`: (table) Arguments for following the link.

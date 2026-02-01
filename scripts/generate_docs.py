@@ -805,7 +805,7 @@ Note: The back-end function for `:MkdnGoBack` (`require('mkdnflow').buffers.goBa
     Command(
         name='`MkdnFollowLink`',
         default_mapping='--',
-        description="""Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the word under the cursor.""",
+        description="""Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the word under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer.""",
     ),
     Command(
         name='`MkdnDestroyLink`',
@@ -2066,6 +2066,7 @@ def build_documentation() -> List[Section]:
                                         ListItem("Wiki links (direct `[[my page]]` or piped `[[my_page.md|my page]]`)", done=True),
                                         ListItem("Automatic links (`<https://my.page>`)", done=True),
                                         ListItem("Reference-style links (`[my page][1]` with `[1]: my_page.md`)", done=True),
+                                        ListItem("Image links (`![alt text](image.png)`) — opened in system viewer", done=True),
                                     ],
                                 ),
                             ]
@@ -2950,7 +2951,7 @@ def build_documentation() -> List[Section]:
                         ),
                         ApiFunction(
                             signature="require('mkdnflow').links.followLink(args)",
-                            description="Follows the link under the cursor, opening the corresponding file, URL, or directory.",
+                            description="Follows the link under the cursor, opening the corresponding file, URL, or directory. Image links are opened in the system's default image viewer.",
                             params=[
                                 ApiParam(
                                     name="args",
