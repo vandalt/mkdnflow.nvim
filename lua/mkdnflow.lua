@@ -393,6 +393,7 @@ init.setup = function(user_config)
         if init.config.cursor.jump_patterns == nil then
             if init.config.links.style == 'markdown' then
                 init.config.cursor.jump_patterns = {
+                    '!%b[]%b()', -- Image links
                     '%b[]%b()',
                     '<[^<>]->',
                     '%b[] ?%b[]',

@@ -372,13 +372,16 @@ end
 --[[
 pathType() determines what kind of path is in a url
 Returns a string:
-     1. 'file' if the path has the 'file:' prefix,
-     2. 'url' is the result of hasUrl(path) is true
-     3. 'nb_page' if (1) and (2) aren't true
+     1. 'image' if the link_type is 'image_link',
+     2. 'file' if the path has the 'file:' prefix,
+     3. 'url' is the result of hasUrl(path) is true
+     4. 'nb_page' if (1), (2), and (3) aren't true
 --]]
-M.pathType = function(path, anchor)
+M.pathType = function(path, anchor, link_type)
     if not path then
         return nil
+    elseif link_type == 'image_link' then
+        return 'image'
     elseif string.find(path, '^file:') then
         return 'file'
     elseif links.hasUrl(path) then
@@ -413,14 +416,19 @@ handlePath() does something with the path in the link under the cursor:
      3. Uses system_open() to open a local file at the specified path via the
         system's default application for that filetype, if the path is dete-
         rmined to be neither the filename for a text file nor a URL.
+     4. Uses system_open() to open image links in the system's default viewer.
 Returns nothing
 --]]
-M.handlePath = function(path, anchor)
+M.handlePath = function(path, anchor, link_type)
     anchor = anchor or false
     path = M.transformPath(path)
-    local path_type = M.pathType(path, anchor)
+    local path_type = M.pathType(path, anchor, link_type)
     -- Handle according to path type
-    if path_type == 'nb_page' then
+    if path_type == 'image' then
+        -- Resolve the path and open with system viewer
+        local resolved_path = resolve_notebook_path(path)
+        system_open(resolved_path)
+    elseif path_type == 'nb_page' then
         vim_open(path, anchor)
     elseif path_type == 'url' then
         system_open(path .. (anchor or ''), 'url')

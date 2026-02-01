@@ -44,10 +44,11 @@ M.getLinkUnderCursor = function(col)
     local capture, start_row, start_col, end_row, end_col, match, match_lines
     col = col or position[2]
     -- Patterns ordered from most specific to least specific.
-    -- More specific patterns (like md_link with parentheses) should be checked
+    -- More specific patterns (like image_link and md_link with parentheses) should be checked
     -- before less specific ones (like ref_style_link which just has two brackets).
-    local pattern_order = { 'md_link', 'wiki_link', 'auto_link', 'ref_style_link', 'citation' }
+    local pattern_order = { 'image_link', 'md_link', 'wiki_link', 'auto_link', 'ref_style_link', 'citation' }
     local patterns = {
+        image_link = '(!%b[]%b())', -- Must come before md_link
         md_link = '(%b[]%b())',
         wiki_link = '(%[%b[]%])',
         ref_style_link = '(%b[]%s?%b[])',
@@ -130,6 +131,7 @@ M.getLinkPart = function(link_table, part)
         part = part or 'source'
         local patterns = {
             name = {
+                image_link = '!%[(.-)%]',
                 md_link = '%[(.-)%]',
                 wiki_link = '|(.-)%]',
                 wiki_link_no_bar = '%[%[(.-)%]%]',
@@ -138,6 +140,7 @@ M.getLinkPart = function(link_table, part)
                 citation = '(@.*)',
             },
             source = {
+                image_link = { '!%b[](%b())', '%((.-)%)' },
                 md_link = { '%](%b())', '%((.-)%)' }, -- 3 thru length of match
                 wiki_link = '%[%[(.-)|.-%]%]', -- 3 thru length of match
                 wiki_link_no_bar = '%[%[(.-)%]%]', -- 3 thru length of match
@@ -146,6 +149,7 @@ M.getLinkPart = function(link_table, part)
                 citation = '(@.*)', -- find indices will work
             },
             anchor = {
+                image_link = '(#.-)%)',
                 md_link = '(#.-)%)', -- ?
                 wiki_link = '(#.-)|', -- ?
                 wiki_link_no_bar = '(#.-)%]%]', -- ?
@@ -153,6 +157,27 @@ M.getLinkPart = function(link_table, part)
             },
         }
         local get_from = { -- Table of functions by link type
+            image_link = function(part_)
+                local part_start_row, part_start_col, part_end_row, part_end_col, match, rematch_lines =
+                    utils.mFind(match_lines, patterns[part_]['image_link'], start_row, nil, start_col)
+                if part_ == 'source' then
+                    -- Check for angle brackets
+                    if match and match:find('^<.*>$') then
+                        part_start_row, part_start_col, part_end_row, part_end_col, match, rematch_lines =
+                            utils.mFind(match_lines, '%(<(.*)>%)', part_start_row)
+                    end
+                    -- Make part start and finish relative to line start, not link start
+                    local anchor_start, _, anchor = string.find(match or '', '(#.*)')
+                    if anchor_start then
+                        match = string.sub(match, 1, anchor_start - 1)
+                    else
+                        anchor = ''
+                    end
+                    return match, anchor, part_start_row, part_start_col, part_end_row, part_end_col
+                else
+                    return match, '', part_start_row, part_start_col, part_end_row, part_end_col
+                end
+            end,
             md_link = function(part_)
                 local part_start_row, part_start_col, part_end_row, part_end_col, match, rematch_lines =
                     utils.mFind(match_lines, patterns[part_]['md_link'], start_row, nil, start_col)
@@ -837,6 +862,11 @@ M.createLink = function(args)
     local col = position[2]
     -- If the current mode is 'normal', make link from word under cursor
     if mode == 'n' and not range then
+        -- Check if cursor is already on a link (including image links)
+        local existing_link = M.getLinkUnderCursor()
+        if existing_link then
+            return -- Don't create a new link if one already exists
+        end
         -- Get the text of the line the cursor is on
         local line = vim.api.nvim_get_current_line()
         local url_start, url_end = M.hasUrl(line, 'positions', col)
@@ -1011,7 +1041,7 @@ M.followLink = function(args)
         path, anchor, link_type = M.getLinkPart(M.getLinkUnderCursor(), 'source')
     end
     if path then
-        require('mkdnflow').paths.handlePath(path, anchor)
+        require('mkdnflow').paths.handlePath(path, anchor, link_type)
     elseif link_type == 'ref_style_link' then -- If this condition is met, no reference was found
         vim.api.nvim_echo(
             { { "⬇️  Couldn't find a matching reference label!", 'WarningMsg' } },
