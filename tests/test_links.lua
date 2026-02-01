@@ -843,4 +843,95 @@ T['task_list_edge_cases']['handles wiki link in task list'] = function()
     eq(success, true)
 end
 
+-- =============================================================================
+-- createLink with from_clipboard (Issue #258 related)
+-- =============================================================================
+T['createLink_from_clipboard'] = new_set()
+
+T['createLink_from_clipboard']['creates link using clipboard URL with range'] = function()
+    set_lines({ 'Link Text' })
+    child.lua([[
+        -- Set clipboard content
+        vim.fn.setreg('+', 'https://example.com')
+        -- Set visual selection marks for full text
+        vim.api.nvim_buf_set_mark(0, '<', 1, 0, {})
+        vim.api.nvim_buf_set_mark(0, '>', 1, 8, {})
+        require('mkdnflow.links').createLink({from_clipboard = true, range = true})
+    ]])
+    local result = get_line(1)
+    eq(result, '[Link Text](https://example.com)')
+end
+
+T['createLink_from_clipboard']['creates link from partial selection with clipboard URL'] = function()
+    set_lines({ 'prefix Click Here suffix' })
+    child.lua([[
+        vim.fn.setreg('+', 'https://example.com/page')
+        vim.api.nvim_buf_set_mark(0, '<', 1, 7, {})
+        vim.api.nvim_buf_set_mark(0, '>', 1, 16, {})
+        require('mkdnflow.links').createLink({from_clipboard = true, range = true})
+    ]])
+    local result = get_line(1)
+    eq(result, 'prefix [Click Here](https://example.com/page) suffix')
+end
+
+-- =============================================================================
+-- tagSpan() - Bracketed span creation from visual selection
+-- =============================================================================
+T['tagSpan'] = new_set()
+
+T['tagSpan']['creates bracketed span from visual selection'] = function()
+    set_lines({ 'some text here' })
+    -- Enter visual mode, select "text", then call tagSpan
+    child.type_keys('0')        -- go to start of line
+    child.type_keys('w')        -- move to "text"
+    child.type_keys('v')        -- enter visual mode
+    child.type_keys('e')        -- select to end of word "text"
+    child.lua([[require('mkdnflow.links').tagSpan()]])
+    local result = get_line(1)
+    eq(result, 'some [text]{#text} here')
+end
+
+T['tagSpan']['creates span with spaces converted to dashes in id'] = function()
+    set_lines({ 'hello world text' })
+    child.type_keys('0')        -- go to start
+    child.type_keys('v')        -- enter visual mode
+    child.type_keys('e')        -- select "hello"
+    child.type_keys('e')        -- extend to "world"
+    child.lua([[require('mkdnflow.links').tagSpan()]])
+    local result = get_line(1)
+    -- The ID should have spaces converted to dashes
+    eq(result, '[hello world]{#hello-world} text')
+end
+
+T['tagSpan']['creates span for single word'] = function()
+    set_lines({ 'word' })
+    child.type_keys('0')
+    child.type_keys('v')
+    child.type_keys('e')
+    child.lua([[require('mkdnflow.links').tagSpan()]])
+    local result = get_line(1)
+    eq(result, '[word]{#word}')
+end
+
+T['tagSpan']['does nothing in normal mode'] = function()
+    set_lines({ 'unchanged text' })
+    set_cursor(1, 5)
+    -- Call tagSpan without being in visual mode
+    child.lua([[require('mkdnflow.links').tagSpan()]])
+    local result = get_line(1)
+    eq(result, 'unchanged text')
+end
+
+T['tagSpan']['handles inverted selection (right to left)'] = function()
+    set_lines({ 'select this word' })
+    child.type_keys('0')
+    child.type_keys('2w')       -- move to "word"
+    child.type_keys('v')        -- enter visual mode
+    child.type_keys('b')        -- select backwards to "this"
+    child.lua([[require('mkdnflow.links').tagSpan()]])
+    local result = get_line(1)
+    -- Should create span for "this word" (or "this wor" depending on exact selection)
+    eq(result, 'select [this w]{#this-w}ord')
+end
+
 return T
