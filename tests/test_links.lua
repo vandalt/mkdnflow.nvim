@@ -630,6 +630,32 @@ T['createLink']['on whitespace creates link from adjacent word'] = function()
     eq(result, 'word  [other](other.md)')
 end
 
+-- Issue #258: Visual selection with range should use full selection, not just first char
+T['createLink']['creates link from visual selection with range'] = function()
+    set_lines({ 'ABC-123' })
+    -- Simulate visual selection of entire text, then run with range=true
+    child.lua([[
+        -- Set the visual selection marks
+        vim.api.nvim_buf_set_mark(0, '<', 1, 0, {})
+        vim.api.nvim_buf_set_mark(0, '>', 1, 6, {})
+        require('mkdnflow.links').createLink({range = true})
+    ]])
+    local result = get_line(1)
+    eq(result, '[ABC-123](ABC-123.md)')
+end
+
+T['createLink']['creates link from partial visual selection with range'] = function()
+    set_lines({ 'prefix ABC-123 suffix' })
+    -- Select just "ABC-123" in the middle
+    child.lua([[
+        vim.api.nvim_buf_set_mark(0, '<', 1, 7, {})
+        vim.api.nvim_buf_set_mark(0, '>', 1, 13, {})
+        require('mkdnflow.links').createLink({range = true})
+    ]])
+    local result = get_line(1)
+    eq(result, 'prefix [ABC-123](ABC-123.md) suffix')
+end
+
 -- =============================================================================
 -- getBracketedSpanPart() - Extract bracketed span components
 -- =============================================================================

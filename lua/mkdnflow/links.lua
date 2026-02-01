@@ -896,22 +896,28 @@ M.createLink = function(args)
         -- use the cursor position as start and the visual position as finish
         local inverted = range and false or vis[3] > col
         local start, finish
+        local start_row, start_col, end_row, end_col
         if range then
             start = vim.api.nvim_buf_get_mark(0, '<')
             finish = vim.api.nvim_buf_get_mark(0, '>')
-            -- Update char offsets
-            start[1] = start[1] - 1
-            finish[1] = finish[1] - 1
+            -- Convert to 0-indexed rows
+            start_row = start[1] - 1
+            start_col = start[2]
+            end_row = finish[1] - 1
+            end_col = finish[2] + 1
+            -- Update start/finish for later use
+            start[1] = start_row
+            finish[1] = end_row
         else
             start = (inverted and { row - 1, col }) or { vis[2] - 1, vis[3] - 1 + vis[4] }
             finish = (inverted and { vis[2] - 1, vis[3] - 1 + vis[4] }) or { row - 1, col }
+            start_row = (inverted and row - 1) or vis[2] - 1
+            start_col = (inverted and col) or vis[3] - 1
+            end_row = (inverted and vis[2] - 1) or row - 1
+            -- If inverted, use the col value from the visual selection; otherwise, use the col value
+            -- from start.
+            end_col = (inverted and vis[3]) or finish[2] + 1
         end
-        local start_row = (inverted and row - 1) or vis[2] - 1
-        local start_col = (inverted and col) or vis[3] - 1
-        local end_row = (inverted and vis[2] - 1) or row - 1
-        -- If inverted, use the col value from the visual selection; otherwise, use the col value
-        -- from start.
-        local end_col = (inverted and vis[3]) or finish[2] + 1
         -- Make sure the selection is on a single line; otherwise, do nothing & throw a warning
         if start_row == end_row then
             local lines = vim.api.nvim_buf_get_lines(0, start[1], finish[1] + 1, false)
