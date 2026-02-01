@@ -889,12 +889,29 @@ end
 -- =============================================================================
 -- createLink with from_clipboard (Issue #258 related)
 -- =============================================================================
-T['createLink_from_clipboard'] = new_set()
+T['createLink_from_clipboard'] = new_set({
+    hooks = {
+        pre_case = function()
+            -- Configure a mock clipboard provider for headless CI environments
+            child.lua([[
+                vim.g.clipboard = {
+                    name = 'test_clipboard',
+                    copy = { ['+'] = 'true', ['*'] = 'true' },
+                    paste = {
+                        ['+'] = function() return {vim.g._test_clipboard_content or ''} end,
+                        ['*'] = function() return {vim.g._test_clipboard_content or ''} end,
+                    },
+                }
+            ]])
+        end,
+    },
+})
 
 T['createLink_from_clipboard']['creates link using clipboard URL with range'] = function()
     set_lines({ 'Link Text' })
     child.lua([[
-        -- Set clipboard content
+        -- Set clipboard content via our mock
+        vim.g._test_clipboard_content = 'https://example.com'
         vim.fn.setreg('+', 'https://example.com')
         -- Set visual selection marks for full text
         vim.api.nvim_buf_set_mark(0, '<', 1, 0, {})
@@ -908,6 +925,8 @@ end
 T['createLink_from_clipboard']['creates link from partial selection with clipboard URL'] = function()
     set_lines({ 'prefix Click Here suffix' })
     child.lua([[
+        -- Set clipboard content via our mock
+        vim.g._test_clipboard_content = 'https://example.com/page'
         vim.fn.setreg('+', 'https://example.com/page')
         vim.api.nvim_buf_set_mark(0, '<', 1, 7, {})
         vim.api.nvim_buf_set_mark(0, '>', 1, 16, {})
