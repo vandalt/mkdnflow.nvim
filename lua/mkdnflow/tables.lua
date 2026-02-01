@@ -535,18 +535,22 @@ M.addCol = function(offset)
         local min_width =
             math.max(#(sep_padding .. '---' .. sep_padding), #(cell_padding .. cell_padding))
         local replacements, range_start, range_finish = {}, nil, nil
+        -- Placeholder for escaped pipes (must be same length as \|)
+        local escaped_pipe_placeholder = '##'
         for row, row_text in utils.spairs(table_data.raw) do
             range_start = range_start == nil and row or range_start
             range_finish = (range_finish == nil and row) or (row > range_finish and row)
+            -- Replace escaped pipes with placeholder before pattern matching
+            local row_text_work = row_text:gsub('\\|', escaped_pipe_placeholder)
             local pattern
             if offset < 0 then
-                if has_outer_pipes(row_text) then
+                if has_outer_pipes(row_text_work) then
                     pattern = string.rep('|[^|]*', current_col - 1)
                 else
                     pattern = '[^|]*' .. string.rep('|[^|]*', current_col - 2)
                 end
             else
-                if has_outer_pipes(row_text) then
+                if has_outer_pipes(row_text_work) then
                     pattern = string.rep('|[^|]*', current_col)
                 else
                     pattern = '[^|]*' .. string.rep('[^|]*', current_col - 1)
@@ -571,10 +575,12 @@ M.addCol = function(offset)
             if pattern == '' then
                 finish, match = 0, ''
             else
-                _, finish, match = row_text:find('(' .. pattern .. ')')
+                _, finish, match = row_text_work:find('(' .. pattern .. ')')
             end
-            -- Insert the new cell in the current row
-            local replacement = match .. new_cell .. row_text:sub(finish + 1)
+            -- Insert the new cell in the current row, restoring escaped pipes
+            local match_restored = match and match:gsub(escaped_pipe_placeholder, '\\|') or ''
+            local suffix_restored = row_text_work:sub(finish + 1):gsub(escaped_pipe_placeholder, '\\|')
+            local replacement = match_restored .. new_cell .. suffix_restored
             table.insert(replacements, replacement)
         end
         vim.api.nvim_buf_set_lines(0, range_start - 1, range_finish, true, replacements)

@@ -318,6 +318,24 @@ T['addCol']['adds column before current'] = function()
     eq(pipe_count, 4)
 end
 
+-- Issue #244: Escaped pipes should not be treated as column separators
+T['addCol']['preserves escaped pipes in cells (#244)'] = function()
+    set_lines({
+        '| Test | Test       |',
+        '| ---- | ---------- |',
+        '| Val1 | Val1\\|Val3 |',
+        '| Val2 | Val2       |',
+    })
+    set_cursor(3, 10)  -- Cursor in column 2 (the one with escaped pipe)
+    child.lua([[require('mkdnflow.tables').addCol()]])
+    local lines = get_lines()
+    -- The cell with escaped pipe should remain intact
+    -- Val1\|Val3 should stay in column 2, not be split
+    local data_row = lines[3]
+    -- Check that Val1\|Val3 is still together (not split across columns)
+    eq(data_row:match('Val1\\|Val3') ~= nil, true)
+end
+
 -- =============================================================================
 -- Edge cases
 -- =============================================================================
