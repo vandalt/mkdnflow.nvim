@@ -16,6 +16,13 @@
 
 local M = {}
 local utils = require('mkdnflow').utils
+local silent = require('mkdnflow').config.silent
+
+-- Helper to check if foldmethod allows manual folds
+local function can_create_manual_folds()
+    local foldmethod = vim.wo.foldmethod
+    return foldmethod == 'manual' or foldmethod == 'marker'
+end
 
 M.getHeadingLevel = function(line)
     local level
@@ -83,6 +90,15 @@ M.foldSection = function()
     if vim.fn.foldlevel(row) > 0 and not (M.getHeadingLevel(line) < 99) then
         vim.cmd.foldclose()
     else -- Otherwise, create a fold
+        -- Check if foldmethod allows manual fold creation
+        if not can_create_manual_folds() then
+            if not silent then
+                vim.api.nvim_echo({
+                    { "⬇️  Cannot create fold: 'foldmethod' must be 'manual' or 'marker'", 'WarningMsg' },
+                }, true, {})
+            end
+            return
+        end
         local in_fenced_code_block = utils.cursorInCodeBlock(row)
         -- See if the cursor is on a heading
         if M.getHeadingLevel(line) < 99 and not in_fenced_code_block then

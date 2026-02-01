@@ -341,4 +341,27 @@ T['edge_cases']['foldSection closes existing fold when inside one'] = function()
     eq(foldclosed, 1)
 end
 
+-- Issue #254: foldSection should not error when foldmethod is not 'manual'
+T['edge_cases']['foldSection handles non-manual foldmethod (#254)'] = function()
+    set_lines({ '# Heading', 'Content line' })
+    set_cursor(1, 0)
+    -- Set foldmethod to something other than 'manual'
+    child.lua([[vim.opt.foldmethod = 'indent']])
+    -- This should not throw an error
+    child.lua([[
+        _G.test_ok, _G.test_err = pcall(function()
+            require('mkdnflow.folds').foldSection()
+        end)
+    ]])
+    local success = child.lua_get('_G.test_ok')
+    if not success then
+        local err = child.lua_get('tostring(_G.test_err)')
+        if err:match('E350') or err:match('foldmethod') then
+            error('Issue #254 reproduced: ' .. err)
+        end
+        error('foldSection failed: ' .. err)
+    end
+    eq(success, true)
+end
+
 return T
