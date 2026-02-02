@@ -26,6 +26,82 @@ local TableRow = core.TableRow
 local MarkdownTable = core.MarkdownTable
 
 -- =============================================================================
+-- Helper Functions
+-- =============================================================================
+
+--- Check if a line is a continuation line (follows a row ending with \)
+--- @param linenr integer The line number to check
+--- @return boolean, integer|nil is_continuation, primary_row_linenr
+local function is_continuation_line(linenr)
+    if linenr < 2 then
+        return false, nil
+    end
+    local config = require('mkdnflow').config
+    if not config.tables.multiline then
+        return false, nil
+    end
+
+    local line = vim.api.nvim_buf_get_lines(0, linenr - 1, linenr, false)[1]
+    -- If line starts with |, it's a primary row, not continuation
+    if line and line:match('^%s*|') then
+        return false, nil
+    end
+
+    -- Check previous line(s) for continuation marker
+    local check_linenr = linenr - 1
+    while check_linenr >= 1 do
+        local prev_line = vim.api.nvim_buf_get_lines(0, check_linenr - 1, check_linenr, false)[1]
+        if not prev_line then
+            return false, nil
+        end
+
+        -- If prev line starts with |, check if it ends with \
+        if prev_line:match('^%s*|') then
+            if prev_line:match('\\%s*|?%s*$') and not prev_line:match('\\\\%s*|?%s*$') then
+                return true, check_linenr
+            else
+                return false, nil
+            end
+        end
+
+        -- prev line is also a continuation - keep going up
+        check_linenr = check_linenr - 1
+    end
+
+    return false, nil
+end
+
+--- Find the next primary table row after a given line (skipping continuations)
+--- @param linenr integer Starting line number
+--- @param direction integer 1 for down, -1 for up
+--- @return integer|nil Next primary row line number
+local function find_next_primary_row(linenr, direction)
+    local line_count = vim.api.nvim_buf_line_count(0)
+    local check_linenr = linenr + direction
+
+    while check_linenr >= 1 and check_linenr <= line_count do
+        local line = vim.api.nvim_buf_get_lines(0, check_linenr - 1, check_linenr, false)[1]
+        if not line then
+            return nil
+        end
+
+        -- A primary row starts with |
+        if line:match('^%s*|') then
+            return check_linenr
+        end
+
+        -- If it's not a table line at all, we've left the table
+        if not MarkdownTable.isPartOfTable(line, check_linenr) then
+            return nil
+        end
+
+        check_linenr = check_linenr + direction
+    end
+
+    return nil
+end
+
+-- =============================================================================
 -- Public API
 -- =============================================================================
 
@@ -80,10 +156,14 @@ function M.moveToCell(row_offset, cell_offset)
     local config = require('mkdnflow').config
     local position = vim.api.nvim_win_get_cursor(0)
 
+    -- Check if cursor is on a continuation line, and if so, use the primary row
+    local is_cont, primary_row_nr = is_continuation_line(position[1])
+    local effective_position = is_cont and primary_row_nr or position[1]
+
     -- Check if this is a complete table (has separator row)
-    local current_line = vim.api.nvim_buf_get_lines(0, position[1] - 1, position[1], false)[1]
-    if MarkdownTable.isPartOfTable(current_line, position[1]) then
-        local table_data = MarkdownTable:read(position[1])
+    local current_line = vim.api.nvim_buf_get_lines(0, effective_position - 1, effective_position, false)[1]
+    if MarkdownTable.isPartOfTable(current_line, effective_position) then
+        local table_data = MarkdownTable:read(effective_position)
         if not table_data.valid then
             -- Incomplete table (no separator row), pass through the keypress
             if row_offset ~= 0 then
@@ -106,13 +186,37 @@ function M.moveToCell(row_offset, cell_offset)
     end
 
     -- Figure out which cell the cursor is currently in
-    local current_row = TableRow:from_string(current_line, position[1])
+    local current_row = TableRow:from_string(current_line, effective_position)
     local cursor_cell = current_row:which_cell(position[2])
-    local row = position[1] + row_offset
     local line_count = vim.api.nvim_buf_line_count(0)
+
+    -- Calculate target row, accounting for multiline rows
+    local row
+    if row_offset ~= 0 then
+        -- For vertical navigation, find the next/previous primary row
+        row = find_next_primary_row(effective_position, row_offset > 0 and 1 or -1)
+        if not row then
+            row = effective_position + row_offset
+        end
+        -- Handle multiple row offsets (e.g., row_offset = 2)
+        local abs_offset = math.abs(row_offset)
+        for _ = 2, abs_offset do
+            local next_row = find_next_primary_row(row, row_offset > 0 and 1 or -1)
+            if next_row then
+                row = next_row
+            else
+                break
+            end
+        end
+    else
+        row = effective_position
+    end
 
     if row > line_count then
         row = line_count
+    end
+    if row < 1 then
+        row = 1
     end
 
     local target_line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]

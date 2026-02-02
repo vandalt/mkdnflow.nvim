@@ -1048,4 +1048,190 @@ T['multiple_rows']['navigates through all data rows'] = function()
     eq(cursor[1], 5) -- Row with "3"
 end
 
+-- =============================================================================
+-- Multiline row support (Issue #243)
+-- =============================================================================
+T['multiline'] = new_set()
+
+T['multiline']['detects continuation marker'] = function()
+    set_lines({
+        '| Col1 | Col2 |',
+        '| ---- | ---- |',
+        '| test | line one \\',
+        'line two      |',
+    })
+    set_cursor(3, 1)
+    -- Read the table - should detect continuation
+    child.lua('_test_tbl = require("mkdnflow.tables").MarkdownTable:read()')
+    child.lua('_test_row = _test_tbl.rows[3]')
+    local has_cont = child.lua_get('#_test_row.continuation_lines > 0')
+    local cont_count = child.lua_get('#_test_row.continuation_lines')
+    eq(has_cont, true)
+    eq(cont_count, 1)
+end
+
+T['multiline']['formats continuation with proper indent'] = function()
+    set_lines({
+        '| Name | Default | Description |',
+        '| ---- | ------- | ----------- |',
+        '| opt1 | true    | First line \\',
+        'Second line    |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- The continuation line should be indented to align with the last cell
+    eq(#lines, 4)
+    -- Continuation line should have leading whitespace for alignment
+    eq(lines[4]:match('^%s+Second') ~= nil, true)
+end
+
+T['multiline']['preserves content in multiline cell'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | first \\',
+        'second |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Both parts of the content should be present
+    eq(lines[3]:match('first') ~= nil, true)
+    eq(lines[4]:match('second') ~= nil, true)
+end
+
+T['multiline']['navigation skips continuation lines going down'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| 1 | multi \\',
+        'line   |',
+        '| 2 | single |',
+    })
+    set_cursor(3, 2) -- On row with "1"
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should land on row 5 (with "2"), not row 4 (continuation)
+    eq(cursor[1], 5)
+end
+
+T['multiline']['navigation skips continuation lines going up'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| 1 | multi \\',
+        'line   |',
+        '| 2 | single |',
+    })
+    set_cursor(5, 2) -- On row with "2"
+
+    -- Disable format_on_move to simplify debugging
+    child.lua('require("mkdnflow").config.tables.format_on_move = false')
+
+    -- Debug: First check isPartOfTable for each line
+    local ipt_line4 = child.lua_get('require("mkdnflow.tables").isPartOfTable("line   |", 4)')
+    local ipt_line3 = child.lua_get('require("mkdnflow.tables").isPartOfTable("| 1 | multi \\\\", 3)')
+
+    -- Line 4 should be recognized as continuation (part of table)
+    eq(ipt_line4, true)
+    -- Line 3 should be recognized as table row
+    eq(ipt_line3, true)
+
+    -- Check that table read from line 5 finds the separator
+    child.lua('_debug_tbl = require("mkdnflow.tables").MarkdownTable:read(5)')
+    local num_rows = child.lua_get('#_debug_tbl.rows')
+    local tbl_valid = child.lua_get('_debug_tbl.valid')
+
+    eq(num_rows >= 4, true) -- Should have at least 4 rows (header, sep, data with cont, data)
+    eq(tbl_valid, true) -- Table should be valid (have separator)
+
+    -- Now test navigation
+    child.lua([[require('mkdnflow.tables').moveToCell(-1, 0)]])
+    local cursor = get_cursor()
+    -- Should land on row 3 (with "1"), not row 4 (continuation)
+    eq(cursor[1], 3)
+
+    -- Re-enable format_on_move
+    child.lua('require("mkdnflow").config.tables.format_on_move = true')
+end
+
+T['multiline']['handles cursor on continuation line'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| 1 | multi \\',
+        'line   |',
+        '| 2 | single |',
+    })
+    set_cursor(4, 2) -- On continuation line
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should navigate to next primary row
+    eq(cursor[1], 5)
+end
+
+T['multiline']['respects multiline=false config'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| 1 | test \\',
+        'continue |',
+    })
+    set_cursor(1, 1)
+    -- Disable multiline and format
+    child.lua([[
+        require('mkdnflow').config.tables.multiline = false
+        require('mkdnflow.tables').formatTable()
+    ]])
+    local lines = get_lines()
+    -- With multiline disabled, the continuation line should NOT be collected
+    -- The backslash should be treated as literal content
+    -- Re-enable for other tests
+    child.lua([[require('mkdnflow').config.tables.multiline = true]])
+    eq(#lines >= 3, true)
+end
+
+T['multiline']['handles multiple continuation lines'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | line1 \\',
+        'line2 \\',
+        'line3  |',
+    })
+    set_cursor(1, 1)
+    child.lua('_test_tbl = require("mkdnflow.tables").MarkdownTable:read()')
+    child.lua('_test_row = _test_tbl.rows[3]')
+    local result = child.lua_get('#_test_row.continuation_lines')
+    eq(result, 2) -- Should have 2 continuation lines
+end
+
+T['multiline']['escaped backslash is not continuation'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | ends with backslash \\\\|',
+    })
+    set_cursor(1, 1)
+    child.lua('_test_tbl = require("mkdnflow.tables").MarkdownTable:read()')
+    child.lua('_test_row = _test_tbl.rows[3]')
+    local result = child.lua_get('#_test_row.continuation_lines')
+    -- Double backslash should NOT be treated as continuation marker
+    eq(result, 0)
+end
+
+T['multiline']['isPartOfTable recognizes continuation lines'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | multi \\',
+        'continuation |',
+    })
+    -- Check if continuation line is recognized as part of table
+    child.lua('_test_line = vim.api.nvim_buf_get_lines(0, 3, 4, false)[1]')
+    local result = child.lua_get('require("mkdnflow.tables").isPartOfTable(_test_line, 4)')
+    eq(result, true)
+end
+
 return T

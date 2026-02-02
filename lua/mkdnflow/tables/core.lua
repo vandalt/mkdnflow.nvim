@@ -273,6 +273,21 @@ function TableRow:_detect_separator()
     return has_hyphen
 end
 
+--- Detect if this row has a continuation marker (backslash before final pipe)
+--- @param line? string Optional line to check (defaults to raw_content)
+--- @return boolean
+function TableRow:_has_continuation(line)
+    line = line or self.raw_content
+    -- Match backslash followed by optional whitespace and optional final pipe
+    -- But NOT double backslash (escaped backslash)
+    -- Pattern: single \ (not preceded by \) followed by whitespace and optional |
+    if line:match('\\\\%s*|?%s*$') then
+        -- Double backslash at end - this is an escaped backslash, not continuation
+        return false
+    end
+    return line:match('\\%s*|?%s*$') ~= nil
+end
+
 --- Get the number of cells in this row
 --- @return integer
 function TableRow:cell_count()
@@ -353,13 +368,14 @@ end
 --- @param col_widths integer[] Array of column widths
 --- @param col_alignments string[] Array of column alignments
 --- @param style table Style configuration
---- @return string The formatted row string
+--- @return string|string[] The formatted row string, or table of strings for multiline rows
 function TableRow:format(col_widths, col_alignments, style)
     local cell_padding = string.rep(' ', style.cell_padding or 1)
     local sep_padding = string.rep(' ', style.separator_padding or 1)
     local outer_pipes = style.outer_pipes
 
     local parts = {}
+    local last_cell_start = 0 -- Track position where last cell content starts
 
     for idx, cell in ipairs(self.cells) do
         local target_width = col_widths[idx] or 3
@@ -379,6 +395,16 @@ function TableRow:format(col_widths, col_alignments, style)
             formatted = cell:format(target_width, cell_padding, alignment)
         end
 
+        -- Calculate where the last cell's content starts (for continuation indent)
+        if idx == #self.cells then
+            -- Position = outer pipe (if any) + all previous cells + separators + padding
+            last_cell_start = (outer_pipes and 1 or 0)
+            for i = 1, idx - 1 do
+                last_cell_start = last_cell_start + #parts[i] + 1 -- +1 for separator pipe
+            end
+            last_cell_start = last_cell_start + #cell_padding -- Add padding before content
+        end
+
         table.insert(parts, formatted)
     end
 
@@ -386,6 +412,20 @@ function TableRow:format(col_widths, col_alignments, style)
 
     if outer_pipes then
         line = '|' .. line .. '|'
+    end
+
+    -- Handle continuation lines
+    if #self.continuation_lines > 0 then
+        local lines = { line }
+        local indent = string.rep(' ', last_cell_start)
+
+        for _, cont_line in ipairs(self.continuation_lines) do
+            -- Strip leading whitespace from continuation and add proper indent
+            local content = cont_line:gsub('^%s*', '')
+            table.insert(lines, indent .. content)
+        end
+
+        return lines
     end
 
     return line
@@ -453,9 +493,34 @@ function MarkdownTable.isPartOfTable(text, linenr)
             tableyness = tableyness + (text:match('^%s*|.+|%s*$') and 1 or 0)
             tableyness = tableyness + (text:match('^|.+|$') and 1 or 0)
         end
+    elseif linenr and linenr > 1 then
+        -- Check if this might be a continuation line (previous line ends with \)
+        local config = get_config()
+        if config.tables.multiline then
+            local prev_line = vim.api.nvim_buf_get_lines(0, linenr - 2, linenr - 1, false)
+            prev_line = prev_line and prev_line[1] or ''
+            -- If previous line is a table row ending with backslash continuation
+            if prev_line:match('^%s*|') and prev_line:match('\\%s*|?%s*$') then
+                -- And this line doesn't start with | (continuation, not new row)
+                if text and not text:match('^%s*|') then
+                    return true
+                end
+            end
+        end
     end
 
     return tableyness >= 2
+end
+
+--- Check if a line looks like a new table row (starts with pipe or has table structure)
+--- @param line string
+--- @return boolean
+local function is_new_table_row(line)
+    if not line then
+        return false
+    end
+    -- A new table row starts with optional whitespace then a pipe
+    return line:match('^%s*|') ~= nil
 end
 
 --- Read a table from the buffer starting at a line number
@@ -465,6 +530,8 @@ function MarkdownTable:read(line_nr)
     line_nr = line_nr or vim.api.nvim_win_get_cursor(0)[1]
     local tbl = MarkdownTable:new()
     local init_line_nr = line_nr
+    local config = get_config()
+    local multiline_enabled = config.tables.multiline
 
     local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
 
@@ -478,12 +545,34 @@ function MarkdownTable:read(line_nr)
     local rows_by_line = {}
     local line_count = vim.api.nvim_buf_line_count(0)
 
-    while line and MarkdownTable.isPartOfTable(line) do
+    while line and MarkdownTable.isPartOfTable(line, line_nr) do
         local row = TableRow:from_string(line, line_nr)
         rows_by_line[line_nr] = row
 
         if row.is_separator and not tbl.metadata.separator_row_idx then
             tbl.metadata.separator_row_idx = line_nr
+        end
+
+        -- Check for continuation lines (only when going down, and multiline is enabled)
+        if direction == 1 and multiline_enabled and not row.is_separator and row:_has_continuation() then
+            -- Look ahead for continuation lines
+            local cont_line_nr = line_nr + 1
+            while cont_line_nr <= line_count do
+                local cont_line = vim.api.nvim_buf_get_lines(0, cont_line_nr - 1, cont_line_nr, false)[1]
+                -- Stop if we hit a new table row (starts with |) or empty/nil line
+                if not cont_line or cont_line:match('^%s*$') or is_new_table_row(cont_line) then
+                    break
+                end
+                -- This is a continuation line
+                table.insert(row.continuation_lines, cont_line)
+                cont_line_nr = cont_line_nr + 1
+                -- Check if this continuation also continues
+                if not cont_line:match('\\%s*|?%s*$') then
+                    break
+                end
+            end
+            -- Skip past continuation lines
+            line_nr = cont_line_nr - 1
         end
 
         -- Move to next line
@@ -497,7 +586,7 @@ function MarkdownTable:read(line_nr)
         end
 
         -- If we've reached the end going down, switch to going up
-        if direction == 1 and (not line or not MarkdownTable.isPartOfTable(line)) then
+        if direction == 1 and (not line or not MarkdownTable.isPartOfTable(line, line_nr)) then
             line_nr = init_line_nr - 1
             direction = -1
             if line_nr < 1 then
@@ -508,7 +597,7 @@ function MarkdownTable:read(line_nr)
         end
 
         -- If we've reached the end going up, we're done
-        if direction == -1 and (not line or not MarkdownTable.isPartOfTable(line)) then
+        if direction == -1 and (not line or not MarkdownTable.isPartOfTable(line, line_nr)) then
             tbl.metadata.header_row_idx = line_nr + 1
             break
         end
@@ -517,12 +606,13 @@ function MarkdownTable:read(line_nr)
     -- Sort rows by line number and add to table
     for line_num, row in get_utils().spairs(rows_by_line) do
         table.insert(tbl.rows, row)
-        -- Track line range
+        -- Track line range (include continuation lines)
         if tbl.line_range.start == 0 or line_num < tbl.line_range.start then
             tbl.line_range.start = line_num
         end
-        if line_num > tbl.line_range.finish then
-            tbl.line_range.finish = line_num
+        local row_end = line_num + #row.continuation_lines
+        if row_end > tbl.line_range.finish then
+            tbl.line_range.finish = row_end
         end
     end
 
@@ -631,7 +721,14 @@ function MarkdownTable:format()
 
     for _, row in ipairs(self.rows) do
         local formatted = row:format(self.col_widths, self.metadata.col_alignments, style)
-        table.insert(formatted_lines, formatted)
+        -- Handle multiline rows (returns table) vs single-line rows (returns string)
+        if type(formatted) == 'table' then
+            for _, line in ipairs(formatted) do
+                table.insert(formatted_lines, line)
+            end
+        else
+            table.insert(formatted_lines, formatted)
+        end
     end
 
     -- Write back to buffer

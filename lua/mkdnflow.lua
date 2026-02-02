@@ -204,6 +204,7 @@ local default_config = {
         format_on_move = true,
         auto_extend_rows = false,
         auto_extend_cols = false,
+        multiline = true,
         style = {
             cell_padding = 1,
             separator_padding = 1,
