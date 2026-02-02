@@ -155,15 +155,23 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     user_command('MkdnIncreaseHeading', function(opts)
         local cursor = require_module('cursor')
         if cursor then
-            cursor.changeHeadingLevel('increase')
+            if opts.range > 0 then
+                cursor.changeHeadingLevel('increase', { line1 = opts.line1, line2 = opts.line2 })
+            else
+                cursor.changeHeadingLevel('increase')
+            end
         end
-    end, {})
+    end, { range = true })
     user_command('MkdnDecreaseHeading', function(opts)
         local cursor = require_module('cursor')
         if cursor then
-            cursor.changeHeadingLevel('decrease')
+            if opts.range > 0 then
+                cursor.changeHeadingLevel('decrease', { line1 = opts.line1, line2 = opts.line2 })
+            else
+                cursor.changeHeadingLevel('decrease')
+            end
         end
-    end, {})
+    end, { range = true })
     user_command('MkdnToggleToDo', function(opts)
         local to_do = require_module('to_do')
         if to_do then

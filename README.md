@@ -398,8 +398,10 @@ the help files.
         MkdnYankFileAnchorLink = { 'n', 'yfa' },
         MkdnNextHeading = { 'n', ']]' },
         MkdnPrevHeading = { 'n', '[[' },
-        MkdnIncreaseHeading = { 'n', '+' },
-        MkdnDecreaseHeading = { 'n', '-' },
+        MkdnIncreaseHeading = { { 'n', 'v' }, '+' },
+        MkdnDecreaseHeading = { { 'n', 'v' }, '-' },
+        MkdnIncreaseHeadingOp = { { 'n', 'v' }, 'g+' },
+        MkdnDecreaseHeadingOp = { { 'n', 'v' }, 'g-' },
         MkdnToggleToDo = { { 'n', 'v' }, '<C-Space>' },
         MkdnNewListItem = false,
         MkdnNewListItemBelowInsert = { 'n', 'o' },
@@ -885,8 +887,10 @@ require('mkdnflow').setup({
         MkdnYankFileAnchorLink = { 'n', 'yfa' },
         MkdnNextHeading = { 'n', ']]' },
         MkdnPrevHeading = { 'n', '[[' },
-        MkdnIncreaseHeading = { 'n', '+' },
-        MkdnDecreaseHeading = { 'n', '-' },
+        MkdnIncreaseHeading = { { 'n', 'v' }, '+' },
+        MkdnDecreaseHeading = { { 'n', 'v' }, '-' },
+        MkdnIncreaseHeadingOp = { { 'n', 'v' }, 'g+' },
+        MkdnDecreaseHeadingOp = { { 'n', 'v' }, 'g-' },
         MkdnToggleToDo = { { 'n', 'v' }, '<C-Space>' },
         MkdnNewListItem = false,
         MkdnNewListItemBelowInsert = { 'n', 'o' },
@@ -979,8 +983,10 @@ Configuration options.
 | `MkdnMoveSource` | `{ 'n', '<F2>' }` | Open a dialog where you can provide a new source for a link and the plugin will rename and move the associated file on the backend (and rename the link source). |
 | `MkdnYankAnchorLink` | `{ 'n', 'yaa' }` | Yank a formatted anchor link (if cursor is currently on a line with a heading). |
 | `MkdnYankFileAnchorLink` | `{ 'n', 'yfa' }` | Yank a formatted anchor link with the filename included before the anchor (if cursor is currently on a line with a heading). |
-| `MkdnIncreaseHeading` | `{ 'n', '+' }` | Increase heading importance (remove hashes). |
-| `MkdnDecreaseHeading` | `{ 'n', '-' }` | Decrease heading importance (add hashes). |
+| `MkdnIncreaseHeading` | `{ { 'n', 'v' }, '+' }` | Increase heading importance (remove hashes). Supports visual selection to change multiple headings at once. |
+| `MkdnDecreaseHeading` | `{ { 'n', 'v' }, '-' }` | Decrease heading importance (add hashes). Supports visual selection to change multiple headings at once. |
+| `MkdnIncreaseHeadingOp` | `{ { 'n', 'v' }, 'g+' }` | Operator version of MkdnIncreaseHeading. In normal mode, use with a motion (e.g., `g+}` to increase headings to next paragraph). In visual mode, operates on selection. Supports dot-repeat. |
+| `MkdnDecreaseHeadingOp` | `{ { 'n', 'v' }, 'g-' }` | Operator version of MkdnDecreaseHeading. In normal mode, use with a motion (e.g., `g-}` to decrease headings to next paragraph). In visual mode, operates on selection. Supports dot-repeat. |
 | `MkdnToggleToDo` | `{ { 'n', 'v' }, '<C-Space>' }` | Toggle to-do list item's completion status or convert a list item into a to-do list item. |
 | `MkdnSortToDoList` | -- | Sort the to-do list at the cursor position by status. Items are grouped by their status's `sort.section` value and positioned according to `sort.position`. |
 | `MkdnUpdateNumbering` | `{ 'n', '<leader>nn' }` | Update numbering for all siblings of the list item of the current line. |

@@ -430,8 +430,10 @@ the documentation for the configuration options below or in the help files.
             MkdnYankFileAnchorLink = { 'n', 'yfa' },
             MkdnNextHeading = { 'n', ']]' },
             MkdnPrevHeading = { 'n', '[[' },
-            MkdnIncreaseHeading = { 'n', '+' },
-            MkdnDecreaseHeading = { 'n', '-' },
+            MkdnIncreaseHeading = { { 'n', 'v' }, '+' },
+            MkdnDecreaseHeading = { { 'n', 'v' }, '-' },
+            MkdnIncreaseHeadingOp = { { 'n', 'v' }, 'g+' },
+            MkdnDecreaseHeadingOp = { { 'n', 'v' }, 'g-' },
             MkdnToggleToDo = { { 'n', 'v' }, '<C-Space>' },
             MkdnNewListItem = false,
             MkdnNewListItemBelowInsert = { 'n', 'o' },
@@ -1401,8 +1403,10 @@ mappings ~
             MkdnYankFileAnchorLink = { 'n', 'yfa' },
             MkdnNextHeading = { 'n', ']]' },
             MkdnPrevHeading = { 'n', '[[' },
-            MkdnIncreaseHeading = { 'n', '+' },
-            MkdnDecreaseHeading = { 'n', '-' },
+            MkdnIncreaseHeading = { { 'n', 'v' }, '+' },
+            MkdnDecreaseHeading = { { 'n', 'v' }, '-' },
+            MkdnIncreaseHeadingOp = { { 'n', 'v' }, 'g+' },
+            MkdnDecreaseHeadingOp = { { 'n', 'v' }, 'g-' },
             MkdnToggleToDo = { { 'n', 'v' }, '<C-Space>' },
             MkdnNewListItem = false,
             MkdnNewListItemBelowInsert = { 'n', 'o' },
@@ -1587,14 +1591,30 @@ Configuration options.
     (if cursor is currently on a line with a heading).
 
 :MkdnIncreaseHeading                        *Mkdnflow-cmd-MkdnIncreaseHeading*
-    Default mapping: { 'n', '+' }
+    Default mapping: { { 'n', 'v' }, '+' }
 
-    Increase heading importance (remove hashes).
+    Increase heading importance (remove hashes). Supports visual selection to
+    change multiple headings at once.
 
 :MkdnDecreaseHeading                        *Mkdnflow-cmd-MkdnDecreaseHeading*
-    Default mapping: { 'n', '-' }
+    Default mapping: { { 'n', 'v' }, '-' }
 
-    Decrease heading importance (add hashes).
+    Decrease heading importance (add hashes). Supports visual selection to
+    change multiple headings at once.
+
+:MkdnIncreaseHeadingOp                    *Mkdnflow-cmd-MkdnIncreaseHeadingOp*
+    Default mapping: { { 'n', 'v' }, 'g+' }
+
+    Operator version of MkdnIncreaseHeading. In normal mode, use with a motion
+    (e.g., `g+}` to increase headings to next paragraph). In visual mode,
+    operates on selection. Supports dot-repeat.
+
+:MkdnDecreaseHeadingOp                    *Mkdnflow-cmd-MkdnDecreaseHeadingOp*
+    Default mapping: { { 'n', 'v' }, 'g-' }
+
+    Operator version of MkdnDecreaseHeading. In normal mode, use with a motion
+    (e.g., `g-}` to decrease headings to next paragraph). In visual mode,
+    operates on selection. Supports dot-repeat.
 
 :MkdnToggleToDo                                  *Mkdnflow-cmd-MkdnToggleToDo*
     Default mapping: { { 'n', 'v' }, '<C-Space>' }

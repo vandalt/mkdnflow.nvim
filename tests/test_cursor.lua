@@ -42,6 +42,8 @@ local T = new_set({
                     links = { transform_explicit = false },
                     silent = true
                 })
+                -- Trigger autocmd to set up buffer-local mappings
+                vim.cmd('doautocmd BufEnter')
             ]])
         end,
         post_once = child.stop,
@@ -472,6 +474,304 @@ T['edge_cases']['goTo with regex special chars'] = function()
     local cursor = get_cursor()
     eq(cursor[1], 1)
     eq(cursor[2], 5)
+end
+
+-- =============================================================================
+-- changeHeadingLevel() with range - Issue #256
+-- =============================================================================
+T['changeHeadingLevel_range'] = new_set()
+
+T['changeHeadingLevel_range']['decreases multiple headings in range'] = function()
+    set_lines({ '# First', 'text', '## Second', '### Third' })
+    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 1, line2 = 4 })]])
+    eq(get_line(1), '## First')
+    eq(get_line(2), 'text')
+    eq(get_line(3), '### Second')
+    eq(get_line(4), '#### Third')
+end
+
+T['changeHeadingLevel_range']['increases multiple headings in range'] = function()
+    set_lines({ '## First', 'text', '### Second', '#### Third' })
+    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('increase', { line1 = 1, line2 = 4 })]])
+    eq(get_line(1), '# First')
+    eq(get_line(2), 'text')
+    eq(get_line(3), '## Second')
+    eq(get_line(4), '### Third')
+end
+
+T['changeHeadingLevel_range']['skips non-heading lines'] = function()
+    set_lines({ '# Heading', 'plain text', '- list item' })
+    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 1, line2 = 3 })]])
+    eq(get_line(1), '## Heading')
+    eq(get_line(2), 'plain text')
+    eq(get_line(3), '- list item')
+end
+
+T['changeHeadingLevel_range']['does not increase H1 beyond limit'] = function()
+    set_lines({ '# Already H1', '## Can increase' })
+    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('increase', { line1 = 1, line2 = 2 })]])
+    eq(get_line(1), '# Already H1')
+    eq(get_line(2), '# Can increase')
+end
+
+T['changeHeadingLevel_range']['works with single line range'] = function()
+    set_lines({ '# First', '## Second', '### Third' })
+    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 2, line2 = 2 })]])
+    eq(get_line(1), '# First')
+    eq(get_line(2), '### Second')
+    eq(get_line(3), '### Third')
+end
+
+T['changeHeadingLevel_range']['handles empty range gracefully'] = function()
+    set_lines({ '# First', '## Second' })
+    -- No-op if line1 > line2 (shouldn't happen in practice, but handle gracefully)
+    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 2, line2 = 1 })]])
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+end
+
+-- =============================================================================
+-- changeHeadingLevel() command integration - Issue #256
+-- =============================================================================
+T['changeHeadingLevel_command'] = new_set()
+
+T['changeHeadingLevel_command']['command with range decreases headings'] = function()
+    set_lines({ '# First', '## Second', '### Third' })
+    child.lua([[vim.cmd('1,3MkdnDecreaseHeading')]])
+    eq(get_line(1), '## First')
+    eq(get_line(2), '### Second')
+    eq(get_line(3), '#### Third')
+end
+
+T['changeHeadingLevel_command']['command with range increases headings'] = function()
+    set_lines({ '## First', '### Second', '#### Third' })
+    child.lua([[vim.cmd('1,3MkdnIncreaseHeading')]])
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+    eq(get_line(3), '### Third')
+end
+
+T['changeHeadingLevel_command']['command without range uses current line'] = function()
+    set_lines({ '## First', '## Second', '## Third' })
+    set_cursor(2, 0)
+    child.lua([[vim.cmd('MkdnDecreaseHeading')]])
+    eq(get_line(1), '## First')
+    eq(get_line(2), '### Second')
+    eq(get_line(3), '## Third')
+end
+
+T['changeHeadingLevel_command']['visual mode keymap increases headings'] = function()
+    set_lines({ '## First', '### Second', '#### Third' })
+    set_cursor(1, 0)
+    -- Simulate visual line mode, select lines 1-3, then press +
+    child.type_keys('V', '2j', '+')
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+    eq(get_line(3), '### Third')
+end
+
+T['changeHeadingLevel_command']['visual mode keymap decreases headings'] = function()
+    set_lines({ '# First', '## Second', '### Third' })
+    set_cursor(1, 0)
+    -- Simulate visual line mode, select lines 1-3, then press -
+    child.type_keys('V', '2j', '-')
+    eq(get_line(1), '## First')
+    eq(get_line(2), '### Second')
+    eq(get_line(3), '#### Third')
+end
+
+T['changeHeadingLevel_command']['visual mode skips H1 when increasing'] = function()
+    set_lines({ '# Already H1', '## Can increase', '### Third' })
+    set_cursor(1, 0)
+    child.type_keys('V', '2j', '+')
+    eq(get_line(1), '# Already H1') -- Cannot increase beyond H1
+    eq(get_line(2), '# Can increase')
+    eq(get_line(3), '## Third')
+end
+
+-- =============================================================================
+-- Heading operator (g+/g-) with dot-repeat - Issue #256 enhancement
+-- =============================================================================
+T['heading_operator'] = new_set()
+
+T['heading_operator']['setupHeadingOperator returns g@'] = function()
+    local result = child.lua_get([[require('mkdnflow.cursor').setupHeadingOperator('increase')]])
+    eq(result, 'g@')
+end
+
+T['heading_operator']['_headingOperator works with normal mode marks'] = function()
+    set_lines({ '## First', '### Second', '#### Third', 'text' })
+    -- Manually set the '[ and '] marks to simulate a motion
+    child.lua([[
+        vim.api.nvim_buf_set_mark(0, '[', 1, 0, {})
+        vim.api.nvim_buf_set_mark(0, ']', 3, 0, {})
+        require('mkdnflow.cursor')._pending_direction = 'increase'
+        require('mkdnflow.cursor')._headingOperator('line')
+    ]])
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+    eq(get_line(3), '### Third')
+    eq(get_line(4), 'text') -- Not affected
+end
+
+T['heading_operator']['_headingOperator works with visual mode marks'] = function()
+    set_lines({ '## First', '### Second', '#### Third', 'text' })
+    -- Manually set the '< and '> marks to simulate visual selection
+    child.lua([[
+        vim.api.nvim_buf_set_mark(0, '<', 1, 0, {})
+        vim.api.nvim_buf_set_mark(0, '>', 3, 0, {})
+        require('mkdnflow.cursor')._pending_direction = 'decrease'
+        require('mkdnflow.cursor')._headingOperator('V')
+    ]])
+    eq(get_line(1), '### First')
+    eq(get_line(2), '#### Second')
+    eq(get_line(3), '##### Third')
+    eq(get_line(4), 'text') -- Not affected
+end
+
+T['heading_operator']['headingOperatorVisual sets operatorfunc and applies change'] = function()
+    set_lines({ '## First', '### Second' })
+    -- Set visual marks as if lines 1-2 were selected in visual line mode
+    child.lua([[
+        vim.api.nvim_buf_set_mark(0, '<', 1, 0, {})
+        vim.api.nvim_buf_set_mark(0, '>', 2, 0, {})
+        -- Simulate that visual mode was 'V' (line mode)
+        vim.fn.setreg('v', 'V')
+    ]])
+    -- Call the visual handler - it will use visualmode() which we can't easily mock,
+    -- but it should fall back to the marks
+    child.lua([[require('mkdnflow.cursor').headingOperatorVisual('increase')]])
+
+    -- Check that operatorfunc was set for dot-repeat
+    local opfunc = child.lua_get('vim.o.operatorfunc')
+    eq(opfunc, "v:lua.require'mkdnflow.cursor'._headingOperator")
+
+    -- Check that the headings were increased
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+end
+
+-- Helper to execute keys properly for expression mappings
+-- child.type_keys doesn't work well with expression mappings
+local function feedkeys(keys)
+    child.lua('vim.fn.feedkeys(' .. vim.inspect(keys) .. ', "tx")')
+end
+
+T['heading_operator']['g+ keymap with motion increases headings'] = function()
+    set_lines({ '## First', '### Second', '#### Third', 'text', '## Another' })
+    set_cursor(1, 0)
+    -- g+ followed by 2j motion (current line + 2 lines down = 3 lines)
+    feedkeys('g+2j')
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+    eq(get_line(3), '### Third')
+    eq(get_line(4), 'text')
+    eq(get_line(5), '## Another') -- Not affected
+end
+
+T['heading_operator']['g- keymap with motion decreases headings'] = function()
+    set_lines({ '# First', '## Second', '### Third', 'text', '# Another' })
+    set_cursor(1, 0)
+    -- g- followed by 2j motion
+    feedkeys('g-2j')
+    eq(get_line(1), '## First')
+    eq(get_line(2), '### Second')
+    eq(get_line(3), '#### Third')
+    eq(get_line(4), 'text')
+    eq(get_line(5), '# Another') -- Not affected
+end
+
+T['heading_operator']['g+ in visual mode works'] = function()
+    set_lines({ '## First', '### Second', '#### Third' })
+    set_cursor(1, 0)
+    feedkeys('V2jg+')
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+    eq(get_line(3), '### Third')
+end
+
+T['heading_operator']['g- in visual mode works'] = function()
+    set_lines({ '# First', '## Second', '### Third' })
+    set_cursor(1, 0)
+    feedkeys('V2jg-')
+    eq(get_line(1), '## First')
+    eq(get_line(2), '### Second')
+    eq(get_line(3), '#### Third')
+end
+
+T['heading_operator']['dot repeat works after g+ with motion'] = function()
+    set_lines({ '## First', '### Second', '', '## Third', '### Fourth' })
+    set_cursor(1, 0)
+    -- First operation: g+ with j motion (2 lines)
+    feedkeys('g+j')
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+
+    -- Move to line 4 and dot-repeat
+    set_cursor(4, 0)
+    feedkeys('.')
+    eq(get_line(4), '# Third')
+    eq(get_line(5), '## Fourth')
+end
+
+T['heading_operator']['dot repeat works after g- with motion'] = function()
+    set_lines({ '# First', '## Second', '', '# Third', '## Fourth' })
+    set_cursor(1, 0)
+    -- First operation: g- with j motion (2 lines)
+    feedkeys('g-j')
+    eq(get_line(1), '## First')
+    eq(get_line(2), '### Second')
+
+    -- Move to line 4 and dot-repeat
+    set_cursor(4, 0)
+    feedkeys('.')
+    eq(get_line(4), '## Third')
+    eq(get_line(5), '### Fourth')
+end
+
+T['heading_operator']['dot repeat works after visual mode g+'] = function()
+    -- Visual mode operations now support dot-repeat (like > and < do)
+    set_lines({ '## First', '### Second', '', '## Third', '### Fourth' })
+    set_cursor(1, 0)
+    -- First operation: visual select 2 lines, then g+
+    feedkeys('Vjg+')
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+
+    -- Move to line 4 and dot-repeat - affects same number of lines (2)
+    set_cursor(4, 0)
+    feedkeys('.')
+    eq(get_line(4), '# Third')
+    eq(get_line(5), '## Fourth')
+end
+
+T['heading_operator']['g+ with paragraph motion'] = function()
+    set_lines({ '## First', '### Second', '', '## Third' })
+    set_cursor(1, 0)
+    -- g+ with } motion (to next blank line/paragraph)
+    feedkeys('g+}')
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+    eq(get_line(3), '')
+    eq(get_line(4), '## Third') -- Not affected (after paragraph)
+end
+
+T['heading_operator']['g- skips non-heading lines'] = function()
+    set_lines({ '# Heading', 'plain text', '- list item', '## Another' })
+    set_cursor(1, 0)
+    feedkeys('g-3j')
+    eq(get_line(1), '## Heading')
+    eq(get_line(2), 'plain text') -- Unchanged
+    eq(get_line(3), '- list item') -- Unchanged
+    eq(get_line(4), '### Another')
+end
+
+T['heading_operator']['g+ does not increase H1 beyond limit'] = function()
+    set_lines({ '# Already H1', '## Can increase' })
+    set_cursor(1, 0)
+    feedkeys('g+j')
+    eq(get_line(1), '# Already H1') -- Cannot increase beyond H1
+    eq(get_line(2), '# Can increase')
 end
 
 return T

@@ -35,8 +35,10 @@ local descriptions = {
     MkdnYankFileAnchorLink = 'Yank heading as full file anchor link',
     MkdnNextHeading = 'Jump to next heading',
     MkdnPrevHeading = 'Jump to previous heading',
-    MkdnIncreaseHeading = 'Increase heading level',
-    MkdnDecreaseHeading = 'Decrease heading level',
+    MkdnIncreaseHeading = 'Increase heading level (supports visual selection)',
+    MkdnDecreaseHeading = 'Decrease heading level (supports visual selection)',
+    MkdnIncreaseHeadingOp = 'Increase heading level (operator with motion, dot-repeatable)',
+    MkdnDecreaseHeadingOp = 'Decrease heading level (operator with motion, dot-repeatable)',
     MkdnToggleToDo = 'Toggle to-do item status',
     MkdnNewListItem = 'Create new list item (insert mode)',
     MkdnNewListItemBelowInsert = 'Create list item below and enter insert mode',
@@ -62,6 +64,57 @@ for key, _ in pairs(config.filetypes) do
     table.insert(extension_patterns, '*.' .. key)
 end
 
+-- Operator commands that need special handling (expression mappings for dot-repeat)
+local operator_commands = {
+    MkdnIncreaseHeadingOp = 'increase',
+    MkdnDecreaseHeadingOp = 'decrease',
+}
+
+-- Helper to set up a single mapping
+local function setup_mapping(mode, lhs, command)
+    local is_operator = operator_commands[command]
+
+    if is_operator then
+        -- Operator commands need expression mappings for normal mode
+        -- and special handling for visual mode
+        if mode == 'n' then
+            -- Normal mode: expression mapping that returns g@
+            vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+                noremap = true,
+                expr = true,
+                desc = descriptions[command],
+                callback = function()
+                    return require('mkdnflow.cursor').setupHeadingOperator(is_operator)
+                end,
+            })
+        elseif mode == 'v' then
+            -- Visual mode: escape and call the visual handler
+            vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+                noremap = true,
+                desc = descriptions[command],
+                callback = function()
+                    -- Exit visual mode first so marks are set
+                    vim.api.nvim_feedkeys(
+                        vim.api.nvim_replace_termcodes('<Esc>', true, false, true),
+                        'nx',
+                        false
+                    )
+                    require('mkdnflow.cursor').headingOperatorVisual(is_operator)
+                end,
+            })
+        end
+    else
+        -- Standard command mapping
+        -- Use different mapping for visual mode to preserve range
+        -- <Cmd> doesn't pass visual selection; ':' does (with '<,'>)
+        local rhs = (mode == 'v') and (':' .. command .. '<CR>') or ('<Cmd>:' .. command .. '<CR>')
+        vim.api.nvim_buf_set_keymap(0, mode, lhs, rhs, {
+            noremap = true,
+            desc = descriptions[command],
+        })
+    end
+end
+
 -- Enable mappings in buffers in which Mkdnflow activates
 if nvim_version >= 7 then
     vim.api.nvim_create_augroup('MkdnflowMappings', { clear = true })
@@ -79,23 +132,11 @@ if nvim_version >= 7 then
                     end
                 end
                 if available and mapping and type(mapping[1]) == 'table' then
-                    for _, value in ipairs(mapping[1]) do
-                        vim.api.nvim_buf_set_keymap(
-                            0,
-                            value,
-                            mapping[2],
-                            '<Cmd>:' .. command .. '<CR>',
-                            { noremap = true, desc = descriptions[command] }
-                        )
+                    for _, mode in ipairs(mapping[1]) do
+                        setup_mapping(mode, mapping[2], command)
                     end
                 elseif available and type(mapping) == 'table' then
-                    vim.api.nvim_buf_set_keymap(
-                        0,
-                        mapping[1],
-                        mapping[2],
-                        '<Cmd>:' .. command .. '<CR>',
-                        { noremap = true, desc = descriptions[command] }
-                    )
+                    setup_mapping(mapping[1], mapping[2], command)
                 end
             end
         end,

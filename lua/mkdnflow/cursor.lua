@@ -262,30 +262,96 @@ end
 
 --[[
 changeHeadingLevel() changes the importance of a heading by adding or removing
-a hash symbol. Fewer hashes = more important.
+a hash symbol. Fewer hashes = more important. Accepts optional opts table with
+line1 and line2 for range operations (e.g., from visual selection).
 --]]
-M.changeHeadingLevel = function(change)
-    -- Get the row number and the line contents
-    local row = vim.api.nvim_win_get_cursor(0)[1]
-    local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)
-    -- See if the line starts with a hash
-    local is_heading = string.find(line[1], '^#')
-    if is_heading then
-        if change == 'decrease' then
-            -- Add a hash
-            vim.api.nvim_buf_set_text(0, row - 1, 0, row - 1, 0, { '#' })
-        else
-            -- Remove a hash, but only if there's more than one
-            if not string.find(line[1], '^##') then
-                local message = "⬇️  Can't increase this heading any more!"
-                if not silent then
-                    vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
-                end
+M.changeHeadingLevel = function(change, opts)
+    opts = opts or {}
+    local start_row = opts.line1 or vim.api.nvim_win_get_cursor(0)[1]
+    local end_row = opts.line2 or start_row
+
+    for row = start_row, end_row do
+        local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)
+        -- See if the line starts with a hash
+        local is_heading = string.find(line[1], '^#')
+        if is_heading then
+            if change == 'decrease' then
+                -- Add a hash
+                vim.api.nvim_buf_set_text(0, row - 1, 0, row - 1, 0, { '#' })
             else
-                vim.api.nvim_buf_set_text(0, row - 1, 0, row - 1, 1, { '' })
+                -- Remove a hash, but only if there's more than one
+                if not string.find(line[1], '^##') then
+                    -- Only show warning for single-line operations
+                    if start_row == end_row then
+                        local message = "⬇️  Can't increase this heading any more!"
+                        if not silent then
+                            vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
+                        end
+                    end
+                else
+                    vim.api.nvim_buf_set_text(0, row - 1, 0, row - 1, 1, { '' })
+                end
             end
         end
     end
+end
+
+-- State for operator-pending heading changes (used for dot-repeat)
+M._pending_direction = nil
+
+--[[
+_headingOperator() is the operatorfunc callback for g@ operations. It extracts
+the range from marks and calls changeHeadingLevel. This enables dot-repeat.
+--]]
+M._headingOperator = function(motion)
+    if not M._pending_direction then
+        return
+    end
+
+    local start_row, end_row
+
+    -- Check if this is a visual mode operation
+    if motion and (motion:match('[vV]') or motion == '\22') then
+        -- Visual mode: use '< and '> marks
+        -- '\22' is <C-v> (visual block mode)
+        start_row = vim.api.nvim_buf_get_mark(0, '<')[1]
+        end_row = vim.api.nvim_buf_get_mark(0, '>')[1]
+    else
+        -- Normal mode with motion: use '[ and '] marks set by g@
+        start_row = vim.api.nvim_buf_get_mark(0, '[')[1]
+        end_row = vim.api.nvim_buf_get_mark(0, ']')[1]
+    end
+
+    M.changeHeadingLevel(M._pending_direction, { line1 = start_row, line2 = end_row })
+end
+
+--[[
+setupHeadingOperator() prepares the operator for normal mode. It sets the
+operatorfunc and returns 'g@' so that Vim waits for a motion. This is used
+with expression mappings ({ expr = true }).
+--]]
+M.setupHeadingOperator = function(direction)
+    M._pending_direction = direction
+    vim.o.operatorfunc = "v:lua.require'mkdnflow.cursor'._headingOperator"
+    return 'g@'
+end
+
+--[[
+headingOperatorVisual() handles visual mode operator calls. It uses g@ with
+a count-based motion so that dot-repeat works correctly (repeating the
+same number of lines from the new cursor position, like > and < do).
+--]]
+M.headingOperatorVisual = function(direction)
+    M._pending_direction = direction
+    vim.o.operatorfunc = "v:lua.require'mkdnflow.cursor'._headingOperator"
+    -- Calculate the number of lines in the visual selection
+    local start_line = vim.fn.line("'<")
+    local end_line = vim.fn.line("'>")
+    local line_count = end_line - start_line + 1
+    -- Go to start of selection and execute g@ with count
+    -- Using {count}g@_ operates on {count} lines from cursor (like {count}>>)
+    -- The _ motion means "current line" and accepts a count
+    vim.cmd('normal! `<' .. line_count .. 'g@_')
 end
 
 --[[
