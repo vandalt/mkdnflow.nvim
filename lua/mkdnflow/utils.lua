@@ -16,11 +16,38 @@
 
 local M = {}
 
+-- Helper to check if a table is array-like (consecutive integer keys starting at 1)
+-- Used by mergeTables to determine whether to replace or recursively merge
+local function isArray(t)
+    if type(t) ~= 'table' then
+        return false
+    end
+    local count = 0
+    for _ in pairs(t) do
+        count = count + 1
+    end
+    -- Empty tables are not treated as arrays (preserves default values)
+    if count == 0 then
+        return false
+    end
+    -- Check if all keys are consecutive integers 1..count
+    for i = 1, count do
+        if t[i] == nil then
+            return false
+        end
+    end
+    return true
+end
+
 -- Function to merge the user_config with the default config
+-- Array-like tables are replaced entirely; dict-like tables are merged recursively
 M.mergeTables = function(defaults, user_config)
     for k, v in pairs(user_config) do
         if type(v) == 'table' then
-            if type(defaults[k] or false) == 'table' then
+            -- If user provides an array, replace entirely (don't merge element-by-element)
+            if isArray(v) then
+                defaults[k] = v
+            elseif type(defaults[k] or false) == 'table' then
                 M.mergeTables(defaults[k] or {}, user_config[k] or {})
             else
                 defaults[k] = v

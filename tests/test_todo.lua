@@ -31,6 +31,21 @@ local function get_cursor()
     return child.lua_get('vim.api.nvim_win_get_cursor(0)')
 end
 
+-- Helper to setup mkdnflow with fresh module state
+-- The to_do module caches statuses at load time, so we need to clear the cache
+local function setup_fresh(config_str)
+    child.lua([[
+        -- Clear cached modules to force fresh load with new config
+        for name, _ in pairs(package.loaded) do
+            if name:match('^mkdnflow') then
+                package.loaded[name] = nil
+            end
+        end
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+    ]] .. config_str)
+end
+
 local T = new_set({
     hooks = {
         pre_case = function()
@@ -373,7 +388,8 @@ end
 
 T['sort_to_do_list']['respects custom sort config'] = function()
     -- Reconfigure with custom sort order (not_started first)
-    child.lua([[
+    -- Must use setup_fresh to reload the to_do module with new config
+    setup_fresh([[
         require('mkdnflow').setup({
             to_do = {
                 statuses = {
@@ -393,6 +409,121 @@ T['sort_to_do_list']['respects custom sort config'] = function()
     -- With custom config: not_started (1) before in_progress (2)
     eq(get_line(1), '- [ ] not started')
     eq(get_line(2), '- [-] in progress')
+end
+
+-- =============================================================================
+-- Custom status count (#268) -- users can configure fewer or more statuses
+-- =============================================================================
+T['custom_status_count'] = new_set()
+
+T['custom_status_count']['two statuses: cycles directly from not_started to complete'] = function()
+    -- Configure with only 2 statuses (no in_progress)
+    -- Array replacement in mergeTables allows this to work correctly
+    setup_fresh([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    { name = 'not_started', marker = ' ' },
+                    { name = 'complete', marker = 'X' },
+                },
+            },
+        })
+    ]])
+
+    -- Verify we have exactly 2 statuses
+    local num_statuses = child.lua_get('#require("mkdnflow").config.to_do.statuses')
+    eq(num_statuses, 2)
+
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+
+    -- First toggle: not_started -> complete
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [X] task')
+
+    -- Second toggle: complete -> not_started
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] task')
+end
+
+T['custom_status_count']['two statuses: full cycle with two toggles'] = function()
+    -- Configure with only 2 statuses
+    setup_fresh([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    { name = 'not_started', marker = ' ' },
+                    { name = 'complete', marker = 'X' },
+                },
+            },
+        })
+    ]])
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+
+    -- Two toggles should complete a full cycle
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] task')
+end
+
+T['custom_status_count']['four statuses: cycles through all four'] = function()
+    -- Configure with 4 statuses
+    setup_fresh([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    { name = 'not_started', marker = ' ' },
+                    { name = 'in_progress', marker = '-' },
+                    { name = 'blocked', marker = '!' },
+                    { name = 'complete', marker = 'X' },
+                },
+            },
+        })
+    ]])
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+
+    -- First toggle: not_started -> in_progress
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] task')
+
+    -- Second toggle: in_progress -> blocked
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [!] task')
+
+    -- Third toggle: blocked -> complete
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [X] task')
+
+    -- Fourth toggle: complete -> not_started
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] task')
+end
+
+T['custom_status_count']['four statuses: full cycle with four toggles'] = function()
+    -- Configure with 4 statuses
+    setup_fresh([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    { name = 'not_started', marker = ' ' },
+                    { name = 'in_progress', marker = '-' },
+                    { name = 'blocked', marker = '!' },
+                    { name = 'complete', marker = 'X' },
+                },
+            },
+        })
+    ]])
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+
+    -- Four toggles should complete a full cycle
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] task')
 end
 
 return T

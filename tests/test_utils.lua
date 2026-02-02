@@ -174,6 +174,70 @@ T['mergeTables']['handles empty user config'] = function()
     eq(result.b, 2)
 end
 
+T['mergeTables']['replaces array-like tables entirely'] = function()
+    local defaults = { items = { 'a', 'b', 'c' } }
+    local user = { items = { 'x', 'y' } }
+    local result = utils.mergeTables(defaults, user)
+    eq(#result.items, 2)
+    eq(result.items[1], 'x')
+    eq(result.items[2], 'y')
+end
+
+T['mergeTables']['replaces array of tables entirely'] = function()
+    -- This is the to_do.statuses use case
+    local defaults = {
+        statuses = {
+            { name = 'a', value = 1 },
+            { name = 'b', value = 2 },
+            { name = 'c', value = 3 },
+        },
+    }
+    local user = {
+        statuses = {
+            { name = 'x', value = 10 },
+            { name = 'y', value = 20 },
+        },
+    }
+    local result = utils.mergeTables(defaults, user)
+    eq(#result.statuses, 2)
+    eq(result.statuses[1].name, 'x')
+    eq(result.statuses[2].name, 'y')
+end
+
+T['mergeTables']['preserves default array when user provides empty table'] = function()
+    local defaults = { items = { 'a', 'b', 'c' } }
+    local user = { items = {} }
+    local result = utils.mergeTables(defaults, user)
+    -- Empty table is not array-like, so defaults remain
+    eq(#result.items, 3)
+end
+
+T['mergeTables']['merges dict-like tables recursively'] = function()
+    local defaults = { config = { a = 1, b = 2 } }
+    local user = { config = { b = 3 } }
+    local result = utils.mergeTables(defaults, user)
+    eq(result.config.a, 1) -- preserved from default
+    eq(result.config.b, 3) -- overridden by user
+end
+
+T['mergeTables']['handles mixed array and dict siblings'] = function()
+    local defaults = {
+        items = { 'a', 'b', 'c' },
+        settings = { enabled = true, count = 5 },
+    }
+    local user = {
+        items = { 'x' },
+        settings = { count = 10 },
+    }
+    local result = utils.mergeTables(defaults, user)
+    -- Array replaced
+    eq(#result.items, 1)
+    eq(result.items[1], 'x')
+    -- Dict merged
+    eq(result.settings.enabled, true)
+    eq(result.settings.count, 10)
+end
+
 -- =============================================================================
 -- spairs tests (sorted pairs iterator)
 -- =============================================================================
