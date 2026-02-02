@@ -17,11 +17,12 @@
 -- This module: To-do list related functions
 local utils = require('mkdnflow').utils
 local silent = require('mkdnflow').config.silent
-local vim_indent
-if vim.api.nvim_buf_get_option(0, 'expandtab') == true then
-    vim_indent = string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
-else
-    vim_indent = '\t'
+local function get_vim_indent()
+    if vim.api.nvim_buf_get_option(0, 'expandtab') == true then
+        return string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
+    else
+        return '\t'
+    end
 end
 
 local M = {}
@@ -197,7 +198,7 @@ M.newListItem = function(carry, above, cursor_moves, mode_after, alt, line)
             local next_line = indentation
             local next_number
             if (not above) and line:sub(#line, #line) == ':' then -- If the current line ends in a colon, indent the next line
-                next_line = next_line .. vim_indent
+                next_line = next_line .. get_vim_indent()
                 if li_type == 'ol' or li_type == 'oltd' then
                     next_number = 1
                     next_line = next_line .. next_number
@@ -246,14 +247,14 @@ M.newListItem = function(carry, above, cursor_moves, mode_after, alt, line)
                 vim.cmd('stopinsert')
             end
         else
-            if line:match('^' .. vim_indent) then -- If the line is indented, demote by removing the indentation
-                local replacement = line:gsub('^' .. vim_indent, '')
+            if line:match('^' .. get_vim_indent()) then -- If the line is indented, demote by removing the indentation
+                local replacement = line:gsub('^' .. get_vim_indent(), '')
                 local new_indentation = replacement:match(M.patterns[li_type].indentation)
                 vim.api.nvim_buf_set_text(0, row - 1, 0, row - 1, #line, { replacement })
                 -- Update w/ the new indentation
                 update_numbering(row, new_indentation, li_type)
                 -- Update any adopted children
-                update_numbering(row + 1, new_indentation .. vim_indent, li_type, false, 1)
+                update_numbering(row + 1, new_indentation .. get_vim_indent(), li_type, false, 1)
             else -- Otherwise, demote using the canonical demotion
                 -- Make a new line with the demotion
                 local demotion = string.match(line, M.patterns[li_type].demotion)

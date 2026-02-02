@@ -276,6 +276,15 @@ T['newListItem']['removes marker from empty non-indented item'] = function()
     eq(line, '')
 end
 
+T['newListItem']['demotes tab-indented empty item when expandtab is false'] = function()
+    child.lua('vim.bo.expandtab = false')
+    set_lines({ '\t- ' })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.lists').newListItem(true, false, true, 'n')]])
+    local line = get_line(1)
+    eq(line, '- ')
+end
+
 -- Colon at end creates indented child
 T['newListItem']['indents after line ending with colon'] = function()
     set_lines({ '- parent item:' })
@@ -291,6 +300,25 @@ T['newListItem']['indents ordered list after colon with number 1'] = function()
     child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
     local lines = get_lines()
     eq(lines[2], '    1. ')
+end
+
+T['newListItem']['uses tabs when expandtab is false'] = function()
+    child.lua('vim.bo.expandtab = false')
+    set_lines({ '- parent item:' })
+    set_cursor(1, 14) -- end of line
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    local lines = get_lines()
+    eq(lines[2], '\t- ')
+end
+
+T['newListItem']['respects shiftwidth for indent size'] = function()
+    child.lua('vim.bo.expandtab = true')
+    child.lua('vim.bo.shiftwidth = 2')
+    set_lines({ '- parent item:' })
+    set_cursor(1, 14)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    local lines = get_lines()
+    eq(lines[2], '  - ') -- 2 spaces, not 4
 end
 
 -- Non-list lines
