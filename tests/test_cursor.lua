@@ -317,7 +317,7 @@ T['yankAsAnchorLink']['yanks heading as anchor link'] = function()
     set_lines({ '# My Heading' })
     set_cursor(1, 0)
     child.lua([[require('mkdnflow.cursor').yankAsAnchorLink()]])
-    local register = child.lua_get('vim.fn.getreg(\'"\')')
+    local register = child.lua_get("vim.fn.getreg('\"')")
     eq(register, '[My Heading](#my-heading)')
 end
 
@@ -325,7 +325,7 @@ T['yankAsAnchorLink']['yanks H2 heading'] = function()
     set_lines({ '## Sub Heading' })
     set_cursor(1, 0)
     child.lua([[require('mkdnflow.cursor').yankAsAnchorLink()]])
-    local register = child.lua_get('vim.fn.getreg(\'"\')')
+    local register = child.lua_get("vim.fn.getreg('\"')")
     eq(register, '[Sub Heading](#sub-heading)')
 end
 
@@ -333,7 +333,7 @@ T['yankAsAnchorLink']['includes full path when requested'] = function()
     set_lines({ '# Heading' })
     set_cursor(1, 0)
     child.lua([[require('mkdnflow.cursor').yankAsAnchorLink(true)]])
-    local register = child.lua_get('vim.fn.getreg(\'"\')')
+    local register = child.lua_get("vim.fn.getreg('\"')")
     -- Should contain the buffer path and anchor
     local has_path = register:match('test%.md#heading') ~= nil
     eq(has_path, true)
@@ -343,7 +343,7 @@ T['yankAsAnchorLink']['yanks bracketed span as anchor'] = function()
     set_lines({ '[Span Text]{#span-id}' })
     set_cursor(1, 5) -- cursor on the span
     child.lua([[require('mkdnflow.cursor').yankAsAnchorLink()]])
-    local register = child.lua_get('vim.fn.getreg(\'"\')')
+    local register = child.lua_get("vim.fn.getreg('\"')")
     eq(register, '[Span Text](#span-id)')
 end
 
@@ -353,8 +353,74 @@ T['yankAsAnchorLink']['does nothing on non-heading line'] = function()
     set_lines({ 'Regular text' })
     set_cursor(1, 0)
     child.lua([[require('mkdnflow.cursor').yankAsAnchorLink()]])
-    local register = child.lua_get('vim.fn.getreg(\'"\')')
+    local register = child.lua_get("vim.fn.getreg('\"')")
     eq(register, 'original') -- Should be unchanged
+end
+
+-- =============================================================================
+-- Configurable yank register
+-- =============================================================================
+T['yank_register'] = new_set()
+
+T['yank_register']['uses configured register'] = function()
+    -- Configure to use register 'a'
+    child.lua(
+        [[require('mkdnflow').setup({ cursor = { yank_register = 'a' }, links = { transform_explicit = false }, silent = true })]]
+    )
+    -- Clear the registers
+    child.lua([[vim.fn.setreg('a', '')]])
+    child.lua([[vim.fn.setreg('"', 'should_stay')]])
+    set_lines({ '# Test Heading' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').yankAsAnchorLink()]])
+
+    -- Should be in register 'a', not unnamed
+    local reg_a = child.lua_get([[vim.fn.getreg('a')]])
+    local reg_unnamed = child.lua_get([[vim.fn.getreg('"')]])
+    eq(reg_a, '[Test Heading](#test-heading)')
+    eq(reg_unnamed, 'should_stay') -- Unnamed should be unchanged
+end
+
+T['yank_register']['defaults to unnamed register'] = function()
+    child.lua(
+        [[require('mkdnflow').setup({ links = { transform_explicit = false }, silent = true })]]
+    )
+    child.lua([[vim.fn.setreg('"', '')]])
+    set_lines({ '# Test Heading' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').yankAsAnchorLink()]])
+
+    local reg = child.lua_get([[vim.fn.getreg('"')]])
+    eq(reg, '[Test Heading](#test-heading)')
+end
+
+T['yank_register']['works with system clipboard register'] = function()
+    -- This test uses the mock clipboard from test setup
+    child.lua(
+        [[require('mkdnflow').setup({ cursor = { yank_register = '+' }, links = { transform_explicit = false }, silent = true })]]
+    )
+    child.lua([[vim.fn.setreg('+', '')]])
+    set_lines({ '# Clipboard Test' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').yankAsAnchorLink()]])
+
+    local reg = child.lua_get([[vim.fn.getreg('+')]])
+    eq(reg, '[Clipboard Test](#clipboard-test)')
+end
+
+T['yank_register']['works with full path'] = function()
+    child.lua(
+        [[require('mkdnflow').setup({ cursor = { yank_register = 'b' }, links = { transform_explicit = false }, silent = true })]]
+    )
+    child.lua([[vim.fn.setreg('b', '')]])
+    set_lines({ '# Heading' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').yankAsAnchorLink(true)]])
+
+    local reg = child.lua_get([[vim.fn.getreg('b')]])
+    -- Should contain the buffer path and anchor
+    local has_path = reg:match('test%.md#heading') ~= nil
+    eq(has_path, true)
 end
 
 -- =============================================================================

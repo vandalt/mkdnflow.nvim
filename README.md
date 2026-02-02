@@ -580,6 +580,7 @@ require('mkdnflow').setup({
 | Option | Type | Description |
 | --- | --- | --- |
 | `cursor.jump_patterns` | `table` \| `nil` | **`nil`** (default): The default jump patterns for the configured link style are used (markdown-style links by default).<br>`table`: A table of custom Lua regex patterns.<br>`{}` (empty table): Disable link jumping without disabling the `cursor` module. |
+| `cursor.yank_register` | `string` | **`'"'`** (default): Anchor links are yanked to the unnamed register.<br>`'+'`: Yank to the system clipboard.<br>`'<any register>'`: Yank to any valid Vim register (e.g. `'a'`, `'*'`, `'0'`). |
 
 ##### links
 

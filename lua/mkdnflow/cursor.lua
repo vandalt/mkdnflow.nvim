@@ -324,6 +324,7 @@ an anchor link. Assumes current line is a heading.
 --]]
 M.yankAsAnchorLink = function(full_path)
     full_path = full_path or false
+    local register = require('mkdnflow').config.cursor.yank_register or '"'
     -- Get the row number and the line contents
     local row = vim.api.nvim_win_get_cursor(0)[1]
     local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)
@@ -333,18 +334,15 @@ M.yankAsAnchorLink = function(full_path)
     if is_heading then
         -- Format the line as an anchor link
         local anchor_link = links.formatLink(line[1])
-        anchor_link = string.gsub(anchor_link[1], '"', '\\"')
+        anchor_link = anchor_link[1]
         if full_path then
             -- Get the full buffer name and insert it before the hash
             local buffer = vim.api.nvim_buf_get_name(0)
             local left = anchor_link:match('(%b[]%()#')
             local right = anchor_link:match('%b[]%((#.*)$')
             anchor_link = left .. buffer .. right
-            vim.cmd('let @"="' .. anchor_link .. '"')
-        else
-            -- Add to the unnamed register
-            vim.cmd('let @"="' .. anchor_link .. '"')
         end
+        vim.fn.setreg(register, anchor_link)
     elseif is_bracketed_span then
         local name = links.getBracketedSpanPart('text')
         local attr = is_bracketed_span
@@ -356,7 +354,7 @@ M.yankAsAnchorLink = function(full_path)
             else
                 anchor_link = '[' .. name .. ']' .. '(' .. attr .. ')'
             end
-            vim.cmd('let @"="' .. anchor_link .. '"')
+            vim.fn.setreg(register, anchor_link)
         end
     else
         local message = '⬇️  The current line is not a heading or bracketed span!'

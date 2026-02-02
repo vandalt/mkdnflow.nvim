@@ -421,6 +421,13 @@ CURSOR_OPTIONS = [
 `table`: A table of custom Lua regex patterns.
 `{}` (empty table): Disable link jumping without disabling the `cursor` module.""",
     ),
+    ConfigOption(
+        name='`cursor.yank_register`',
+        type='`string`',
+        description="""**`'"'`** (default): Anchor links are yanked to the unnamed register.
+`'+'`: Yank to the system clipboard.
+`'<any register>'`: Yank to any valid Vim register (e.g. `'a'`, `'*'`, `'0'`).""",
+    ),
 ]
 
 LINKS_OPTIONS = [

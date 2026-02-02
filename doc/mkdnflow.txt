@@ -782,6 +782,13 @@ cursor.jump_patterns                    *Mkdnflow-config-cursor-jump-patterns*
     regex patterns. `{}` (empty table): Disable link jumping without disabling
     the `cursor` module.
 
+cursor.yank_register                    *Mkdnflow-config-cursor-yank-register*
+    Type: string
+
+    `'"'`: (default): Anchor links are yanked to the unnamed register. `'+'`:
+    Yank to the system clipboard. `''`: Yank to any valid Vim register (e.g.
+    `'a'`, `'*'`, `'0'`).
+
 
 
 links ~

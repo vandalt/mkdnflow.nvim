@@ -75,6 +75,7 @@ local default_config = {
     },
     cursor = {
         jump_patterns = nil,
+        yank_register = '"',
     },
     links = {
         style = 'markdown',
