@@ -19,6 +19,45 @@ local config = require('mkdnflow').config
 local nvim_version = require('mkdnflow').nvim_version
 local command_deps = require('mkdnflow').command_deps
 local extension_patterns = {}
+
+-- Command descriptions for which-key compatibility
+local descriptions = {
+    MkdnEnter = 'Follow link, toggle to-do, or create link from selection',
+    MkdnGoBack = 'Go back to previous buffer',
+    MkdnGoForward = 'Go forward to next buffer',
+    MkdnMoveSource = 'Move link source file and update references',
+    MkdnNextLink = 'Jump to next link',
+    MkdnPrevLink = 'Jump to previous link',
+    MkdnFollowLink = 'Follow link under cursor',
+    MkdnDestroyLink = 'Remove link formatting, keep text',
+    MkdnTagSpan = 'Wrap selection with span and generate ID',
+    MkdnYankAnchorLink = 'Yank heading as anchor link',
+    MkdnYankFileAnchorLink = 'Yank heading as full file anchor link',
+    MkdnNextHeading = 'Jump to next heading',
+    MkdnPrevHeading = 'Jump to previous heading',
+    MkdnIncreaseHeading = 'Increase heading level',
+    MkdnDecreaseHeading = 'Decrease heading level',
+    MkdnToggleToDo = 'Toggle to-do item status',
+    MkdnNewListItem = 'Create new list item (insert mode)',
+    MkdnNewListItemBelowInsert = 'Create list item below and enter insert mode',
+    MkdnNewListItemAboveInsert = 'Create list item above and enter insert mode',
+    MkdnExtendList = 'Extend list with new item',
+    MkdnUpdateNumbering = 'Update numbering in ordered list',
+    MkdnTableNextCell = 'Jump to next table cell',
+    MkdnTablePrevCell = 'Jump to previous table cell',
+    MkdnTableNextRow = 'Jump to next table row',
+    MkdnTablePrevRow = 'Jump to previous table row',
+    MkdnTableNewRowBelow = 'Insert table row below',
+    MkdnTableNewRowAbove = 'Insert table row above',
+    MkdnTableNewColAfter = 'Insert table column after',
+    MkdnTableNewColBefore = 'Insert table column before',
+    MkdnFoldSection = 'Fold current section',
+    MkdnUnfoldSection = 'Unfold current section',
+    MkdnTab = 'Indent list item or jump to next table cell',
+    MkdnSTab = 'Dedent list item or jump to previous table cell',
+    MkdnCreateLink = 'Create link from word or selection',
+    MkdnCreateLinkFromClipboard = 'Create link using clipboard URL',
+}
 for key, _ in pairs(config.filetypes) do
     table.insert(extension_patterns, '*.' .. key)
 end
@@ -46,7 +85,7 @@ if nvim_version >= 7 then
                             value,
                             mapping[2],
                             '<Cmd>:' .. command .. '<CR>',
-                            { noremap = true }
+                            { noremap = true, desc = descriptions[command] }
                         )
                     end
                 elseif available and type(mapping) == 'table' then
@@ -55,7 +94,7 @@ if nvim_version >= 7 then
                         mapping[1],
                         mapping[2],
                         '<Cmd>:' .. command .. '<CR>',
-                        { noremap = true }
+                        { noremap = true, desc = descriptions[command] }
                     )
                 end
             end
