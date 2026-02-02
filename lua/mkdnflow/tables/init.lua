@@ -37,7 +37,8 @@ local function is_continuation_line(linenr)
         return false, nil
     end
     local config = require('mkdnflow').config
-    if not config.tables.multiline then
+    local line_breaks = config.tables.line_breaks or {}
+    if not (line_breaks.pandoc or line_breaks.html) then
         return false, nil
     end
 
@@ -135,7 +136,13 @@ end
 --- Format the table under the cursor
 function M.formatTable()
     local config = require('mkdnflow').config
-    local tbl = MarkdownTable:read()
+    local position = vim.api.nvim_win_get_cursor(0)
+
+    -- Check if cursor is on a continuation line, and if so, use the primary row
+    local is_cont, primary_row_nr = is_continuation_line(position[1])
+    local effective_line = is_cont and primary_row_nr or position[1]
+
+    local tbl = MarkdownTable:read(effective_line)
     if tbl.valid then
         tbl:format()
     else
@@ -187,7 +194,13 @@ function M.moveToCell(row_offset, cell_offset)
 
     -- Figure out which cell the cursor is currently in
     local current_row = TableRow:from_string(current_line, effective_position)
-    local cursor_cell = current_row:which_cell(position[2])
+    local cursor_cell
+    if is_cont then
+        -- On a continuation line, cursor is always in the last cell of the primary row
+        cursor_cell = #current_row.cells
+    else
+        cursor_cell = current_row:which_cell(position[2])
+    end
     local line_count = vim.api.nvim_buf_line_count(0)
 
     -- Calculate target row, accounting for multiline rows

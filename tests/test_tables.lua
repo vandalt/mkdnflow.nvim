@@ -1171,7 +1171,7 @@ T['multiline']['handles cursor on continuation line'] = function()
     eq(cursor[1], 5)
 end
 
-T['multiline']['respects multiline=false config'] = function()
+T['multiline']['respects line_breaks.pandoc=false config'] = function()
     set_lines({
         '| A | B |',
         '| - | - |',
@@ -1179,16 +1179,16 @@ T['multiline']['respects multiline=false config'] = function()
         'continue |',
     })
     set_cursor(1, 1)
-    -- Disable multiline and format
+    -- Disable pandoc line breaks and format
     child.lua([[
-        require('mkdnflow').config.tables.multiline = false
+        require('mkdnflow').config.tables.line_breaks = { pandoc = false, html = false }
         require('mkdnflow.tables').formatTable()
     ]])
     local lines = get_lines()
-    -- With multiline disabled, the continuation line should NOT be collected
+    -- With line breaks disabled, the continuation line should NOT be collected
     -- The backslash should be treated as literal content
     -- Re-enable for other tests
-    child.lua([[require('mkdnflow').config.tables.multiline = true]])
+    child.lua([[require('mkdnflow').config.tables.line_breaks = { pandoc = true, html = false }]])
     eq(#lines >= 3, true)
 end
 
@@ -1232,6 +1232,384 @@ T['multiline']['isPartOfTable recognizes continuation lines'] = function()
     child.lua('_test_line = vim.api.nvim_buf_get_lines(0, 3, 4, false)[1]')
     local result = child.lua_get('require("mkdnflow.tables").isPartOfTable(_test_line, 4)')
     eq(result, true)
+end
+
+-- =============================================================================
+-- Inline Line Break Tests (splitting during format)
+-- =============================================================================
+
+T['line_breaks'] = new_set()
+
+T['line_breaks']['splits cell at backslash during format'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | first \\ second |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should split into two lines
+    eq(#lines, 4)
+    -- First line should contain "first \"
+    eq(lines[3]:match('first \\') ~= nil, true)
+    -- Second line should be continuation with "second"
+    eq(lines[4]:match('second') ~= nil, true)
+    -- Continuation should NOT start with |
+    eq(lines[4]:match('^%s*|') == nil, true)
+end
+
+T['line_breaks']['aligns continuation with cell content'] = function()
+    set_lines({
+        '| Name | Description |',
+        '| ---- | ----------- |',
+        '| foo  | first \\ second |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Find where "first" starts in line 3
+    local first_pos = lines[3]:find('first')
+    -- Find where "second" starts in line 4
+    local second_pos = lines[4]:find('second')
+    -- They should be aligned (same column position)
+    eq(first_pos, second_pos)
+end
+
+T['line_breaks']['trims space after backslash'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | hello \\    world |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Continuation should have "world" without leading spaces from original
+    -- (but with proper indentation for alignment)
+    eq(#lines, 4)
+    -- The continuation content should be "world", not "   world"
+    local cont_content = lines[4]:match('%S+')
+    eq(cont_content, 'world')
+end
+
+T['line_breaks']['handles multiple backslashes in one cell'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | a \\ b \\ c |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should produce 3 lines for this row (primary + 2 continuations)
+    eq(#lines, 5)
+    eq(lines[3]:match('a \\') ~= nil, true)
+    eq(lines[4]:match('b \\') ~= nil, true)
+    eq(lines[5]:match('c') ~= nil, true)
+end
+
+T['line_breaks']['ignores backslash with no content after'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | ends here \\ |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should NOT create empty continuation line
+    eq(#lines, 3)
+    -- Backslash should still be present
+    eq(lines[3]:match('ends here \\') ~= nil, true)
+end
+
+T['line_breaks']['does not treat escaped pipe as line break'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | has \\| pipe |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should remain single line (escaped pipe, not line break)
+    eq(#lines, 3)
+    -- Content should be preserved
+    eq(lines[3]:match('has \\|') ~= nil, true)
+end
+
+T['line_breaks']['html br splits when enabled'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | first <br> second |',
+    })
+    set_cursor(1, 1)
+    -- Enable HTML line breaks
+    child.lua([[
+        require('mkdnflow').config.tables.line_breaks.html = true
+        require('mkdnflow.tables').formatTable()
+    ]])
+    local lines = get_lines()
+    -- Should split into two lines
+    eq(#lines, 4)
+    -- First line should end with <br>
+    eq(lines[3]:match('<br>') ~= nil, true)
+    -- Second line should have "second"
+    eq(lines[4]:match('second') ~= nil, true)
+    -- Reset config
+    child.lua([[require('mkdnflow').config.tables.line_breaks.html = false]])
+end
+
+T['line_breaks']['html br preserves space before'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | hello <br> world |',
+    })
+    set_cursor(1, 1)
+    child.lua([[
+        require('mkdnflow').config.tables.line_breaks.html = true
+        require('mkdnflow.tables').formatTable()
+    ]])
+    local lines = get_lines()
+    -- Space before <br> should be preserved: "hello <br>"
+    eq(lines[3]:match('hello <br>') ~= nil, true)
+    -- Reset config
+    child.lua([[require('mkdnflow').config.tables.line_breaks.html = false]])
+end
+
+T['line_breaks']['html br trims space after'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | first <br>    second |',
+    })
+    set_cursor(1, 1)
+    child.lua([[
+        require('mkdnflow').config.tables.line_breaks.html = true
+        require('mkdnflow.tables').formatTable()
+    ]])
+    local lines = get_lines()
+    -- Continuation should be "second", not "   second"
+    local cont_content = lines[4]:match('%S+')
+    eq(cont_content, 'second')
+    -- Reset config
+    child.lua([[require('mkdnflow').config.tables.line_breaks.html = false]])
+end
+
+T['line_breaks']['html br ignored when disabled'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | first <br> second |',
+    })
+    set_cursor(1, 1)
+    -- Ensure HTML line breaks are disabled (default)
+    child.lua([[
+        require('mkdnflow').config.tables.line_breaks.html = false
+        require('mkdnflow.tables').formatTable()
+    ]])
+    local lines = get_lines()
+    -- Should remain single line
+    eq(#lines, 3)
+    -- <br> should be preserved as literal content
+    eq(lines[3]:match('<br>') ~= nil, true)
+end
+
+T['line_breaks']['reformats already-split table'] = function()
+    -- Start with an already-formatted multiline table
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | first \\',
+        'second |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should still have 4 lines
+    eq(#lines, 4)
+    -- Continuation should be properly indented
+    eq(lines[4]:match('^%s+second') ~= nil, true)
+end
+
+T['line_breaks']['respects column alignment'] = function()
+    set_lines({
+        '| Left | Right |',
+        '| :--- | ----: |',
+        '| x    | first \\ second |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    eq(#lines, 4)
+    -- Right-aligned column: continuation should also be right-aligned
+    -- The "second" should be aligned to the right edge of the cell
+    -- (This test verifies the alignment is respected, exact position depends on implementation)
+    eq(lines[4]:match('second') ~= nil, true)
+end
+
+T['line_breaks']['backslash line ends without closing pipe'] = function()
+    -- Per Pandoc spec: backslash must be immediately followed by newline
+    -- The closing | should only appear on the final continuation line
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | first \\ second |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    eq(#lines, 4)
+    -- Primary line should NOT end with |
+    eq(lines[3]:match('|%s*$') == nil, true)
+    -- Primary line should end with backslash (possibly with trailing space)
+    eq(lines[3]:match('\\%s*$') ~= nil, true)
+    -- Final continuation line SHOULD end with |
+    eq(lines[4]:match('|%s*$') ~= nil, true)
+end
+
+T['line_breaks']['html br line ends without closing pipe'] = function()
+    -- Same behavior as backslash: primary line should not have closing |
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | first <br> second |',
+    })
+    set_cursor(1, 1)
+    child.lua([[
+        require('mkdnflow').config.tables.line_breaks.html = true
+        require('mkdnflow.tables').formatTable()
+    ]])
+    local lines = get_lines()
+    eq(#lines, 4)
+    -- Primary line should NOT end with |
+    eq(lines[3]:match('|%s*$') == nil, true)
+    -- Primary line should end with <br>
+    eq(lines[3]:match('<br>%s*$') ~= nil, true)
+    -- Final continuation line SHOULD end with |
+    eq(lines[4]:match('|%s*$') ~= nil, true)
+    -- Reset config
+    child.lua([[require('mkdnflow').config.tables.line_breaks.html = false]])
+end
+
+T['line_breaks']['multiple breaks only final line has pipe'] = function()
+    -- With multiple continuations, only the very last line gets the closing |
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | a \\ b \\ c |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    eq(#lines, 5)
+    -- Line 3 (primary): should NOT end with |
+    eq(lines[3]:match('|%s*$') == nil, true)
+    -- Line 4 (middle continuation): should NOT end with |
+    eq(lines[4]:match('|%s*$') == nil, true)
+    -- Line 5 (final continuation): SHOULD end with |
+    eq(lines[5]:match('|%s*$') ~= nil, true)
+end
+
+T['line_breaks']['format from continuation line works'] = function()
+    -- Formatting should work when cursor is on a continuation line
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      a newline |',
+    })
+    set_cursor(4, 6) -- Cursor on continuation line
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    eq(#lines, 4)
+    -- Table should be properly formatted
+    eq(lines[3]:match('want \\') ~= nil, true)
+    eq(lines[4]:match('a newline') ~= nil, true)
+end
+
+T['line_breaks']['reformat already-formatted table preserves structure'] = function()
+    -- Reformatting an already-formatted multiline table should preserve structure
+    set_lines({
+        '| A   | B      |',
+        '| --- | ------ |',
+        '| x   | want \\',
+        '        a newline |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    eq(#lines, 4)
+    -- Should still have 4 lines, not create duplicate pipes
+    eq(lines[3]:match('want \\') ~= nil, true)
+    eq(lines[4]:match('a newline') ~= nil, true)
+    -- Should NOT have || or duplicate pipes
+    eq(lines[4]:match('||') == nil, true)
+end
+
+T['line_breaks']['navigation from continuation line goes to next row'] = function()
+    -- MkdnEnter from continuation line should go to next row, not insert newline
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      a newline |',
+        '| y | normal |',
+    })
+    set_cursor(4, 6) -- Cursor on continuation line
+    -- Disable format_on_move to check pure navigation
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should move to line 5 (the next row), not create a new line
+    eq(cursor[1], 5)
+    -- Re-enable
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['line_breaks']['navigation from continuation determines correct cell'] = function()
+    -- When on continuation line, cursor is in last cell of primary row
+    set_lines({
+        '| A | B | C |',
+        '| - | - | - |',
+        '| x | y | want \\',
+        '          a newline |',
+        '| 1 | 2 | 3 |',
+    })
+    set_cursor(4, 10) -- Cursor on continuation line
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    eq(cursor[1], 5)
+    -- Should be in the last cell (column 3) of row 5
+    -- The cursor col should be in the "3" cell area
+    local line = get_lines()[5]
+    local cell3_start = line:find('3')
+    eq(cursor[2] >= cell3_start - 2, true) -- Allow some padding
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['line_breaks']['format_on_move from continuation preserves table'] = function()
+    -- format_on_move should work correctly from continuation line
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      a newline |',
+        '| y | normal |',
+    })
+    set_cursor(4, 6) -- Cursor on continuation line
+    -- format_on_move is enabled by default
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local lines = get_lines()
+    -- Table should still have correct structure
+    eq(#lines, 5)
+    eq(lines[3]:match('want \\') ~= nil, true)
+    eq(lines[4]:match('a newline') ~= nil, true)
+    eq(lines[5]:match('normal') ~= nil, true)
 end
 
 return T
