@@ -981,6 +981,7 @@ Configuration options.
 | `MkdnIncreaseHeading` | `{ 'n', '+' }` | Increase heading importance (remove hashes). |
 | `MkdnDecreaseHeading` | `{ 'n', '-' }` | Decrease heading importance (add hashes). |
 | `MkdnToggleToDo` | `{ { 'n', 'v' }, '<C-Space>' }` | Toggle to-do list item's completion status or convert a list item into a to-do list item. |
+| `MkdnSortToDoList` | -- | Sort the to-do list at the cursor position by status. Items are grouped by their status's `sort.section` value and positioned according to `sort.position`. |
 | `MkdnUpdateNumbering` | `{ 'n', '<leader>nn' }` | Update numbering for all siblings of the list item of the current line. |
 | `MkdnNewListItem` | -- | Add a new ordered list item, unordered list item, or (uncompleted) to-do list item. |
 | `MkdnNewListItemBelowInsert` | `{ 'n', 'o' }` | Add a new list item below the current line and begin insert mode. Add a new line and enter insert mode when the cursor is not in a list. |

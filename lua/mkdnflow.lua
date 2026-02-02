@@ -252,11 +252,11 @@ local default_config = {
     },
 }
 
-local init = {}       -- Init functions & variables
+local init = {} -- Init functions & variables
 init.utils = require('mkdnflow.utils')
 init.user_config = {} -- For user config
-init.config = {}      -- For merged configs
-init.loaded = nil     -- For load status
+init.config = {} -- For merged configs
+init.loaded = nil -- For load status
 
 init.command_deps = {
     MkdnGoBack = { 'buffers' },
@@ -276,6 +276,7 @@ init.command_deps = {
     MkdnIncreaseHeading = { 'cursor' },
     MkdnDecreaseHeading = { 'cursor' },
     MkdnToggleToDo = { 'lists' },
+    MkdnSortToDoList = { 'to_do' },
     MkdnNewListItem = { 'lists' },
     MkdnNewListItemAboveInsert = { 'lists' },
     MkdnNewListItemBelowInsert = { 'lists' },

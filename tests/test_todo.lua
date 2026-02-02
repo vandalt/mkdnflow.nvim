@@ -298,4 +298,101 @@ T['edge_cases']['toggle_to_do does nothing on empty buffer'] = function()
     eq(get_line(1), '') -- unchanged
 end
 
+-- =============================================================================
+-- sort_to_do_list() - Manual sorting command
+-- =============================================================================
+T['sort_to_do_list'] = new_set()
+
+T['sort_to_do_list']['sorts items by section'] = function()
+    set_lines({
+        '- [X] complete task', -- section 3
+        '- [ ] not started task', -- section 2
+        '- [-] in progress task', -- section 1
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').sort_to_do_list()]])
+    -- Expected order: in_progress (1), not_started (2), complete (3)
+    eq(get_line(1), '- [-] in progress task')
+    eq(get_line(2), '- [ ] not started task')
+    eq(get_line(3), '- [X] complete task')
+end
+
+T['sort_to_do_list']['cursor tracks sorted item'] = function()
+    set_lines({
+        '- [X] complete task',
+        '- [-] in progress task',
+    })
+    set_cursor(2, 0) -- On in_progress item
+    child.lua([[require('mkdnflow.to_do').sort_to_do_list()]])
+    -- in_progress moves to line 1, cursor should follow
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+end
+
+T['sort_to_do_list']['handles multiple items same status'] = function()
+    set_lines({
+        '- [X] complete 1',
+        '- [ ] not started 1',
+        '- [X] complete 2',
+        '- [ ] not started 2',
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').sort_to_do_list()]])
+    -- not_started (section 2) before complete (section 3)
+    eq(get_line(1), '- [ ] not started 1')
+    eq(get_line(2), '- [ ] not started 2')
+    eq(get_line(3), '- [X] complete 1')
+    eq(get_line(4), '- [X] complete 2')
+end
+
+T['sort_to_do_list']['preserves nested items'] = function()
+    set_lines({
+        '- [X] parent complete',
+        '    - [ ] child task',
+        '- [-] parent in progress',
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').sort_to_do_list()]])
+    -- in_progress parent moves up, complete parent (with child) moves down
+    eq(get_line(1), '- [-] parent in progress')
+    eq(get_line(2), '- [X] parent complete')
+    eq(get_line(3), '    - [ ] child task')
+end
+
+T['sort_to_do_list']['no-op on non-todo line'] = function()
+    set_lines({
+        '# Header',
+        '- [X] task',
+    })
+    set_cursor(1, 0) -- On header, not to-do
+    child.lua([[require('mkdnflow.to_do').sort_to_do_list()]])
+    -- Lines unchanged
+    eq(get_line(1), '# Header')
+    eq(get_line(2), '- [X] task')
+end
+
+T['sort_to_do_list']['respects custom sort config'] = function()
+    -- Reconfigure with custom sort order (not_started first)
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    { name = 'not_started', marker = ' ', sort = { section = 1, position = 'top' } },
+                    { name = 'in_progress', marker = '-', sort = { section = 2, position = 'top' } },
+                    { name = 'complete', marker = 'X', sort = { section = 3, position = 'top' } },
+                },
+            },
+        })
+    ]])
+    set_lines({
+        '- [-] in progress', -- section 2
+        '- [ ] not started', -- section 1
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').sort_to_do_list()]])
+    -- With custom config: not_started (1) before in_progress (2)
+    eq(get_line(1), '- [ ] not started')
+    eq(get_line(2), '- [-] in progress')
+end
+
 return T

@@ -848,6 +848,11 @@ Note: The back-end function for `:MkdnGoBack` (`require('mkdnflow').buffers.goBa
         description="""Toggle to-do list item's completion status or convert a list item into a to-do list item.""",
     ),
     Command(
+        name='`MkdnSortToDoList`',
+        default_mapping='--',
+        description="""Sort the to-do list at the cursor position by status. Items are grouped by their status's `sort.section` value and positioned according to `sort.position`.""",
+    ),
+    Command(
         name='`MkdnUpdateNumbering`',
         default_mapping="`{ 'n', '<leader>nn' }`",
         description="""Update numbering for all siblings of the list item of the current line.""",

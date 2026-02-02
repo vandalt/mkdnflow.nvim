@@ -47,11 +47,11 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     end, { nargs = '*' })
     user_command('MkdnEnter', function(opts)
         if opts.range > 0 then
-            require('mkdnflow.wrappers').multiFuncEnter({range = true})
+            require('mkdnflow.wrappers').multiFuncEnter({ range = true })
         else
             require('mkdnflow.wrappers').multiFuncEnter()
         end
-    end, {range = true})
+    end, { range = true })
     user_command('MkdnTab', function(opts)
         require('mkdnflow.wrappers').indentListItemOrJumpTableCell(1)
     end, {})
@@ -60,149 +60,223 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     end, {})
     user_command('MkdnGoBack', function(opts)
         local buffers = require_module('buffers')
-        if buffers then buffers.goBack() end
+        if buffers then
+            buffers.goBack()
+        end
     end, {})
     user_command('MkdnGoForward', function(opts)
         local buffers = require_module('buffers')
-        if buffers then buffers.goForward() end
+        if buffers then
+            buffers.goForward()
+        end
     end, {})
     user_command('MkdnMoveSource', function(opts)
         local paths = require_module('paths')
-        if paths then paths.moveSource() end
+        if paths then
+            paths.moveSource()
+        end
     end, {})
     user_command('MkdnNextLink', function(opts)
         local cursor = require_module('cursor')
-        if cursor then cursor.toNextLink() end
+        if cursor then
+            cursor.toNextLink()
+        end
     end, {})
     user_command('MkdnPrevLink', function(opts)
         local cursor = require_module('cursor')
-        if cursor then cursor.toPrevLink() end
+        if cursor then
+            cursor.toPrevLink()
+        end
     end, {})
     user_command('MkdnFollowLink', function(opts)
         local links = require_module('links')
-        if links then links.followLink() end
+        if links then
+            links.followLink()
+        end
     end, {})
     user_command('MkdnCreateLink', function(opts)
         local links = require_module('links')
-        if not links then return end
+        if not links then
+            return
+        end
         if opts.range > 0 then
-            links.createLink({range = true})
+            links.createLink({ range = true })
         else
             links.createLink()
         end
-    end, {range = true})
+    end, { range = true })
     user_command('MkdnCreateLinkFromClipboard', function(opts)
         local links = require_module('links')
-        if not links then return end
-        if opts.range > 0 then
-            links.createLink({from_clipboard = true, range = true})
-        else
-            links.createLink({from_clipboard = true})
+        if not links then
+            return
         end
-    end, {range = true})
+        if opts.range > 0 then
+            links.createLink({ from_clipboard = true, range = true })
+        else
+            links.createLink({ from_clipboard = true })
+        end
+    end, { range = true })
     user_command('MkdnDestroyLink', function(opts)
         local links = require_module('links')
-        if links then links.destroyLink() end
+        if links then
+            links.destroyLink()
+        end
     end, {})
     user_command('MkdnTagSpan', function(opts)
         local links = require_module('links')
-        if links then links.tagSpan() end
+        if links then
+            links.tagSpan()
+        end
     end, {})
     user_command('MkdnYankAnchorLink', function(opts)
         local cursor = require_module('cursor')
-        if cursor then cursor.yankAsAnchorLink() end
+        if cursor then
+            cursor.yankAsAnchorLink()
+        end
     end, {})
     user_command('MkdnYankFileAnchorLink', function(opts)
         local cursor = require_module('cursor')
-        if cursor then cursor.yankAsAnchorLink({}) end
+        if cursor then
+            cursor.yankAsAnchorLink({})
+        end
     end, {})
     user_command('MkdnNextHeading', function(opts)
         local cursor = require_module('cursor')
-        if cursor then cursor.toHeading(nil) end
+        if cursor then
+            cursor.toHeading(nil)
+        end
     end, {})
     user_command('MkdnPrevHeading', function(opts)
         local cursor = require_module('cursor')
-        if cursor then cursor.toHeading(nil, {}) end
+        if cursor then
+            cursor.toHeading(nil, {})
+        end
     end, {})
     user_command('MkdnIncreaseHeading', function(opts)
         local cursor = require_module('cursor')
-        if cursor then cursor.changeHeadingLevel('increase') end
+        if cursor then
+            cursor.changeHeadingLevel('increase')
+        end
     end, {})
     user_command('MkdnDecreaseHeading', function(opts)
         local cursor = require_module('cursor')
-        if cursor then cursor.changeHeadingLevel('decrease') end
+        if cursor then
+            cursor.changeHeadingLevel('decrease')
+        end
     end, {})
     user_command('MkdnToggleToDo', function(opts)
         local to_do = require_module('to_do')
-        if to_do then to_do.toggle_to_do() end
+        if to_do then
+            to_do.toggle_to_do()
+        end
+    end, {})
+    user_command('MkdnSortToDoList', function(opts)
+        local to_do = require_module('to_do')
+        if to_do then
+            to_do.sort_to_do_list()
+        end
     end, {})
     user_command('MkdnNewListItem', function(opts)
         local lists = require_module('lists')
-        if lists then lists.newListItem(true, false, true, 'i', '<CR>') end
+        if lists then
+            lists.newListItem(true, false, true, 'i', '<CR>')
+        end
     end, {})
     user_command('MkdnNewListItemBelowInsert', function(opts)
         local lists = require_module('lists')
-        if lists then lists.newListItem(false, false, true, 'i', 'o') end
+        if lists then
+            lists.newListItem(false, false, true, 'i', 'o')
+        end
     end, {})
     user_command('MkdnNewListItemAboveInsert', function(opts)
         local lists = require_module('lists')
-        if lists then lists.newListItem(false, true, true, 'i', 'O') end
+        if lists then
+            lists.newListItem(false, true, true, 'i', 'O')
+        end
     end, {})
     user_command('MkdnExtendList', function(opts)
         local lists = require_module('lists')
-        if lists then lists.newListItem(false, 'n') end
+        if lists then
+            lists.newListItem(false, 'n')
+        end
     end, {})
     user_command('MkdnUpdateNumbering', function(opts)
         local lists = require_module('lists')
-        if lists then lists.updateNumbering(opts.fargs) end
+        if lists then
+            lists.updateNumbering(opts.fargs)
+        end
     end, { nargs = '*' })
     user_command('MkdnTable', function(opts)
         local tables = require_module('tables')
-        if tables then tables.newTable(opts.fargs) end
+        if tables then
+            tables.newTable(opts.fargs)
+        end
     end, { nargs = '*' })
     user_command('MkdnTableFormat', function(opts)
         local tables = require_module('tables')
-        if tables then tables.formatTable() end
+        if tables then
+            tables.formatTable()
+        end
     end, {})
     user_command('MkdnTableNextCell', function(opts)
         local tables = require_module('tables')
-        if tables then tables.moveToCell(0, 1) end
+        if tables then
+            tables.moveToCell(0, 1)
+        end
     end, {})
     user_command('MkdnTablePrevCell', function(opts)
         local tables = require_module('tables')
-        if tables then tables.moveToCell(0, -1) end
+        if tables then
+            tables.moveToCell(0, -1)
+        end
     end, {})
     user_command('MkdnTableNextRow', function(opts)
         local tables = require_module('tables')
-        if tables then tables.moveToCell(1, 0) end
+        if tables then
+            tables.moveToCell(1, 0)
+        end
     end, {})
     user_command('MkdnTablePrevRow', function(opts)
         local tables = require_module('tables')
-        if tables then tables.moveToCell(-1, 0) end
+        if tables then
+            tables.moveToCell(-1, 0)
+        end
     end, {})
     user_command('MkdnTableNewRowBelow', function(opts)
         local tables = require_module('tables')
-        if tables then tables.addRow() end
+        if tables then
+            tables.addRow()
+        end
     end, {})
     user_command('MkdnTableNewRowAbove', function(opts)
         local tables = require_module('tables')
-        if tables then tables.addRow(-1) end
+        if tables then
+            tables.addRow(-1)
+        end
     end, {})
     user_command('MkdnTableNewColAfter', function(opts)
         local tables = require_module('tables')
-        if tables then tables.addCol() end
+        if tables then
+            tables.addCol()
+        end
     end, {})
     user_command('MkdnTableNewColBefore', function(opts)
         local tables = require_module('tables')
-        if tables then tables.addCol(-1) end
+        if tables then
+            tables.addCol(-1)
+        end
     end, {})
     user_command('MkdnFoldSection', function(opts)
         local folds = require_module('folds')
-        if folds then folds.foldSection() end
+        if folds then
+            folds.foldSection()
+        end
     end, {})
     user_command('MkdnUnfoldSection', function(opts)
         local folds = require_module('folds')
-        if folds then folds.unfoldSection() end
+        if folds then
+            folds.unfoldSection()
+        end
     end, {})
 
     -- Return coptions to user values

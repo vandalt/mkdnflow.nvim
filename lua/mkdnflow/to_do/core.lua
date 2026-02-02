@@ -719,11 +719,7 @@ function to_do_list:sort(target_item)
     )
 
     -- Move the cursor if desired
-    if
-        require('mkdnflow').config.to_do.sort.on_status_change
-        and require('mkdnflow').config.to_do.sort.cursor_behavior.track
-        and cursor.new_line > 0
-    then
+    if require('mkdnflow').config.to_do.sort.cursor_behavior.track and cursor.new_line > 0 then
         -- Calculate correct cursor column position accounting for marker changes
         local new_col = cursor.old_column_bytes
 
@@ -824,6 +820,18 @@ function M.toggle_to_do()
     end
 
     -- Clear the cache after the operation
+    clear_cache()
+end
+
+--- Sort the to-do list containing the cursor
+function M.sort_to_do_list()
+    init_cache()
+    local item = M.get_to_do_item()
+    if item and item.valid and item.host_list then
+        item.host_list:sort()
+    elseif not silent then
+        vim.api.nvim_echo({ { 'No to-do list found at cursor position', 'WarningMsg' } }, true, {})
+    end
     clear_cache()
 end
 

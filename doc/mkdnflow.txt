@@ -1595,6 +1595,12 @@ Configuration options.
     Toggle to-do list item's completion status or convert a list item into a
     to-do list item.
 
+:MkdnSortToDoList                              *Mkdnflow-cmd-MkdnSortToDoList*
+
+    Sort the to-do list at the cursor position by status. Items are grouped by
+    their status's `sort.section` value and positioned according to
+    `sort.position`.
+
 :MkdnUpdateNumbering                        *Mkdnflow-cmd-MkdnUpdateNumbering*
     Default mapping: { 'n', '<leader>nn' }
 
