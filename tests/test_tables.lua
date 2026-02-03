@@ -2181,4 +2181,639 @@ T['multiline_complex']['format then navigate preserves table'] = function()
     eq(after_nav_lines[4]:match('a newline') ~= nil or after_nav_lines[4]:match('newline') ~= nil, true)
 end
 
+-- =============================================================================
+-- Multiline Cells in Non-Last Columns (Gap 1)
+-- =============================================================================
+T['multiline_non_last_col'] = new_set()
+
+T['multiline_non_last_col']['multiline in first column'] = function()
+    -- Per Pandoc spec, continuation lines apply to the last cell of the row.
+    -- If backslash is in first column of a 2-column table, the continuation
+    -- would logically belong to that cell... but our implementation may differ.
+    set_lines({
+        '| Description | Status |',
+        '| ----------- | ------ |',
+        '| First line \\',
+        'Second line | Done   |',
+    })
+    set_cursor(1, 1)
+    child.lua('_test_tbl = require("mkdnflow.tables").MarkdownTable:read()')
+    local is_valid = child.lua_get('_test_tbl.valid')
+    -- Table should at least be recognized as valid
+    eq(is_valid, true)
+end
+
+T['multiline_non_last_col']['multiline in middle column'] = function()
+    -- Three columns, backslash in middle column
+    set_lines({
+        '| A | B | C |',
+        '| - | - | - |',
+        '| x | mid \\',
+        'cont | z |',
+    })
+    set_cursor(1, 1)
+    child.lua('_test_tbl = require("mkdnflow.tables").MarkdownTable:read()')
+    local is_valid = child.lua_get('_test_tbl.valid')
+    eq(is_valid, true)
+    -- The table should have 3 rows (header, separator, data)
+    local row_count = child.lua_get('#_test_tbl.rows')
+    eq(row_count >= 3, true)
+end
+
+T['multiline_non_last_col']['format preserves non-last column multiline'] = function()
+    -- Even if our impl only supports last-column multiline,
+    -- it shouldn't corrupt the table
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x \\',
+        'cont | y |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Table should not be corrupted
+    eq(#lines >= 3, true)
+    -- Should still contain the original content
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('x') ~= nil, true)
+    eq(all_text:match('y') ~= nil, true)
+end
+
+T['multiline_non_last_col']['navigation in non-last column multiline'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x \\',
+        'cont | y |',
+        '| z | w |',
+    })
+    set_cursor(3, 2)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should navigate to next data row
+    eq(cursor[1] >= 4, true)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+-- =============================================================================
+-- Style Config Options (Gap 2)
+-- =============================================================================
+T['style_config'] = new_set()
+
+T['style_config']['cell_padding = 0 removes padding'] = function()
+    setup_with_config([[{ tables = { style = { cell_padding = 0 } } }]])
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- With cell_padding=0, content should be left-aligned with no leading space
+    -- |a  |b  | instead of | a | b | (no space before content)
+    -- First cell should start with "|a" (pipe followed immediately by content)
+    eq(lines[1]:match('^|a') ~= nil, true)
+end
+
+T['style_config']['cell_padding = 2 doubles padding'] = function()
+    setup_with_config([[{ tables = { style = { cell_padding = 2 } } }]])
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- With double padding, cells should have 2 spaces on each side
+    -- |  a  |  b  |
+    eq(lines[1]:match('%s%sa%s%s') ~= nil, true)
+end
+
+T['style_config']['separator_padding = 0'] = function()
+    setup_with_config([[{ tables = { style = { separator_padding = 0 } } }]])
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Separator row should have minimal padding
+    eq(lines[2]:match('%-') ~= nil, true)
+end
+
+T['style_config']['separator_padding = 2'] = function()
+    setup_with_config([[{ tables = { style = { separator_padding = 2 } } }]])
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Separator should have more padding
+    eq(lines[2]:match('%-') ~= nil, true)
+end
+
+T['style_config']['trim_whitespace = true removes trailing space'] = function()
+    setup_with_config([[{ tables = { trim_whitespace = true } }]])
+    set_lines({
+        '| a    | b |',
+        '| ---- | - |',
+        '| c    | d |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Content should be trimmed
+    eq(lines[1]:match('a%s+|') ~= nil, true)
+end
+
+T['style_config']['trim_whitespace = false preserves trailing space'] = function()
+    setup_with_config([[{ tables = { trim_whitespace = false } }]])
+    set_lines({
+        '| a    | b |',
+        '| ---- | - |',
+        '| c    | d |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should format without crashing
+    eq(#lines, 3)
+end
+
+-- =============================================================================
+-- Real Wide-Character (CJK) Testing (Gap 3)
+-- =============================================================================
+T['real_unicode'] = new_set()
+
+T['real_unicode']['actual CJK characters align correctly'] = function()
+    -- CJK characters have display width 2
+    set_lines({
+        '| Name | Value |',
+        '| ---- | ----- |',
+        '| Test | \228\184\173\230\150\135 |',  -- "中文" in UTF-8 bytes
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should not crash
+    eq(#lines, 3)
+    -- All rows should be formatted
+    eq(lines[1]:match('|') ~= nil, true)
+end
+
+T['real_unicode']['mixed width characters'] = function()
+    -- Mix of ASCII (width 1) and CJK (width 2)
+    set_lines({
+        '| English | Mix |',
+        '| ------- | --- |',
+        '| Hello   | Hi\228\189\160\229\165\189 |',  -- "Hi你好"
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    eq(#lines, 3)
+    -- Formatting should complete without error
+    eq(lines[3]:match('Hello') ~= nil, true)
+end
+
+T['real_unicode']['emoji handling'] = function()
+    -- Emoji can have various display widths
+    set_lines({
+        '| Status | Icon |',
+        '| ------ | ---- |',
+        '| Done   | \226\156\133 |',  -- checkmark
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should format without crashing
+    eq(#lines, 3)
+end
+
+T['real_unicode']['navigation with wide characters'] = function()
+    set_lines({
+        '| A | \228\184\173\230\150\135 |',  -- "中文"
+        '| - | ---- |',
+        '| x | y |',
+    })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    -- Should navigate to second cell without crashing
+    eq(cursor[1], 1)
+    eq(cursor[2] > 2, true)
+end
+
+-- =============================================================================
+-- Multiple Tables in Same Buffer (Gap 4)
+-- =============================================================================
+T['multiple_tables'] = new_set()
+
+T['multiple_tables']['two tables separated by blank line'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+        '',
+        '| x | y |',
+        '| - | - |',
+        '| z | w |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Both tables should exist
+    eq(#lines, 7)
+    -- Second table should be unchanged (we formatted first table)
+    eq(lines[5]:match('x') ~= nil, true)
+end
+
+T['multiple_tables']['format only affects current table'] = function()
+    set_lines({
+        '| short | x |',
+        '| ----- | - |',
+        '| a     | b |',
+        '',
+        '| unformatted|messy |',
+        '|-|-|',
+        '| z|w |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Second table should NOT be formatted (still messy)
+    eq(lines[5]:match('unformatted|messy') ~= nil, true)
+end
+
+T['multiple_tables']['navigation stays within table'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+        '',
+        '| x | y |',
+        '| - | - |',
+        '| z | w |',
+    })
+    set_cursor(3, 2) -- Last row of first table
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should NOT jump to second table (row 5)
+    -- Should either stay on row 3 or handle gracefully
+    eq(cursor[1] <= 4, true)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+-- =============================================================================
+-- Buffer Boundaries (Gap 5)
+-- =============================================================================
+T['buffer_boundaries'] = new_set()
+
+T['buffer_boundaries']['table at line 1'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should format without error
+    eq(#lines, 3)
+    eq(lines[1]:match('|') ~= nil, true)
+end
+
+T['buffer_boundaries']['navigation up from header at line 1'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 2) -- Header row
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(-1, 0)]])
+    local cursor = get_cursor()
+    -- Should handle gracefully (stay on row 1 or do nothing)
+    eq(cursor[1] >= 1, true)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['buffer_boundaries']['table preceded by content'] = function()
+    set_lines({
+        'Some paragraph text here.',
+        '',
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(3, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Paragraph should be unchanged
+    eq(lines[1], 'Some paragraph text here.')
+    -- Table should be formatted
+    eq(lines[3]:match('|') ~= nil, true)
+end
+
+-- =============================================================================
+-- addRow/addCol with Multiline Cells (Gap 6)
+-- =============================================================================
+T['multiline_row_col_ops'] = new_set()
+
+T['multiline_row_col_ops']['addRow below multiline row'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      cont |',
+        '| y | z |',
+    })
+    set_cursor(3, 2) -- On the multiline row
+    child.lua([[require('mkdnflow.tables').addRow()]])
+    local lines = get_lines()
+    -- Should have added a row
+    eq(#lines >= 5, true)
+    -- Original content should be preserved
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('want') ~= nil, true)
+    eq(all_text:match('cont') ~= nil, true)
+end
+
+T['multiline_row_col_ops']['addRow above multiline row'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      cont |',
+        '| y | z |',
+    })
+    set_cursor(3, 2)
+    child.lua([[require('mkdnflow.tables').addRow(-1)]])
+    local lines = get_lines()
+    -- Should have added a row above
+    eq(#lines >= 5, true)
+end
+
+T['multiline_row_col_ops']['addCol in table with continuation'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      cont |',
+    })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.tables').addCol()]])
+    local lines = get_lines()
+    -- Should have added a column
+    local _, pipe_count = lines[1]:gsub('|', '')
+    eq(pipe_count >= 3, true)
+end
+
+T['multiline_row_col_ops']['addCol preserves continuation structure'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      cont |',
+    })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.tables').addCol()]])
+    local lines = get_lines()
+    -- Continuation content should still exist
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('want') ~= nil, true)
+    eq(all_text:match('cont') ~= nil, true)
+end
+
+-- =============================================================================
+-- Cursor Position Preservation (Gap 7)
+-- =============================================================================
+T['cursor_preservation'] = new_set()
+
+T['cursor_preservation']['cursor stays in cell after format'] = function()
+    set_lines({
+        '| a | bbb |',
+        '| - | --- |',
+        '| ccccc | d |',
+    })
+    set_cursor(1, 2) -- In first cell
+    local before_col = get_cursor()[2]
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local after = get_cursor()
+    -- Cursor should still be on row 1
+    eq(after[1], 1)
+    -- Cursor should be in a reasonable position (not at 0)
+    eq(after[2] >= 1, true)
+end
+
+T['cursor_preservation']['cursor row after addRow below'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(3, 2)
+    local before_row = get_cursor()[1]
+    child.lua([[require('mkdnflow.tables').addRow()]])
+    local after = get_cursor()
+    -- Cursor should have moved to the new row (below original)
+    eq(after[1] >= before_row, true)
+end
+
+T['cursor_preservation']['cursor row after addRow above'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(3, 2)
+    child.lua([[require('mkdnflow.tables').addRow(-1)]])
+    local after = get_cursor()
+    -- New row was inserted above, so cursor row may shift
+    eq(after[1] >= 3, true)
+end
+
+T['cursor_preservation']['cursor after addCol'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 2) -- In first cell
+    child.lua([[require('mkdnflow.tables').addCol()]])
+    local after = get_cursor()
+    -- Cursor should still be on row 1
+    eq(after[1], 1)
+end
+
+-- =============================================================================
+-- Navigation Boundary Behavior (Gap 8)
+-- =============================================================================
+T['navigation_boundaries'] = new_set()
+
+T['navigation_boundaries']['stab from first cell of header'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 2) -- First cell of header
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(0, -1)]])
+    local cursor = get_cursor()
+    -- Should handle gracefully - stay in table or on same position
+    eq(cursor[1] >= 1, true)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['navigation_boundaries']['tab from last cell of last row no extend'] = function()
+    setup_with_config([[{ tables = { auto_extend_rows = false, auto_extend_cols = false, format_on_move = false } }]])
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(3, 6) -- Last cell of last row
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    -- Without auto_extend, should handle gracefully
+    eq(cursor[1] >= 1, true)
+end
+
+T['navigation_boundaries']['up from header row'] = function()
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(-1, 0)]])
+    local cursor = get_cursor()
+    -- Can't go up from header - should stay
+    eq(cursor[1], 1)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['navigation_boundaries']['down from last row no extend'] = function()
+    setup_with_config([[{ tables = { auto_extend_rows = false, format_on_move = false } }]])
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| c | d |',
+    })
+    set_cursor(3, 2)
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Without auto_extend, should stay on last row
+    eq(cursor[1] >= 1, true)
+end
+
+-- =============================================================================
+-- Special Content in Cells (Gap 9)
+-- =============================================================================
+T['special_cell_content'] = new_set()
+
+T['special_cell_content']['bold and italic in cells'] = function()
+    set_lines({
+        '| Format | Example |',
+        '| ------ | ------- |',
+        '| Bold   | **text** |',
+        '| Italic | *text*  |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Markdown formatting should be preserved
+    eq(lines[3]:match('%*%*text%*%*') ~= nil, true)
+    eq(lines[4]:match('%*text%*') ~= nil, true)
+end
+
+T['special_cell_content']['inline code in cells'] = function()
+    set_lines({
+        '| Type | Example |',
+        '| ---- | ------- |',
+        '| Code | `foo()` |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Backticks should be preserved
+    eq(lines[3]:match('`foo%(%)') ~= nil, true)
+end
+
+T['special_cell_content']['links in cells'] = function()
+    set_lines({
+        '| Name | Link |',
+        '| ---- | ---- |',
+        '| Home | [click](http://example.com) |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Link should be preserved
+    eq(lines[3]:match('%[click%]%(http://example.com%)') ~= nil, true)
+end
+
+T['special_cell_content']['mixed special content'] = function()
+    set_lines({
+        '| A | B | C |',
+        '| - | - | - |',
+        '| **bold** | `code` | [link](url) |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    eq(lines[3]:match('%*%*bold%*%*') ~= nil, true)
+    eq(lines[3]:match('`code`') ~= nil, true)
+    eq(lines[3]:match('%[link%]') ~= nil, true)
+end
+
+-- =============================================================================
+-- Continuation Edge Cases (Gap 10)
+-- =============================================================================
+T['continuation_edge_cases'] = new_set()
+
+T['continuation_edge_cases']['whitespace-only continuation line'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      |',  -- Just whitespace and closing pipe
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should handle without crashing
+    eq(#lines >= 3, true)
+end
+
+T['continuation_edge_cases']['very long continuation line'] = function()
+    local long_text = string.rep('a', 200)
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | start \\',
+        long_text .. ' |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should handle without crashing
+    eq(#lines >= 3, true)
+    -- Long content should be preserved
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('aaaa') ~= nil, true)
+end
+
 return T

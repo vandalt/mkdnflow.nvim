@@ -1178,6 +1178,13 @@ function MarkdownTable:add_col(offset)
         local replacement = match_restored .. new_cell .. suffix_restored
 
         table.insert(replacements, replacement)
+
+        -- Preserve continuation lines for multiline rows
+        if row.continuation_lines and #row.continuation_lines > 0 then
+            for _, cont_line in ipairs(row.continuation_lines) do
+                table.insert(replacements, cont_line)
+            end
+        end
     end
 
     vim.api.nvim_buf_set_lines(0, tbl.line_range.start - 1, tbl.line_range.finish, true, replacements)
