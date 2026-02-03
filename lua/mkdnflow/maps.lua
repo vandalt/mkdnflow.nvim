@@ -72,6 +72,16 @@ local operator_commands = {
     MkdnDecreaseHeadingOp = 'decrease',
 }
 
+-- Commands with fallback behavior that need special callback mappings
+-- NOTE: We CANNOT use expr=true mappings for these because they have side effects
+-- (buffer changes, cursor moves, text edits) which are not allowed during expr
+-- mapping evaluation. Instead, we use regular callbacks with feedkeys for fallback.
+local fallback_commands = {
+    MkdnEnter = true,
+    MkdnTab = true,
+    MkdnSTab = true,
+}
+
 -- Helper to set up a single mapping
 local function setup_mapping(mode, lhs, command)
     local is_operator = operator_commands[command]
@@ -102,6 +112,58 @@ local function setup_mapping(mode, lhs, command)
                         false
                     )
                     require('mkdnflow.cursor').headingOperatorVisual(is_operator)
+                end,
+            })
+        end
+    elseif fallback_commands[command] then
+        -- Commands with fallback behavior use regular callbacks (NOT expr mappings)
+        -- because they have side effects that aren't allowed in expr context
+        if command == 'MkdnEnter' then
+            if mode == 'v' then
+                -- Visual mode needs ':' prefix to preserve range
+                vim.api.nvim_buf_set_keymap(0, mode, lhs, ':' .. command .. '<CR>', {
+                    noremap = true,
+                    desc = descriptions[command],
+                })
+            elseif mode == 'i' then
+                -- Insert mode: callback with feedkeys fallback
+                vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+                    noremap = true,
+                    desc = descriptions[command],
+                    callback = function()
+                        local fallback = require('mkdnflow.wrappers').multiFuncEnter()
+                        if fallback then
+                            vim.api.nvim_feedkeys(fallback, 'n', true)
+                        end
+                    end,
+                })
+            else
+                -- Normal mode: standard command mapping
+                vim.api.nvim_buf_set_keymap(0, mode, lhs, '<Cmd>' .. command .. '<CR>', {
+                    noremap = true,
+                    desc = descriptions[command],
+                })
+            end
+        elseif command == 'MkdnTab' then
+            vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+                noremap = true,
+                desc = descriptions[command],
+                callback = function()
+                    local fallback = require('mkdnflow.wrappers').indentListItemOrJumpTableCell(1)
+                    if fallback then
+                        vim.api.nvim_feedkeys(fallback, 'n', true)
+                    end
+                end,
+            })
+        elseif command == 'MkdnSTab' then
+            vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+                noremap = true,
+                desc = descriptions[command],
+                callback = function()
+                    local fallback = require('mkdnflow.wrappers').indentListItemOrJumpTableCell(-1)
+                    if fallback then
+                        vim.api.nvim_feedkeys(fallback, 'n', true)
+                    end
                 end,
             })
         end

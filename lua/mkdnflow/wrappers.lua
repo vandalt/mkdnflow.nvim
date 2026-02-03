@@ -16,27 +16,35 @@
 local config = require('mkdnflow').config
 local lists = require('mkdnflow').lists
 local utils = require('mkdnflow').utils
-local vim_indent
-if vim.api.nvim_buf_get_option(0, 'expandtab') == true then
-    vim_indent = string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
-else
-    vim_indent = '\t'
-end
 
 local M = {}
 
+--- Get the vim indentation unit (spaces or tab) for the current buffer
+--- @return string The indentation string (spaces based on shiftwidth, or tab)
+local function get_vim_indent()
+    if vim.api.nvim_buf_get_option(0, 'expandtab') == true then
+        return string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
+    else
+        return '\t'
+    end
+end
+
 -- Wrapper function for new list items in lists or going to the same cell/next row in a table
+-- Returns nil if handled, or the fallback key for expression mappings
 M.newListItemOrNextTableRow = function()
     -- Get the current line and line number
     local row = vim.api.nvim_win_get_cursor(0)[1]
     local line = vim.api.nvim_get_current_line()
     if require('mkdnflow').lists.hasListType(line) then
         require('mkdnflow').lists.newListItem(true, false, true, 'i', '<CR>', line)
+        return nil -- Handled
     elseif require('mkdnflow').tables.isPartOfTable(line, row) then
         -- Pass line number for proper continuation line detection
         require('mkdnflow').tables.moveToCell(1, 0)
+        return nil -- Handled
     else
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'n', true)
+        -- Return the fallback key for expression mapping
+        return vim.api.nvim_replace_termcodes('<CR>', true, false, true)
     end
 end
 
@@ -45,6 +53,7 @@ M.indentListItemOrJumpTableCell = function(direction)
     local row, line = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_get_current_line()
     local list_type = lists.hasListType(line)
     if list_type and config.modules.lists and line:match(lists.patterns[list_type].empty) then
+        local vim_indent = get_vim_indent()
         if direction == -1 then
             if line:match('^' .. vim_indent) then
                 local new_line = line:gsub('^' .. vim_indent, '')
@@ -59,6 +68,7 @@ M.indentListItemOrJumpTableCell = function(direction)
             lists.updateNumbering({}, -1)
             lists.updateNumbering({}, 1)
         end
+        return nil -- Handled
     elseif config.modules.tables and require('mkdnflow').tables.isPartOfTable(line, row) then
         -- Pass line number for proper continuation line detection
         if direction == -1 then
@@ -66,8 +76,11 @@ M.indentListItemOrJumpTableCell = function(direction)
         else
             require('mkdnflow').tables.moveToCell(0, 1)
         end
+        return nil -- Handled
     else
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-I>', true, false, true), 'n', true)
+        -- Return the fallback key for expression mapping
+        local fallback_key = direction == -1 and '<S-Tab>' or '<Tab>'
+        return vim.api.nvim_replace_termcodes(fallback_key, true, false, true)
     end
 end
 
@@ -101,10 +114,11 @@ M.multiFuncEnter = function(args)
     local mode = vim.api.nvim_get_mode()['mode']
     local range = args.range or false
     if mode == 'n' or mode == 'v' then
-        M.followOrCreateLinksOrToggleFolds({ mode = mode, range = range })
+        return M.followOrCreateLinksOrToggleFolds({ mode = mode, range = range })
     elseif mode == 'i' then
-        M.newListItemOrNextTableRow()
+        return M.newListItemOrNextTableRow()
     end
+    return nil
 end
 
 return M

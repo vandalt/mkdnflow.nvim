@@ -17,9 +17,16 @@
 -- This module: To-do list related functions
 local silent = require('mkdnflow').config.silent
 local to_do_statuses = require('mkdnflow').config.to_do.statuses
-local vim_indent = vim.api.nvim_buf_get_option(0, 'expandtab') == true
-        and string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
-    or '\t'
+
+--- Get the vim indentation unit (spaces or tab) for the current buffer
+--- @return string The indentation string (spaces based on shiftwidth, or tab)
+local function get_vim_indent()
+    if vim.api.nvim_buf_get_option(0, 'expandtab') == true then
+        return string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
+    else
+        return '\t'
+    end
+end
 
 -- Item cache to avoid re-parsing the same lines during a single operation
 local item_cache = {
@@ -340,7 +347,8 @@ function to_do_item:read(line_nr)
             true, line_nr, to_do_statuses:get(marker) or {}
 
         -- Figure out the level of the new_to_do_item (based on indentation)
-        _, new_to_do_item.level = string.gsub(new_to_do_item.content:match('^%s*'), vim_indent, '')
+        _, new_to_do_item.level =
+            string.gsub(new_to_do_item.content:match('^%s*'), get_vim_indent(), '')
         -- Add this to-do item to the cache
         cache_item(new_to_do_item)
         return new_to_do_item
