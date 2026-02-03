@@ -433,12 +433,14 @@ function TableRow:locate_cell(target_cell, locate_content)
         cur_cell = cur_cell + 1
         if cur_cell == target_cell then
             if locate_content then
-                -- Find where non-whitespace content starts
-                local content_start, content_end, cell_value = string.find(match, '%s*(.*)%s*')
-                if cell_value ~= '' then
-                    return match_start + content_start - 1, match_start + content_end - 1
+                -- Find where non-whitespace content starts (first non-space character)
+                local content_offset = match:find('%S')
+                if content_offset then
+                    -- Find where content ends (last non-space character)
+                    local content_end_offset = match:match('.*%S()') or content_offset
+                    return match_start + content_offset - 1, match_start + content_end_offset - 2
                 else
-                    -- Empty cell - position one character into it
+                    -- Empty cell (all whitespace) - position one character into it
                     return match_start + 1, match_end
                 end
             else

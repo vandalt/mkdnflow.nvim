@@ -974,9 +974,46 @@ T['cell_location']['cursor lands at cell content start'] = function()
     child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
     local cursor = get_cursor()
     local line = get_line(1)
-    -- Cursor should be at or near the start of "defgh"
+    -- Cursor should be at the start of "defgh" (the 'd'), not on the padding space
     local char_at_cursor = line:sub(cursor[2] + 1, cursor[2] + 1)
-    eq(char_at_cursor == 'd' or char_at_cursor == ' ', true)
+    eq(char_at_cursor, 'd')
+end
+
+T['cell_location']['cursor lands after padding not before'] = function()
+    -- After formatting, cells have padding. Cursor should land AFTER the padding,
+    -- at the start of actual content, not at the very beginning of the cell.
+    set_lines({
+        '| a | b |',
+        '| - | - |',
+        '| x | y |',
+    })
+    set_cursor(1, 1)
+    -- Format to ensure consistent padding
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    -- Navigate to second cell
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    local line = get_line(1)
+    -- The cell content is "b". Cursor should be ON the "b", not on padding space before it.
+    local char_at_cursor = line:sub(cursor[2] + 1, cursor[2] + 1)
+    eq(char_at_cursor, 'b')
+end
+
+T['cell_location']['cursor lands at content in formatted table'] = function()
+    -- Real-world scenario: navigate in a properly formatted table
+    set_lines({
+        '| Header | Column Two |',
+        '| ------ | ---------- |',
+        '| data   | more stuff |',
+    })
+    set_cursor(3, 2) -- In first cell of data row
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    local line = get_line(3)
+    -- Cursor should land on 'm' of "more stuff", not on padding
+    local char_at_cursor = line:sub(cursor[2] + 1, cursor[2] + 1)
+    eq(char_at_cursor, 'm')
 end
 
 T['cell_location']['handles cursor on pipe character'] = function()
