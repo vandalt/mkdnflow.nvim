@@ -217,6 +217,166 @@ T['multiFuncEnter']['accepts range parameter'] = function()
 end
 
 -- =============================================================================
+-- E2E tests: Keymap behavior (testing actual <CR> keypress through mappings)
+-- These are critical because expression mappings behave differently than
+-- direct function calls
+-- =============================================================================
+T['keymap_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                -- Source the plugin to register commands
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                vim.opt.foldmethod = 'manual'
+                require('mkdnflow').setup({
+                    modules = {
+                        folds = true,
+                        links = true,
+                        lists = true,
+                        tables = true
+                    },
+                    links = {
+                        transform_explicit = false
+                    },
+                    silent = true
+                })
+
+                -- Trigger the autocmd to set up mappings
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['keymap_e2e']['<CR> follows anchor link in normal mode'] = function()
+    set_lines({ '[link](#anchor)', '', '# Anchor' })
+    set_cursor(1, 2) -- Cursor on the link
+    -- Simulate actual keypress through the mapping
+    child.type_keys('<CR>')
+    local cursor = get_cursor()
+    eq(cursor[1], 3) -- Should jump to the anchor heading
+end
+
+T['keymap_e2e']['<CR> follows anchor link from link text'] = function()
+    set_lines({ '[click here](#target)', '', '# Target' })
+    set_cursor(1, 5) -- Cursor in the middle of "click here"
+    child.type_keys('<CR>')
+    local cursor = get_cursor()
+    eq(cursor[1], 3)
+end
+
+T['keymap_e2e']['<CR> folds section on heading'] = function()
+    set_lines({ '# Heading', 'Content line 1', 'Content line 2' })
+    set_cursor(1, 0)
+    child.type_keys('<CR>')
+    local foldclosed = child.lua_get('vim.fn.foldclosed(1)')
+    eq(foldclosed, 1)
+end
+
+T['keymap_e2e']['<CR> unfolds closed fold'] = function()
+    set_lines({ '# Heading', 'Content line' })
+    set_cursor(1, 0)
+    -- First fold
+    child.type_keys('<CR>')
+    eq(child.lua_get('vim.fn.foldclosed(1)'), 1)
+    -- Then unfold
+    child.type_keys('<CR>')
+    eq(child.lua_get('vim.fn.foldclosed(1)'), -1)
+end
+
+T['keymap_e2e']['<CR> on regular text follows link behavior'] = function()
+    -- On regular text (not heading, not link), MkdnEnter tries to follow/create link
+    -- This should not error
+    set_lines({ 'regular text here' })
+    set_cursor(1, 5)
+    child.type_keys('<CR>')
+    -- Should not change cursor position dramatically (no link to follow)
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+end
+
+-- =============================================================================
+-- E2E tests for Tab/S-Tab keymaps
+-- These must work in insert mode for table navigation
+-- =============================================================================
+T['keymap_e2e_tab'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                -- Source the plugin to register commands
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    modules = {
+                        folds = true,
+                        links = true,
+                        lists = true,
+                        tables = true
+                    },
+                    mappings = {
+                        -- Enable MkdnTab for testing
+                        MkdnTab = { 'i', '<Tab>' },
+                        MkdnSTab = { 'i', '<S-Tab>' },
+                    },
+                    silent = true
+                })
+
+                -- Trigger the autocmd to set up mappings
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['keymap_e2e_tab']['<Tab> moves to next cell in table'] = function()
+    set_lines({
+        '| A | B |',
+        '|---|---|',
+        '| 1 | 2 |',
+    })
+    set_cursor(3, 2) -- In first cell
+    child.type_keys('i') -- Enter insert mode
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>') -- Exit insert mode to check cursor
+    local cursor = get_cursor()
+    -- Should have moved to second cell (column > 2)
+    eq(cursor[2] > 4, true)
+end
+
+T['keymap_e2e_tab']['<S-Tab> moves to previous cell in table'] = function()
+    set_lines({
+        '| A | B |',
+        '|---|---|',
+        '| 1 | 2 |',
+    })
+    set_cursor(3, 6) -- In second cell
+    child.type_keys('i') -- Enter insert mode
+    child.type_keys('<S-Tab>')
+    child.type_keys('<Esc>') -- Exit insert mode to check cursor
+    local cursor = get_cursor()
+    -- Should have moved to first cell (column < 6)
+    eq(cursor[2] < 4, true)
+end
+
+T['keymap_e2e_tab']['<Tab> indents empty list item'] = function()
+    set_lines({ '- Item', '- ' })
+    set_cursor(2, 2)
+    child.type_keys('i') -- Enter insert mode
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>') -- Exit insert mode
+    local line = get_line(2)
+    -- Should be indented
+    eq(line:match('^%s+%-') ~= nil, true)
+end
+
+-- =============================================================================
 -- Edge cases
 -- =============================================================================
 T['edge_cases'] = new_set()
@@ -247,18 +407,51 @@ T['edge_cases']['indentation with tabs'] = function()
     set_cursor(2, 2)
     child.lua([[require('mkdnflow.wrappers').indentListItemOrJumpTableCell(1)]])
     local line = get_line(2)
-    -- Should be indented (with tab or spaces)
-    eq(line:match('^%s+%-') ~= nil, true)
+    -- Should be indented with exactly one tab
+    eq(line:sub(1, 1), '\t')
+    eq(line:sub(2, 3), '- ')
 end
 
-T['edge_cases']['indentation with spaces'] = function()
+T['edge_cases']['indentation with spaces respects shiftwidth'] = function()
     child.lua('vim.bo.expandtab = true')
     child.lua('vim.bo.shiftwidth = 4')
     set_lines({ '- Item', '- ' })
     set_cursor(2, 2)
     child.lua([[require('mkdnflow.wrappers').indentListItemOrJumpTableCell(1)]])
     local line = get_line(2)
-    eq(line:match('^%s+%-') ~= nil, true)
+    -- Should be indented with exactly 4 spaces
+    eq(line:sub(1, 4), '    ')
+    eq(line:sub(5, 6), '- ')
+end
+
+T['edge_cases']['indentation respects changed shiftwidth'] = function()
+    -- This test verifies that indent is computed on-the-fly, not cached at module load
+    child.lua('vim.bo.expandtab = true')
+    child.lua('vim.bo.shiftwidth = 2')
+    set_lines({ '- Item', '- ' })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.wrappers').indentListItemOrJumpTableCell(1)]])
+    local line = get_line(2)
+    -- Should be indented with exactly 2 spaces
+    eq(line:sub(1, 2), '  ')
+    eq(line:sub(3, 4), '- ')
+end
+
+T['edge_cases']['indentation not cached at module load'] = function()
+    -- Pre-load the wrappers module with initial settings
+    child.lua('vim.bo.expandtab = true')
+    child.lua('vim.bo.shiftwidth = 4')
+    child.lua([[require('mkdnflow.wrappers')]]) -- Force module load
+
+    -- Now change settings AFTER module is loaded
+    child.lua('vim.bo.shiftwidth = 2')
+    set_lines({ '- Item', '- ' })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.wrappers').indentListItemOrJumpTableCell(1)]])
+    local line = get_line(2)
+    -- Should use the NEW shiftwidth (2), not the cached value (4)
+    eq(line:sub(1, 2), '  ')
+    eq(line:sub(3, 4), '- ')
 end
 
 -- =============================================================================
@@ -291,7 +484,7 @@ T['command_robustness']['MkdnCreateLinkFromClipboard does not crash without setu
     local success = child.lua_get('_G.test_ok')
     if not success then
         local err = child.lua_get('tostring(_G.test_err)')
-        if err:match("index field.*links.*nil") then
+        if err:match('index field.*links.*nil') then
             error('Issue #255 bug reproduced: ' .. err)
         end
         -- If error is something else, show it for debugging
