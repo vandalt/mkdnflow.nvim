@@ -2816,4 +2816,289 @@ T['continuation_edge_cases']['very long continuation line'] = function()
     eq(all_text:match('aaaa') ~= nil, true)
 end
 
+-- =============================================================================
+-- Row deletion
+-- =============================================================================
+T['deleteRow'] = new_set()
+
+T['deleteRow']['deletes data row'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+        '| c    | d    |',
+    })
+    set_cursor(3, 2) -- On first data row
+    child.lua([[require('mkdnflow.tables').deleteRow()]])
+    local lines = get_lines()
+    eq(#lines, 3) -- One less row
+    -- Row with 'a' and 'b' should be gone
+    eq(lines[3]:match('c') ~= nil, true)
+    eq(lines[3]:match('a') == nil, true)
+end
+
+T['deleteRow']['skips separator row'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+    })
+    set_cursor(2, 2) -- On separator row
+    child.lua([[require('mkdnflow.tables').deleteRow()]])
+    local lines = get_lines()
+    -- Should not delete anything
+    eq(#lines, 3)
+    eq(lines[2]:match('%-%-%-%-') ~= nil, true)
+end
+
+T['deleteRow']['deletes header row'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+    })
+    set_cursor(1, 2) -- On header row
+    child.lua([[require('mkdnflow.tables').deleteRow()]])
+    local lines = get_lines()
+    eq(#lines, 2) -- One less row
+    -- Header should be gone, separator should now be first
+    eq(lines[1]:match('%-%-%-%-') ~= nil, true)
+end
+
+T['deleteRow']['cursor moves to previous row when deleting last'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+        '| c    | d    |',
+    })
+    set_cursor(4, 2) -- On last data row
+    child.lua([[require('mkdnflow.tables').deleteRow()]])
+    local cursor = get_cursor()
+    -- Cursor should have moved up
+    eq(cursor[1], 3)
+end
+
+T['deleteRow']['cursor stays on same index when deleting middle'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+        '| c    | d    |',
+        '| e    | f    |',
+    })
+    set_cursor(3, 2) -- On first data row (middle of table)
+    child.lua([[require('mkdnflow.tables').deleteRow()]])
+    local cursor = get_cursor()
+    -- Cursor should stay on line 3 (now contains 'c' and 'd')
+    eq(cursor[1], 3)
+    local line = get_line(3)
+    eq(line:match('c') ~= nil, true)
+end
+
+T['deleteRow']['handles single data row table'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| a    | b    |',
+    })
+    set_cursor(3, 2)
+    child.lua([[require('mkdnflow.tables').deleteRow()]])
+    local lines = get_lines()
+    -- Should have only header and separator left
+    eq(#lines, 2)
+    eq(lines[1]:match('col1') ~= nil, true)
+    eq(lines[2]:match('%-%-%-%-') ~= nil, true)
+end
+
+T['deleteRow']['preserves other rows'] = function()
+    set_lines({
+        '| header1 | header2 |',
+        '| ------- | ------- |',
+        '| row1a   | row1b   |',
+        '| row2a   | row2b   |',
+        '| row3a   | row3b   |',
+    })
+    set_cursor(4, 2) -- Delete middle data row
+    child.lua([[require('mkdnflow.tables').deleteRow()]])
+    local lines = get_lines()
+    eq(#lines, 4)
+    eq(lines[1]:match('header1') ~= nil, true)
+    eq(lines[3]:match('row1a') ~= nil, true)
+    eq(lines[4]:match('row3a') ~= nil, true)
+end
+
+T['deleteRow']['deletes row with continuation lines'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | multiline \\',
+        '      content |',
+        '| y | z |',
+    })
+    set_cursor(3, 2) -- On the row with continuation
+    child.lua([[require('mkdnflow.tables').deleteRow()]])
+    local lines = get_lines()
+    -- Should delete both the primary row and its continuation
+    eq(#lines, 3)
+    eq(lines[3]:match('y') ~= nil, true)
+    -- The continuation line should be gone
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('multiline') == nil, true)
+    eq(all_text:match('content') == nil, true)
+end
+
+-- =============================================================================
+-- Column deletion
+-- =============================================================================
+T['deleteCol'] = new_set()
+
+T['deleteCol']['deletes middle column'] = function()
+    set_lines({
+        '| col1 | col2 | col3 |',
+        '| ---- | ---- | ---- |',
+        '| a    | b    | c    |',
+    })
+    set_cursor(1, 10) -- In col2
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local lines = get_lines()
+    -- Count pipes - should have 3 now (2 columns with outer pipes)
+    local _, pipe_count = lines[1]:gsub('|', '')
+    eq(pipe_count, 3)
+    -- col2 should be gone
+    eq(lines[1]:match('col2') == nil, true)
+    eq(lines[1]:match('col1') ~= nil, true)
+    eq(lines[1]:match('col3') ~= nil, true)
+end
+
+T['deleteCol']['deletes first column'] = function()
+    set_lines({
+        '| col1 | col2 | col3 |',
+        '| ---- | ---- | ---- |',
+        '| a    | b    | c    |',
+    })
+    set_cursor(1, 2) -- In col1
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local lines = get_lines()
+    -- col1 should be gone
+    eq(lines[1]:match('col1') == nil, true)
+    eq(lines[1]:match('col2') ~= nil, true)
+    eq(lines[1]:match('col3') ~= nil, true)
+    eq(lines[3]:match('a') == nil, true)
+    eq(lines[3]:match('b') ~= nil, true)
+end
+
+T['deleteCol']['deletes last column'] = function()
+    set_lines({
+        '| col1 | col2 | col3 |',
+        '| ---- | ---- | ---- |',
+        '| a    | b    | c    |',
+    })
+    set_cursor(1, 20) -- In col3
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local lines = get_lines()
+    -- col3 should be gone
+    eq(lines[1]:match('col3') == nil, true)
+    eq(lines[1]:match('col1') ~= nil, true)
+    eq(lines[1]:match('col2') ~= nil, true)
+    eq(lines[3]:match('c') == nil, true)
+end
+
+T['deleteCol']['preserves escaped pipes'] = function()
+    set_lines({
+        '| col1 | col2       | col3 |',
+        '| ---- | ---------- | ---- |',
+        '| a    | val1\\|val2 | c    |',
+    })
+    set_cursor(1, 2) -- In col1
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local lines = get_lines()
+    -- The escaped pipe should still be there in column 2 (now column 1)
+    eq(lines[3]:match('val1\\|val2') ~= nil, true)
+end
+
+T['deleteCol']['cursor moves to previous col when deleting last'] = function()
+    set_lines({
+        '| col1 | col2 | col3 |',
+        '| ---- | ---- | ---- |',
+        '| a    | b    | c    |',
+    })
+    set_cursor(1, 20) -- In col3 (last column)
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local cursor = get_cursor()
+    -- Cursor should be in what was col2 (now last column)
+    eq(cursor[1], 1)
+    -- Column position should be in the new last column area
+    local line = get_line(1)
+    -- The cursor column should be within the line bounds and in col2 area
+    eq(cursor[2] >= 0, true)
+    eq(cursor[2] < #line, true)
+end
+
+T['deleteCol']['cursor stays on same index when deleting middle'] = function()
+    set_lines({
+        '| col1 | col2 | col3 |',
+        '| ---- | ---- | ---- |',
+        '| a    | b    | c    |',
+    })
+    set_cursor(1, 10) -- In col2
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local cursor = get_cursor()
+    -- Cursor should stay on line 1
+    eq(cursor[1], 1)
+end
+
+T['deleteCol']['handles single column prevention'] = function()
+    set_lines({
+        '| col1 |',
+        '| ---- |',
+        '| a    |',
+    })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local lines = get_lines()
+    -- Should not delete - table would become invalid
+    eq(#lines, 3)
+    eq(lines[1]:match('col1') ~= nil, true)
+end
+
+T['deleteCol']['preserves other columns'] = function()
+    set_lines({
+        '| col1 | col2 | col3 | col4 |',
+        '| ---- | ---- | ---- | ---- |',
+        '| a    | b    | c    | d    |',
+    })
+    set_cursor(1, 10) -- In col2
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local lines = get_lines()
+    eq(lines[1]:match('col1') ~= nil, true)
+    eq(lines[1]:match('col2') == nil, true)
+    eq(lines[1]:match('col3') ~= nil, true)
+    eq(lines[1]:match('col4') ~= nil, true)
+    eq(lines[3]:match('a') ~= nil, true)
+    eq(lines[3]:match('b') == nil, true)
+    eq(lines[3]:match('c') ~= nil, true)
+    eq(lines[3]:match('d') ~= nil, true)
+end
+
+T['deleteCol']['deletes column with continuation lines when last'] = function()
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | multiline \\',
+        '      content |',
+    })
+    set_cursor(3, 6) -- In column B (the last column with continuation)
+    child.lua([[require('mkdnflow.tables').deleteCol()]])
+    local lines = get_lines()
+    -- The continuation lines should be removed when deleting the last column
+    -- Table should now have only column A
+    local _, pipe_count = lines[1]:gsub('|', '')
+    eq(pipe_count, 2) -- Single column with outer pipes
+    -- Continuation content should be gone
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('multiline') == nil, true)
+    eq(all_text:match('content') == nil, true)
+end
+
 return T

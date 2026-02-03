@@ -250,6 +250,8 @@ local default_config = {
         MkdnTableNewRowAbove = { 'n', '<leader>iR' },
         MkdnTableNewColAfter = { 'n', '<leader>ic' },
         MkdnTableNewColBefore = { 'n', '<leader>iC' },
+        MkdnTableDeleteRow = { 'n', '<leader>dr' },
+        MkdnTableDeleteCol = { 'n', '<leader>dc' },
         MkdnFoldSection = { 'n', '<leader>f' },
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
@@ -301,6 +303,8 @@ init.command_deps = {
     MkdnTableNewRowAbove = { 'tables' },
     MkdnTableNewColAfter = { 'tables' },
     MkdnTableNewColBefore = { 'tables' },
+    MkdnTableDeleteRow = { 'tables' },
+    MkdnTableDeleteCol = { 'tables' },
     MkdnFoldSection = { 'folds' },
     MkdnUnfoldSection = { 'folds' },
     -- The following three depend on multiple modules; they will be defined but will

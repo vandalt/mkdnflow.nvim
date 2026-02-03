@@ -420,6 +420,8 @@ the help files.
         MkdnTableNewRowAbove = { 'n', '<leader>iR' },
         MkdnTableNewColAfter = { 'n', '<leader>ic' },
         MkdnTableNewColBefore = { 'n', '<leader>iC' },
+        MkdnTableDeleteRow = { 'n', '<leader>dr' },
+        MkdnTableDeleteCol = { 'n', '<leader>dc' },
         MkdnFoldSection = { 'n', '<leader>f' },
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
@@ -915,6 +917,8 @@ require('mkdnflow').setup({
         MkdnTableNewRowAbove = { 'n', '<leader>iR' },
         MkdnTableNewColAfter = { 'n', '<leader>ic' },
         MkdnTableNewColBefore = { 'n', '<leader>iC' },
+        MkdnTableDeleteRow = { 'n', '<leader>dr' },
+        MkdnTableDeleteCol = { 'n', '<leader>dc' },
         MkdnFoldSection = { 'n', '<leader>f' },
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
@@ -1014,6 +1018,8 @@ Configuration options.
 | `MkdnTableNewRowAbove` | `{ 'n', '<leader>iR' }` | Add a new row above the row the cursor is currently in. |
 | `MkdnTableNewColAfter` | `{ 'n', '<leader>ic' }` | Add a new column following the column the cursor is currently in. |
 | `MkdnTableNewColBefore` | `{ 'n', '<leader>iC' }` | Add a new column before the column the cursor is currently in. |
+| `MkdnTableDeleteRow` | `{ 'n', '<leader>dr' }` | Delete the row the cursor is currently in. Does nothing if cursor is on the separator row. |
+| `MkdnTableDeleteCol` | `{ 'n', '<leader>dc' }` | Delete the column the cursor is currently in. Does nothing if the table has only one column. |
 | `MkdnTab` | -- | Wrapper function which will jump to the next cell in a table (if cursor is in a table) or indent an (empty) list item (if cursor is in a list item). |
 | `MkdnSTab` | -- | Wrapper function which will jump to the previous cell in a table (if cursor is in a table) or de-indent an (empty) list item (if cursor is in a list item). |
 | `MkdnFoldSection` | `{ 'n', '<leader>f' }` | Fold the section the cursor is currently on/in. |

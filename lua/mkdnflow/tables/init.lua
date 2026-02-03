@@ -341,6 +341,18 @@ function M.addCol(offset)
     tbl:add_col(offset)
 end
 
+--- Delete the current row from the table
+function M.deleteRow()
+    local tbl = MarkdownTable:read()
+    tbl:delete_row()
+end
+
+--- Delete the current column from the table
+function M.deleteCol()
+    local tbl = MarkdownTable:read()
+    tbl:delete_col()
+end
+
 -- =============================================================================
 -- Export classes for advanced usage
 -- =============================================================================

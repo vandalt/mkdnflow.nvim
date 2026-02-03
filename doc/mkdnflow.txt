@@ -452,6 +452,8 @@ the documentation for the configuration options below or in the help files.
             MkdnTableNewRowAbove = { 'n', '<leader>iR' },
             MkdnTableNewColAfter = { 'n', '<leader>ic' },
             MkdnTableNewColBefore = { 'n', '<leader>iC' },
+            MkdnTableDeleteRow = { 'n', '<leader>dr' },
+            MkdnTableDeleteCol = { 'n', '<leader>dc' },
             MkdnFoldSection = { 'n', '<leader>f' },
             MkdnUnfoldSection = { 'n', '<leader>F' },
             MkdnTab = false,
@@ -1444,6 +1446,8 @@ mappings ~
             MkdnTableNewRowAbove = { 'n', '<leader>iR' },
             MkdnTableNewColAfter = { 'n', '<leader>ic' },
             MkdnTableNewColBefore = { 'n', '<leader>iC' },
+            MkdnTableDeleteRow = { 'n', '<leader>dr' },
+            MkdnTableDeleteCol = { 'n', '<leader>dc' },
             MkdnFoldSection = { 'n', '<leader>f' },
             MkdnUnfoldSection = { 'n', '<leader>F' },
             MkdnTab = false,
@@ -1729,6 +1733,18 @@ Configuration options.
     Default mapping: { 'n', '<leader>iC' }
 
     Add a new column before the column the cursor is currently in.
+
+:MkdnTableDeleteRow                          *Mkdnflow-cmd-MkdnTableDeleteRow*
+    Default mapping: { 'n', '<leader>dr' }
+
+    Delete the row the cursor is currently in. Does nothing if cursor is on
+    the separator row.
+
+:MkdnTableDeleteCol                          *Mkdnflow-cmd-MkdnTableDeleteCol*
+    Default mapping: { 'n', '<leader>dc' }
+
+    Delete the column the cursor is currently in. Does nothing if the table
+    has only one column.
 
 :MkdnTab                                                *Mkdnflow-cmd-MkdnTab*
 

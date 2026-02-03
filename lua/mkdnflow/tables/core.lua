@@ -1190,6 +1190,156 @@ function MarkdownTable:add_col(offset)
     vim.api.nvim_buf_set_lines(0, tbl.line_range.start - 1, tbl.line_range.finish, true, replacements)
 end
 
+--- Delete the current row from the table
+--- Does nothing if cursor is on separator row
+function MarkdownTable:delete_row()
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = vim.api.nvim_get_current_line()
+
+    if not MarkdownTable.isPartOfTable(line, cursor[1]) then
+        return
+    end
+
+    -- Read the table to get structure info
+    local tbl = MarkdownTable:read(cursor[1])
+    if not tbl.valid or #tbl.rows == 0 then
+        return
+    end
+
+    -- Find which row the cursor is on
+    local current_row = tbl:get_row(cursor[1])
+    if not current_row then
+        return
+    end
+
+    -- Skip if on separator row
+    if current_row.is_separator then
+        return
+    end
+
+    -- Build replacements without the target row (and its continuation lines)
+    local replacements = {}
+    local deleted_row_idx = nil
+
+    for idx, row in ipairs(tbl.rows) do
+        if row.line_nr ~= cursor[1] then
+            table.insert(replacements, row.raw_content)
+            -- Preserve continuation lines for multiline rows
+            if row.continuation_lines and #row.continuation_lines > 0 then
+                for _, cont_line in ipairs(row.continuation_lines) do
+                    table.insert(replacements, cont_line)
+                end
+            end
+        else
+            deleted_row_idx = idx
+        end
+    end
+
+    -- Replace the table lines
+    vim.api.nvim_buf_set_lines(0, tbl.line_range.start - 1, tbl.line_range.finish, true, replacements)
+
+    -- Position cursor sensibly
+    -- If we deleted the last row, move cursor to the previous row
+    if deleted_row_idx then
+        local new_row_count = #tbl.rows - 1
+        if deleted_row_idx > new_row_count then
+            -- We deleted the last row, move up
+            local new_line = math.max(tbl.line_range.start, cursor[1] - 1)
+            vim.api.nvim_win_set_cursor(0, { new_line, cursor[2] })
+        end
+        -- Otherwise cursor stays at same line number which is now the next row
+    end
+end
+
+--- Delete the current column from the table
+function MarkdownTable:delete_col()
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = vim.api.nvim_get_current_line()
+
+    if not MarkdownTable.isPartOfTable(line, cursor[1]) then
+        return
+    end
+
+    -- Read the table to get structure info
+    local tbl = MarkdownTable:read(cursor[1])
+    if not tbl.valid or #tbl.rows == 0 then
+        return
+    end
+
+    -- Determine which cell the cursor is in
+    local current_row = tbl:get_row(cursor[1])
+    local target_col = current_row and current_row:which_cell(cursor[2]) or 1
+
+    -- Don't delete if there's only one column
+    if tbl.col_count <= 1 then
+        return
+    end
+
+    local style = get_config().tables.style
+    local escaped_pipe_placeholder = '##'
+
+    local replacements = {}
+
+    for _, row in ipairs(tbl.rows) do
+        local row_text = row.raw_content
+        local row_text_work = row_text:gsub('\\|', escaped_pipe_placeholder)
+
+        -- Parse cells from the working line
+        local cells = {}
+        local col_index = 1
+        for cell_content in row_text_work:gmatch('([^|]+)') do
+            -- Restore escaped pipes in cell content
+            cell_content = cell_content:gsub(escaped_pipe_placeholder, '\\|')
+            table.insert(cells, cell_content)
+            col_index = col_index + 1
+        end
+
+        -- Remove the target column
+        if target_col <= #cells then
+            table.remove(cells, target_col)
+        end
+
+        -- Rebuild the row
+        local new_row
+        if style.outer_pipes then
+            new_row = '|' .. table.concat(cells, '|') .. '|'
+        else
+            new_row = table.concat(cells, '|')
+        end
+
+        table.insert(replacements, new_row)
+
+        -- Handle continuation lines
+        -- Continuation lines belong to the last column
+        -- If we're deleting the last column, skip the continuations
+        -- Otherwise, preserve them
+        if row.continuation_lines and #row.continuation_lines > 0 then
+            local was_last_col = (target_col == #cells + 1) -- +1 because we already removed it
+            if not was_last_col then
+                for _, cont_line in ipairs(row.continuation_lines) do
+                    table.insert(replacements, cont_line)
+                end
+            end
+        end
+    end
+
+    -- Replace the table lines
+    vim.api.nvim_buf_set_lines(0, tbl.line_range.start - 1, tbl.line_range.finish, true, replacements)
+
+    -- Position cursor sensibly
+    -- If we deleted the last column, move cursor to the new last column
+    if target_col >= tbl.col_count then
+        -- We deleted the last column, move cursor left within the row
+        local new_line = vim.api.nvim_buf_get_lines(0, cursor[1] - 1, cursor[1], false)[1]
+        if new_line then
+            local new_row_obj = TableRow:from_string(new_line, cursor[1])
+            local new_col = math.max(1, tbl.col_count - 1)
+            local cell_start, _ = new_row_obj:locate_cell(new_col)
+            vim.api.nvim_win_set_cursor(0, { cursor[1], cell_start - 1 })
+        end
+    end
+end
+
 -- =============================================================================
 -- Module exports
 -- =============================================================================
