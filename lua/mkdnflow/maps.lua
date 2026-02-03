@@ -72,6 +72,14 @@ local operator_commands = {
     MkdnDecreaseHeadingOp = 'decrease',
 }
 
+-- Commands that use operator-style visual mode handling (for dot-repeat) but
+-- direct action in normal mode. Visual mode uses headingOperatorVisual() so
+-- dot-repeat works like Vim's built-in < and > operators.
+local visual_operator_commands = {
+    MkdnIncreaseHeading = 'increase',
+    MkdnDecreaseHeading = 'decrease',
+}
+
 -- Commands with fallback behavior that need special callback mappings
 -- NOTE: We CANNOT use expr=true mappings for these because they have side effects
 -- (buffer changes, cursor moves, text edits) which are not allowed during expr
@@ -115,6 +123,23 @@ local function setup_mapping(mode, lhs, command)
                 end,
             })
         end
+    elseif visual_operator_commands[command] and mode == 'v' then
+        -- Visual mode heading commands: use operator-style handling for dot-repeat
+        -- (same as g+/g- but without requiring a motion in normal mode)
+        local direction = visual_operator_commands[command]
+        vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+            noremap = true,
+            desc = descriptions[command],
+            callback = function()
+                -- Exit visual mode first so marks are set
+                vim.api.nvim_feedkeys(
+                    vim.api.nvim_replace_termcodes('<Esc>', true, false, true),
+                    'nx',
+                    false
+                )
+                require('mkdnflow.cursor').headingOperatorVisual(direction)
+            end,
+        })
     elseif fallback_commands[command] then
         -- Commands with fallback behavior use regular callbacks (NOT expr mappings)
         -- because they have side effects that aren't allowed in expr context

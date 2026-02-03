@@ -774,4 +774,123 @@ T['heading_operator']['g+ does not increase H1 beyond limit'] = function()
     eq(get_line(2), '# Can increase')
 end
 
+-- =============================================================================
+-- E2E tests: Keymap behavior for heading operators (g+/g-)
+-- These test through the actual mapping system, not just feedkeys
+-- =============================================================================
+T['heading_operator_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                -- Source the plugin to register commands
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    links = { transform_explicit = false },
+                    silent = true
+                })
+
+                -- Trigger the autocmd to set up mappings
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['heading_operator_e2e']['g+ mapping exists and uses expr'] = function()
+    child.lua([[
+        _G.test_map = nil
+        local maps = vim.api.nvim_buf_get_keymap(0, 'n')
+        for _, m in ipairs(maps) do
+            if m.lhs == 'g+' then
+                _G.test_map = { lhs = m.lhs, expr = m.expr }
+            end
+        end
+    ]])
+    local map = child.lua_get('_G.test_map')
+    eq(map ~= nil, true)
+    eq(map.lhs, 'g+')
+    eq(map.expr, 1) -- expr mapping for dot-repeat
+end
+
+T['heading_operator_e2e']['g+ visual mode mapping exists'] = function()
+    child.lua([[
+        _G.test_map = nil
+        local maps = vim.api.nvim_buf_get_keymap(0, 'v')
+        for _, m in ipairs(maps) do
+            if m.lhs == 'g+' then
+                _G.test_map = { lhs = m.lhs, callback = m.callback ~= nil }
+            end
+        end
+    ]])
+    local map = child.lua_get('_G.test_map')
+    eq(map ~= nil, true)
+    eq(map.lhs, 'g+')
+    eq(map.callback, true) -- callback for visual mode
+end
+
+T['heading_operator_e2e']['visual g+ followed by dot repeat'] = function()
+    set_lines({ '## First', '### Second', '', '## Third', '### Fourth' })
+    set_cursor(1, 0)
+    -- Visual select 2 lines, then g+
+    child.type_keys('V', 'j', 'g', '+')
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+
+    -- Move to line 4 and dot-repeat
+    set_cursor(4, 0)
+    child.type_keys('.')
+    eq(get_line(4), '# Third')
+    eq(get_line(5), '## Fourth')
+end
+
+T['heading_operator_e2e']['visual g- followed by dot repeat'] = function()
+    set_lines({ '# First', '## Second', '', '# Third', '## Fourth' })
+    set_cursor(1, 0)
+    -- Visual select 2 lines, then g-
+    child.type_keys('V', 'j', 'g', '-')
+    eq(get_line(1), '## First')
+    eq(get_line(2), '### Second')
+
+    -- Move to line 4 and dot-repeat
+    set_cursor(4, 0)
+    child.type_keys('.')
+    eq(get_line(4), '## Third')
+    eq(get_line(5), '### Fourth')
+end
+
+-- Visual mode +/- now support dot-repeat (like Vim's built-in < and > operators)
+T['heading_operator_e2e']['visual + followed by dot repeat'] = function()
+    set_lines({ '## First', '### Second', '', '## Third', '### Fourth' })
+    set_cursor(1, 0)
+    -- Visual select 2 lines, then +
+    child.type_keys('V', 'j', '+')
+    eq(get_line(1), '# First')
+    eq(get_line(2), '## Second')
+
+    -- Move to line 4 and dot-repeat - affects same number of lines (2)
+    set_cursor(4, 0)
+    child.type_keys('.')
+    eq(get_line(4), '# Third')
+    eq(get_line(5), '## Fourth')
+end
+
+T['heading_operator_e2e']['visual - followed by dot repeat'] = function()
+    set_lines({ '# First', '## Second', '', '# Third', '## Fourth' })
+    set_cursor(1, 0)
+    -- Visual select 2 lines, then -
+    child.type_keys('V', 'j', '-')
+    eq(get_line(1), '## First')
+    eq(get_line(2), '### Second')
+
+    -- Move to line 4 and dot-repeat
+    set_cursor(4, 0)
+    child.type_keys('.')
+    eq(get_line(4), '## Third')
+    eq(get_line(5), '### Fourth')
+end
+
 return T
