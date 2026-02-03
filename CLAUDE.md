@@ -204,3 +204,80 @@ vim.api.nvim_create_autocmd(event, { callback = fn, pattern = pat })
 - Cache expensive operations, invalidate on buffer changes
 - Validate line/column positions before access
 - Use `vim.schedule()` for deferred operations when needed
+
+### Key Mapping with Fallback Behavior
+
+When remapping keys like `<CR>` or `<Tab>` to context-sensitive functions that fall back to default behavior:
+
+**DO NOT use `expr = true` mappings** if the callback has side effects (buffer changes, cursor moves, text edits, folds). Neovim raises `E565: Not allowed to change text or change window` during expr mapping evaluation.
+
+**DO use regular callback mappings with `feedkeys` for fallback:**
+
+```lua
+vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+    noremap = true,
+    callback = function()
+        local fallback = my_wrapper_function()
+        if fallback then
+            vim.api.nvim_feedkeys(fallback, 'n', true)
+        end
+    end,
+})
+```
+
+The wrapper function returns `nil` when it handles the action, or returns the fallback key (via `nvim_replace_termcodes`) when fallback is needed.
+
+### Module-Level State
+
+**Avoid computing buffer-local values at module load time.** Values like `expandtab` or `shiftwidth` should be computed on-the-fly, not cached:
+
+```lua
+-- BAD: Cached at module load, won't update for different buffers
+local vim_indent = vim.bo.expandtab and string.rep(' ', vim.bo.shiftwidth) or '\t'
+
+-- GOOD: Computed fresh each time
+local function get_vim_indent()
+    if vim.api.nvim_buf_get_option(0, 'expandtab') then
+        return string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
+    end
+    return '\t'
+end
+```
+
+## E2E Testing for Keymaps
+
+**Critical:** When testing keymap behavior, you MUST write E2E tests that simulate actual keypresses, not just direct function calls. Direct function calls bypass the mapping system entirely and won't catch issues like expr mapping limitations.
+
+```lua
+-- E2E test setup for keymap testing
+T['keymap_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                -- Source the plugin to register commands
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({ ... })
+
+                -- Trigger autocmd to set up mappings
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['keymap_e2e']['<CR> follows link'] = function()
+    set_lines({ '[link](#anchor)', '', '# Anchor' })
+    set_cursor(1, 2)
+    child.type_keys('<CR>')  -- Actual keypress through mapping
+    eq(get_cursor()[1], 3)
+end
+```
+
+Key points:
+- Source `plugin/mkdnflow.lua` to register commands
+- Trigger `doautocmd BufEnter` to activate buffer-local mappings
+- Use `child.type_keys()` to simulate real keypresses
