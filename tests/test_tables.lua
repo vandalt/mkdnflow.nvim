@@ -1612,4 +1612,536 @@ T['line_breaks']['format_on_move from continuation preserves table'] = function(
     eq(lines[5]:match('normal') ~= nil, true)
 end
 
+-- =============================================================================
+-- Multiline Cell Width Calculation (Case 1 Bug)
+-- =============================================================================
+T['multiline_width'] = new_set()
+
+T['multiline_width']['column width based on longest part, not total'] = function()
+    -- When a cell has "want \ a newline", the column width should be based on
+    -- max(width("want \"), width("a newline")), NOT width("want \ a newline")
+    set_lines({
+        '| This      | is   | a        | lovely | table     |',
+        '| --------- | ---- | -------- | ------ | --------- |',
+        '| I\'ve      | got  | so       | many   | cells     |',
+        '| to        | do   | anything | I      | want \\ a newline   |',
+        '| with      | here | .        | Isn\'t  | it        |',
+        '| great?    | Just | love     | the    | twiddling |',
+        '| heck      | out  | of       | it,    | truly.    |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+
+    -- After formatting, the table should have 8 lines (7 original rows + 1 continuation)
+    eq(#lines, 8)
+
+    -- The key test: the last column should NOT be excessively wide
+    -- "want \" is ~6 chars, "a newline" is 9 chars, "twiddling" is 9 chars
+    -- So the column width should be ~9 (for "twiddling" or "a newline"), not 17+ (for "want \ a newline")
+
+    -- Check that non-multiline rows in the last column are not padded excessively
+    -- Row with "cells" should have "cells" followed by reasonable padding
+    -- NOT "cells            |" (excessive padding from wrong width calculation)
+    local cells_row = lines[3]
+    local twiddling_row = lines[7]
+
+    -- Both rows should have similar lengths since they're in the same table
+    eq(#cells_row, #twiddling_row)
+
+    -- The last column content "cells" (5 chars) and "twiddling" (9 chars) and "a newline" (9 chars)
+    -- After proper formatting, "twiddling" determines max width at 9
+    -- The row with "cells" should have "cells" + 4 spaces of padding (9-5=4)
+    -- NOT "cells" + 12+ spaces (if wrongly using "want \ a newline" length)
+
+    -- Verify by checking that "cells" is NOT followed by excessive spaces
+    -- A properly formatted cell would be: "| cells     |" (9 char content area)
+    -- A wrongly formatted cell would be: "| cells            |" (17+ char content area)
+    local cells_to_end = cells_row:match('cells%s*|%s*$')
+    -- The padding after "cells" should be at most ~6 spaces (for 9-char column + padding)
+    -- If it's more than 10 spaces, the width calculation is wrong
+    local _, spaces_after_cells = cells_to_end:gsub(' ', '')
+    eq(spaces_after_cells <= 8, true) -- "cells" + reasonable padding before final |
+end
+
+T['multiline_width']['continuation does not inflate other columns'] = function()
+    -- CRITICAL: The continuation line width should only affect the LAST column
+    -- NOT all columns in the table
+    set_lines({
+        '| This   | is   | a        | lovely | table     |',
+        '| ------ | ---- | -------- | ------ | --------- |',
+        '| I\'ve   | got  | so       | many   | cells     |',
+        '| to     | do   | anything | I      | want \\',
+        '                                      a newline |',
+        '| with   | here | .        | Isn\'t  | it        |',
+        '| great? | Just | love     | the    | twiddling |',
+        '| heck   | out  | of       | it,    | truly.    |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+
+    -- Should still have 8 lines
+    eq(#lines, 8)
+
+    -- CRITICAL CHECK: Column 1 should NOT be inflated to 9 chars just because
+    -- the continuation line "a newline" is 9 chars
+    -- Column 1's longest content is "great?" (6 chars) or "This" (4 chars)
+    -- So column 1 should be ~6 chars wide, NOT 9
+
+    -- Check the first column width by looking at the "is" cell in the header
+    -- If columns are correct, "This" should be followed by ~2-3 spaces (to match "great?")
+    -- If buggy, "This" would be followed by ~5+ spaces
+    local header = lines[1]
+
+    -- Extract the first cell content area (between first two pipes)
+    local first_cell = header:match('^|([^|]+)|')
+    -- Count total spaces in first cell (content + padding)
+    local _, total_chars = first_cell:gsub('.', '')
+
+    -- "great?" is 6 chars, with padding of 1 on each side = 8 chars total in cell
+    -- "This" is 4 chars, so it needs 2 extra spaces + padding = 8 chars total
+    -- If the bug exists, the cell would be ~11+ chars (9 for "a newline" + padding)
+    eq(total_chars <= 10, true) -- Allow some tolerance but not excessive padding
+end
+
+T['multiline_width']['preexisting multiline table formats correctly'] = function()
+    -- A table that's already split across lines should format without expanding width
+    set_lines({
+        '| This   | is   | a        | lovely | table     |',
+        '| ------ | ---- | -------- | ------ | --------- |',
+        '| I\'ve   | got  | so       | many   | cells     |',
+        '| to     | do   | anything | I      | want \\',
+        '                                      a newline |',
+        '| with   | here | .        | Isn\'t  | it        |',
+        '| great? | Just | love     | the    | twiddling |',
+        '| heck   | out  | of       | it,    | truly.    |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+
+    -- Should still have 8 lines
+    eq(#lines, 8)
+
+    -- Check that the header row and a data row have the same length
+    eq(#lines[1], #lines[3])
+    eq(#lines[1], #lines[6])
+    eq(#lines[1], #lines[7])
+
+    -- The continuation line should be properly indented but not cause width inflation
+    -- It should NOT have || or weird formatting
+    eq(lines[5]:match('||') == nil, true)
+end
+
+T['multiline_width']['inline split does not inflate column width'] = function()
+    -- Simple case: inline "first \ second" should not make column wider than needed
+    set_lines({
+        '| A | B         |',
+        '| - | --------- |',
+        '| x | first \\ second |',
+        '| y | short     |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+
+    -- After split: "first \" on one line, "second" on continuation
+    -- Column B width should be based on max("first \", "second", "short", "B")
+    -- = max(7, 6, 5, 1) = 7
+    -- NOT based on "first \ second" which would be 14
+
+    eq(#lines, 5) -- 4 original + 1 continuation
+
+    -- The "short" row should NOT have excessive padding
+    local short_row = lines[5] -- After split, "y | short" is on line 5
+    -- Actually after the split, the rows shift. Let me find the short row
+    local found_short = false
+    for _, line in ipairs(lines) do
+        if line:match('| y ') and line:match('short') then
+            found_short = true
+            -- "short" should not be followed by tons of spaces
+            local short_match = line:match('short%s*|')
+            local _, space_count = short_match:gsub(' ', '')
+            -- Should be at most ~4 spaces of padding (7-5=2 plus cell padding)
+            eq(space_count <= 6, true)
+        end
+    end
+    eq(found_short, true)
+end
+
+-- =============================================================================
+-- MkdnEnter on Continuation Line (Case 2 Bug)
+-- =============================================================================
+T['continuation_enter'] = new_set()
+
+T['continuation_enter']['enter on continuation line moves to next row'] = function()
+    -- When cursor is on continuation line, MkdnEnter should move to next row
+    -- NOT break the table or insert newlines
+    set_lines({
+        '| This   | is   | a        | lovely | table     |',
+        '| ------ | ---- | -------- | ------ | --------- |',
+        '| I\'ve   | got  | so       | many   | cells     |',
+        '| to     | do   | anything | I      | want \\',
+        '                                      a newline |',
+        '| with   | here | .        | Isn\'t  | it        |',
+        '| great? | Just | love     | the    | twiddling |',
+        '| heck   | out  | of       | it,    | truly.    |',
+    })
+    -- Position cursor on continuation line (line 5), under the "a" in "anything"
+    -- The "a" in "anything" is around column 18
+    set_cursor(5, 18)
+
+    local original_line_count = #get_lines()
+
+    -- Use moveToCell directly (what MkdnEnter calls in a table)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+
+    local lines = get_lines()
+    local cursor = get_cursor()
+
+    -- Table should NOT be broken - same number of lines
+    eq(#lines, original_line_count)
+
+    -- Cursor should have moved to the next PRIMARY row (line 6: "| with | here...")
+    -- Since we were in the last cell (continuation is part of last cell),
+    -- we should land in the last cell of the next row
+    eq(cursor[1], 6)
+
+    -- The table content should be unchanged
+    eq(lines[4]:match('want \\') ~= nil, true)
+    eq(lines[5]:match('a newline') ~= nil, true)
+    eq(lines[6]:match('with') ~= nil, true)
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['continuation_enter']['enter does not insert blank lines in table'] = function()
+    -- Specific bug: Enter on continuation was inserting blank lines
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      a newline |',
+        '| y | z |',
+    })
+    set_cursor(4, 6) -- On continuation line
+
+    -- Call the wrapper function directly (what the insert mode mapping calls)
+    -- Note: child.cmd('MkdnEnter') doesn't work for insert mode testing because
+    -- Ex commands temporarily exit insert mode, changing the mode detection
+    child.lua([[require('mkdnflow.wrappers').newListItemOrNextTableRow()]])
+
+    local lines = get_lines()
+
+    -- Should NOT have inserted any blank lines
+    eq(#lines, 5)
+
+    -- Table structure should be intact (use flexible matches since formatting may add padding)
+    eq(lines[3]:match('want \\') ~= nil, true)
+    eq(lines[4]:match('a newline') ~= nil, true)
+    -- Line 5 should contain "y" and "z" (may have padding from format_on_move)
+    eq(lines[5]:match('| y') ~= nil, true)
+    eq(lines[5]:match('z') ~= nil, true)
+end
+
+T['continuation_enter']['cursor lands in correct cell after enter'] = function()
+    -- From continuation line (which is part of last cell), Enter should land
+    -- in the last cell of the next row
+    set_lines({
+        '| A | B | C     |',
+        '| - | - | ----- |',
+        '| x | y | want \\',
+        '          cont  |',
+        '| 1 | 2 | three |',
+    })
+    set_cursor(4, 10) -- On continuation line
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+
+    local cursor = get_cursor()
+
+    -- Should be on line 5
+    eq(cursor[1], 5)
+
+    -- Should be in the last cell (column C with "three")
+    -- The cell "three" starts around column 10
+    local line = get_lines()[5]
+    local three_pos = line:find('three')
+    -- Cursor should be at or near the "three" cell
+    eq(cursor[2] >= three_pos - 3, true)
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+-- =============================================================================
+-- MkdnTab/MkdnSTab on Continuation Line (Case 3 Bug)
+-- =============================================================================
+T['continuation_tab'] = new_set()
+
+T['continuation_tab']['tab on continuation line navigates to next row first cell'] = function()
+    -- Tab from continuation line (last cell) should wrap to first cell of next row
+    set_lines({
+        '| A | B | C     |',
+        '| - | - | ----- |',
+        '| x | y | want \\',
+        '          cont  |',
+        '| 1 | 2 | three |',
+    })
+    set_cursor(4, 10) -- On continuation line
+
+    local original_lines = get_lines()
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+
+    local lines = get_lines()
+    local cursor = get_cursor()
+
+    -- Table content should be UNCHANGED - no spaces inserted
+    eq(#lines, #original_lines)
+    eq(lines[4], original_lines[4])
+
+    -- Tab from last cell should wrap to first cell of next row
+    eq(cursor[1], 5)
+
+    -- Cursor should be in the first cell (with "1")
+    local line = lines[5]
+    local one_pos = line:find('1')
+    eq(cursor[2] >= one_pos - 2, true)
+    eq(cursor[2] <= one_pos + 1, true)
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['continuation_tab']['stab on continuation line navigates to previous cell'] = function()
+    -- S-Tab from continuation line should go to the previous cell (in primary row)
+    set_lines({
+        '| A | B | C     |',
+        '| - | - | ----- |',
+        '| x | y | want \\',
+        '          cont  |',
+        '| 1 | 2 | three |',
+    })
+    set_cursor(4, 10) -- On continuation line
+
+    local original_line_count = #get_lines()
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.tables').moveToCell(0, -1)]])
+
+    local lines = get_lines()
+    local cursor = get_cursor()
+
+    -- Table should have same number of lines (no content inserted)
+    eq(#lines, original_line_count)
+
+    -- S-Tab from last cell should move to previous cell (B column with "y") on the primary row
+    eq(cursor[1], 3) -- Primary row is line 3
+
+    -- Cursor should be in column B (with "y")
+    local line = lines[3]
+    local y_pos = line:find('y')
+    eq(y_pos ~= nil, true)
+    eq(cursor[2] >= y_pos - 2, true) -- Allow some padding tolerance
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['continuation_tab']['tab does not insert literal tab characters'] = function()
+    -- Bug: Tab on continuation line was inserting tab/spaces instead of navigating
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      cont |',
+        '| y | z |',
+    })
+    set_cursor(4, 6) -- On continuation line
+
+    local original_line_count = #get_lines()
+
+    -- Call the wrapper function directly (what the insert mode mapping calls)
+    -- Note: child.cmd('MkdnTab') doesn't work for insert mode testing because
+    -- Ex commands temporarily exit insert mode, changing the mode detection
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.wrappers').indentListItemOrJumpTableCell(1)]])
+
+    local lines = get_lines()
+
+    -- Should still have same number of lines (no new lines added)
+    eq(#lines, original_line_count)
+
+    -- Table structure should be preserved
+    eq(lines[3]:match('want \\') ~= nil, true)
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['continuation_tab']['MkdnTab wrapper from continuation navigates'] = function()
+    -- Verify MkdnTab wrapper function works correctly from continuation line
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      cont |',
+        '| y | z    |',
+    })
+    set_cursor(4, 6) -- On continuation line
+
+    -- Call the wrapper function directly (what the insert mode mapping calls)
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+    child.lua([[require('mkdnflow.wrappers').indentListItemOrJumpTableCell(1)]])
+
+    local cursor = get_cursor()
+
+    -- Tab from last cell should wrap to next row, first cell
+    eq(cursor[1], 5)
+
+    -- First cell contains "y"
+    local line = get_lines()[5]
+    local y_pos = line:find('y')
+    eq(y_pos ~= nil, true)
+    eq(cursor[2] >= y_pos - 2, true)
+    eq(cursor[2] <= y_pos + 1, true)
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+-- =============================================================================
+-- Complex Multiline Scenarios
+-- =============================================================================
+T['multiline_complex'] = new_set()
+
+T['multiline_complex']['large table with multiline cell formats correctly'] = function()
+    -- The exact scenario from Case 1
+    set_lines({
+        '| This      | is   | a        | lovely | table     |',
+        '| --------- | ---- | -------- | ------ | --------- |',
+        '| I\'ve      | got  | so       | many   | cells     |',
+        '| to        | do   | anything | I      | want \\ a newline   |',
+        '| with      | here | .        | Isn\'t  | it        |',
+        '| great?    | Just | love     | the    | twiddling |',
+        '| heck      | out  | of       | it,    | truly.    |',
+    })
+    set_cursor(1, 1)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+
+    local lines = get_lines()
+
+    -- Should have 8 lines after formatting (7 rows + 1 continuation)
+    eq(#lines, 8)
+
+    -- All primary rows should have the same length
+    local header_len = #lines[1]
+    eq(#lines[2], header_len) -- separator
+    eq(#lines[3], header_len) -- cells row
+    -- Line 4 is primary row with "want \" - may be shorter (no closing |)
+    -- Line 5 is continuation
+    eq(#lines[6], header_len) -- "with" row
+    eq(#lines[7], header_len) -- "great?" row
+    eq(#lines[8], header_len) -- "heck" row
+
+    -- Verify the multiline row structure
+    eq(lines[4]:match('want \\') ~= nil, true)
+    eq(lines[4]:match('|%s*$') == nil, true) -- No closing pipe on backslash line
+    eq(lines[5]:match('a newline') ~= nil, true)
+    eq(lines[5]:match('|%s*$') ~= nil, true) -- Closing pipe on final continuation
+end
+
+T['multiline_complex']['navigation through table with multiline rows'] = function()
+    -- Navigate through entire table, verifying cursor lands on correct rows
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| 1 | first \\',
+        '      cont  |',
+        '| 2 | second |',
+        '| 3 | third \\',
+        '      cont2 |',
+        '| 4 | fourth |',
+    })
+
+    -- Disable formatting to test pure navigation
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+
+    -- Start at row with "1"
+    set_cursor(3, 2)
+
+    -- Move down - should skip continuation and land on "2"
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    eq(get_cursor()[1], 5)
+
+    -- Move down again - should skip continuation and land on "4"
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Either lands on row 6 (third) or skips to row 8 (fourth)
+    -- Based on implementation, should land on next primary row
+    eq(cursor[1] == 6 or cursor[1] == 8, true)
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['multiline_complex']['enter from different positions in continuation'] = function()
+    -- Test Enter from various cursor positions on continuation line
+    set_lines({
+        '| Col1 | Col2 | Col3 | Col4 | Col5   |',
+        '| ---- | ---- | ---- | ---- | ------ |',
+        '| a    | b    | c    | d    | want \\',
+        '                               cont   |',
+        '| e    | f    | g    | h    | normal |',
+    })
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+
+    -- Test from beginning of continuation line
+    set_cursor(4, 0)
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    eq(get_cursor()[1], 5) -- Should move to next row
+
+    -- Reset and test from middle of continuation
+    set_cursor(4, 20)
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    eq(get_cursor()[1], 5)
+
+    -- Reset and test from end of continuation
+    set_cursor(4, 35)
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    eq(get_cursor()[1], 5)
+
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+end
+
+T['multiline_complex']['format then navigate preserves table'] = function()
+    -- Format table, then navigate, verify table stays intact
+    set_lines({
+        '| A | B |',
+        '| - | - |',
+        '| x | want \\',
+        '      a newline |',
+        '| y | z |',
+    })
+    set_cursor(1, 1)
+
+    -- Format first
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local formatted_lines = get_lines()
+    local line_count = #formatted_lines
+
+    -- Now navigate from continuation
+    set_cursor(4, 6)
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+
+    local after_nav_lines = get_lines()
+
+    -- Line count should be unchanged
+    eq(#after_nav_lines, line_count)
+
+    -- Content should be unchanged
+    eq(after_nav_lines[3]:match('want \\') ~= nil, true)
+    eq(after_nav_lines[4]:match('a newline') ~= nil or after_nav_lines[4]:match('newline') ~= nil, true)
+end
+
 return T

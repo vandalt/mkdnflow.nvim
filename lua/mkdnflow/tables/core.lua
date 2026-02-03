@@ -911,8 +911,11 @@ function MarkdownTable:_equalize_rows()
 end
 
 --- Calculate maximum width for each column
+--- For cells with line breaks (\ or <br>), use the max width of individual parts
 function MarkdownTable:_calculate_col_widths()
     self.col_widths = {}
+    local config = get_config()
+    local line_breaks = config.tables.line_breaks or {}
 
     -- Initialize with minimum width of 3
     for i = 1, self.col_count do
@@ -923,8 +926,40 @@ function MarkdownTable:_calculate_col_widths()
     for _, row in ipairs(self.rows) do
         if not row.is_separator then
             for idx, cell in ipairs(row.cells) do
-                if cell.display_width > self.col_widths[idx] then
-                    self.col_widths[idx] = cell.display_width
+                local effective_width = cell.display_width
+
+                -- For the LAST cell only, check if content will be split at line breaks
+                -- If so, use the max width of the parts, not the total width
+                -- Also consider continuation lines (which only apply to the last cell)
+                if idx == #row.cells then
+                    if line_breaks.pandoc or line_breaks.html then
+                        local parts = split_at_line_breaks(cell.content, line_breaks)
+                        if #parts > 1 then
+                            -- Find max width among all parts
+                            effective_width = 0
+                            for _, part in ipairs(parts) do
+                                local part_width = width(part)
+                                if part_width > effective_width then
+                                    effective_width = part_width
+                                end
+                            end
+                        end
+                    end
+
+                    -- Also consider continuation lines already collected (only for last cell)
+                    if #row.continuation_lines > 0 then
+                        for _, cont_line in ipairs(row.continuation_lines) do
+                            local content = cont_line:gsub('^%s*', ''):gsub('%s*|%s*$', '')
+                            local cont_width = width(content)
+                            if cont_width > effective_width then
+                                effective_width = cont_width
+                            end
+                        end
+                    end
+                end
+
+                if effective_width > self.col_widths[idx] then
+                    self.col_widths[idx] = effective_width
                 end
             end
         end

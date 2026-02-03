@@ -27,11 +27,13 @@ local M = {}
 
 -- Wrapper function for new list items in lists or going to the same cell/next row in a table
 M.newListItemOrNextTableRow = function()
-    -- Get the current line
+    -- Get the current line and line number
+    local row = vim.api.nvim_win_get_cursor(0)[1]
     local line = vim.api.nvim_get_current_line()
     if require('mkdnflow').lists.hasListType(line) then
         require('mkdnflow').lists.newListItem(true, false, true, 'i', '<CR>', line)
-    elseif require('mkdnflow').tables.isPartOfTable(line) then
+    elseif require('mkdnflow').tables.isPartOfTable(line, row) then
+        -- Pass line number for proper continuation line detection
         require('mkdnflow').tables.moveToCell(1, 0)
     else
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'n', true)
@@ -39,7 +41,7 @@ M.newListItemOrNextTableRow = function()
 end
 
 M.indentListItemOrJumpTableCell = function(direction)
-    -- Get the current line
+    -- Get the current line and line number
     local row, line = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_get_current_line()
     local list_type = lists.hasListType(line)
     if list_type and config.modules.lists and line:match(lists.patterns[list_type].empty) then
@@ -57,7 +59,8 @@ M.indentListItemOrJumpTableCell = function(direction)
             lists.updateNumbering({}, -1)
             lists.updateNumbering({}, 1)
         end
-    elseif config.modules.tables and require('mkdnflow').tables.isPartOfTable(line) then
+    elseif config.modules.tables and require('mkdnflow').tables.isPartOfTable(line, row) then
+        -- Pass line number for proper continuation line detection
         if direction == -1 then
             require('mkdnflow').tables.moveToCell(0, -1)
         else
