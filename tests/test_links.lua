@@ -996,4 +996,844 @@ T['tagSpan']['handles inverted selection (right to left)'] = function()
     eq(result, 'select [this w]{#this-w}ord')
 end
 
+-- =============================================================================
+-- Position accuracy tests - getLinkPart returns correct positions
+-- =============================================================================
+T['positions'] = new_set()
+
+T['positions']['getLinkPart returns correct source positions for md_link'] = function()
+    set_lines({ '[text](path/to/file.md)' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source, _G.anchor, _G.link_type, _G.start_row, _G.start_col, _G.end_row, _G.end_col =
+            require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    local start_row = child.lua_get('_G.start_row')
+    local start_col = child.lua_get('_G.start_col')
+    local end_row = child.lua_get('_G.end_row')
+    local end_col = child.lua_get('_G.end_col')
+    eq(start_row, 1)
+    -- Source starts after "](" which is at position 7 (1-indexed)
+    eq(start_col, 8)
+    eq(end_row, 1)
+    -- Source ends before ")" which is at position 22
+    eq(end_col, 22)
+end
+
+T['positions']['getLinkPart returns correct name positions for md_link'] = function()
+    set_lines({ '[display text](file.md)' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.name, _G.anchor, _G.link_type, _G.start_row, _G.start_col, _G.end_row, _G.end_col =
+            require('mkdnflow.links').getLinkPart(_G.link, 'name')
+    ]])
+    local start_row = child.lua_get('_G.start_row')
+    local start_col = child.lua_get('_G.start_col')
+    local end_row = child.lua_get('_G.end_row')
+    local end_col = child.lua_get('_G.end_col')
+    eq(start_row, 1)
+    -- Name starts after "[" at position 2
+    eq(start_col, 2)
+    eq(end_row, 1)
+end
+
+T['positions']['getLinkPart returns correct positions for wiki_link with bar'] = function()
+    set_lines({ '[[path/to/page|display]]' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source, _G.anchor, _G.link_type, _G.start_row, _G.start_col, _G.end_row, _G.end_col =
+            require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    local start_row = child.lua_get('_G.start_row')
+    local start_col = child.lua_get('_G.start_col')
+    eq(start_row, 1)
+    -- Source starts after "[[" at position 3
+    eq(start_col, 3)
+end
+
+T['positions']['getLinkPart returns correct positions for ref_style_link'] = function()
+    set_lines({ '[text][ref]', '', '[ref]: https://example.com' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source, _G.anchor, _G.link_type, _G.start_row, _G.start_col, _G.end_row, _G.end_col =
+            require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    local start_row = child.lua_get('_G.start_row')
+    local source = child.lua_get('_G.source')
+    eq(source, 'https://example.com')
+    -- Source is on line 3 (the reference definition line)
+    eq(start_row, 3)
+end
+
+T['positions']['getLinkPart returns correct positions for auto_link'] = function()
+    set_lines({ '<https://example.com>' })
+    set_cursor(1, 10)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source, _G.anchor, _G.link_type, _G.start_row, _G.start_col, _G.end_row, _G.end_col =
+            require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    local start_row = child.lua_get('_G.start_row')
+    local start_col = child.lua_get('_G.start_col')
+    eq(start_row, 1)
+    -- Source starts after "<" at position 2
+    eq(start_col, 2)
+end
+
+T['positions']['getLinkPart returns correct positions for citation'] = function()
+    set_lines({ 'See @smith2020 for details.' })
+    set_cursor(1, 7)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source, _G.anchor, _G.link_type, _G.start_row, _G.start_col, _G.end_row, _G.end_col =
+            require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    local start_row = child.lua_get('_G.start_row')
+    local source = child.lua_get('_G.source')
+    eq(start_row, 1)
+    -- Citation source is the full @citekey
+    eq(source, '@smith2020')
+end
+
+T['positions']['getLinkUnderCursor returns correct bounds for link in middle of line'] = function()
+    set_lines({ 'prefix [link](file.md) suffix' })
+    set_cursor(1, 12) -- on "link"
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local start_row = child.lua_get('_G.link[4]')
+    local start_col = child.lua_get('_G.link[5]')
+    local end_row = child.lua_get('_G.link[6]')
+    local end_col = child.lua_get('_G.link[7]')
+    eq(start_row, 1)
+    eq(start_col, 8) -- "[" is at position 8
+    eq(end_row, 1)
+    eq(end_col, 22) -- ")" is at position 22
+end
+
+-- =============================================================================
+-- Buffer boundary tests
+-- =============================================================================
+T['boundaries'] = new_set()
+
+T['boundaries']['link at very start of buffer'] = function()
+    set_lines({ '[link](file.md)' })
+    set_cursor(1, 0) -- cursor at very start
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+end
+
+T['boundaries']['link at very end of buffer'] = function()
+    set_lines({ '[link](file.md)' })
+    set_cursor(1, 14) -- cursor at end
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+end
+
+T['boundaries']['link on first line of file'] = function()
+    set_lines({ '[first](first.md)', 'second line' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+end
+
+T['boundaries']['link on last line of file'] = function()
+    set_lines({ 'first line', '[last](last.md)' })
+    set_cursor(2, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+end
+
+T['boundaries']['single-line buffer with link'] = function()
+    set_lines({ '[only](only.md)' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+end
+
+T['boundaries']['empty buffer does not crash'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[
+        _G.ok, _G.err = pcall(function()
+            _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        end)
+    ]])
+    local success = child.lua_get('_G.ok')
+    eq(success, true)
+    local link = child.lua_get('_G.link')
+    eq(link, vim.NIL)
+end
+
+T['boundaries']['destroyLink on only line in buffer'] = function()
+    set_lines({ '[only](only.md)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local result = get_line(1)
+    eq(result, 'only')
+end
+
+-- =============================================================================
+-- Unicode/multibyte character tests
+-- =============================================================================
+T['unicode'] = new_set()
+
+T['unicode']['link with CJK text in name'] = function()
+    set_lines({ '[中文文本](file.md)' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.name = require("mkdnflow.links").getLinkPart(_G.link, "name")')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    local name = child.lua_get('_G.name')
+    eq(link_type, 'md_link')
+    eq(name, '中文文本')
+end
+
+T['unicode']['link with CJK text in source'] = function()
+    set_lines({ '[text](路径/文件.md)' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, '路径/文件.md')
+end
+
+T['unicode']['wiki link with unicode content'] = function()
+    set_lines({ '[[日本語ページ|表示テキスト]]' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'wiki_link')
+end
+
+T['unicode']['destroyLink preserves surrounding unicode'] = function()
+    set_lines({ '前置 [link](file.md) 後置' })
+    set_cursor(1, 10)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local result = get_line(1)
+    eq(result, '前置 link 後置')
+end
+
+T['unicode']['createLink with unicode word'] = function()
+    set_lines({ '中文' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, '[中文](中文.md)')
+end
+
+T['unicode']['link with emoji in name'] = function()
+    set_lines({ '[🚀 Launch](rocket.md)' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.name = require("mkdnflow.links").getLinkPart(_G.link, "name")')
+    local name = child.lua_get('_G.name')
+    eq(name, '🚀 Launch')
+end
+
+T['unicode']['anchor with unicode heading'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('#日本語見出し')]])
+    -- Should lowercase and convert spaces to dashes, preserve unicode
+    eq(result[1], '[日本語見出し](#日本語見出し)')
+end
+
+-- =============================================================================
+-- Configuration option tests
+-- =============================================================================
+T['config'] = new_set()
+
+T['config']['links.style=wiki creates wiki links'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'wiki' } })]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('my page')]])
+    eq(result[1], '[[my page.md|my page]]')
+end
+
+T['config']['links.style=markdown creates markdown links'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'markdown' } })]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('my page')]])
+    eq(result[1], '[my page](my page.md)')
+end
+
+T['config']['links.name_is_source omits bar in wiki link'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'wiki', name_is_source = true } })]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('my page')]])
+    eq(result[1], '[[my page]]')
+end
+
+T['config']['links.implicit_extension omits .md'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { implicit_extension = '.md' } })]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('my page')]])
+    eq(result[1], '[my page](my page)')
+end
+
+T['config']['links.transform_explicit applies custom function'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_explicit = function(text)
+                    return string.lower(text):gsub(' ', '_')
+                end
+            }
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('My Page')]])
+    eq(result[1], '[My Page](my_page.md)')
+end
+
+T['config']['links.transform_explicit=false returns text unchanged'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { transform_explicit = false } })]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('My Page')]])
+    eq(result[1], '[My Page](My Page.md)')
+end
+
+T['config']['links.create_on_follow_failure creates link from word'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { create_on_follow_failure = true } })]])
+    set_lines({ 'word here' })
+    set_cursor(1, 2)
+    -- followLink with no link under cursor should create one
+    child.lua([[require('mkdnflow.links').followLink()]])
+    local result = get_line(1)
+    eq(result, '[word](word.md) here')
+end
+
+T['config']['links.create_on_follow_failure=false does not create link'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { create_on_follow_failure = false } })]])
+    set_lines({ 'word here' })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.links').followLink()]])
+    local result = get_line(1)
+    eq(result, 'word here') -- unchanged
+end
+
+-- =============================================================================
+-- Image link specific tests
+-- =============================================================================
+T['image_links'] = new_set()
+
+T['image_links']['getLinkUnderCursor detects image link'] = function()
+    set_lines({ '![alt text](image.png)' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'image_link')
+end
+
+T['image_links']['getLinkPart extracts source from image link'] = function()
+    set_lines({ '![alt](path/to/image.png)' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'path/to/image.png')
+end
+
+T['image_links']['getLinkPart extracts alt text from image link'] = function()
+    set_lines({ '![my alt text](image.png)' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.name = require("mkdnflow.links").getLinkPart(_G.link, "name")')
+    local name = child.lua_get('_G.name')
+    eq(name, 'my alt text')
+end
+
+T['image_links']['getLinkPart extracts anchor from image link'] = function()
+    set_lines({ '![alt](image.png#section)' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source, _G.anchor = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    local source = child.lua_get('_G.source')
+    local anchor = child.lua_get('_G.anchor')
+    eq(source, 'image.png')
+    eq(anchor, '#section')
+end
+
+T['image_links']['destroyLink on image link keeps alt text'] = function()
+    set_lines({ '![alt text](image.png)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local result = get_line(1)
+    eq(result, 'alt text')
+end
+
+T['image_links']['image link with angle bracket source'] = function()
+    set_lines({ '![alt](<path with spaces.png>)' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'path with spaces.png')
+end
+
+T['image_links']['image link in middle of text'] = function()
+    set_lines({ 'See ![diagram](fig.png) for details.' })
+    set_cursor(1, 8)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'image_link')
+end
+
+-- =============================================================================
+-- Anchor-only link tests
+-- =============================================================================
+T['anchor_links'] = new_set()
+
+T['anchor_links']['formatLink creates anchor from heading'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('#My Heading')]])
+    eq(result[1], '[My Heading](#my-heading)')
+end
+
+T['anchor_links']['formatLink handles heading with punctuation'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('#What is this?')]])
+    eq(result[1], '[What is this?](#what-is-this)')
+end
+
+T['anchor_links']['formatLink preserves unicode in anchor'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('#日本語')]])
+    eq(result[1], '[日本語](#日本語)')
+end
+
+T['anchor_links']['formatAnchorLegacy produces ASCII-only anchor'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').formatAnchorLegacy('日本語 Text')]])
+    -- Legacy strips non-ASCII chars but leaves spaces, then removes leading space
+    -- "日本語 Text" -> " Text" -> "Text" -> "#text"
+    eq(result, '#text')
+end
+
+T['anchor_links']['formatLink removes multiple hash prefixes'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('### Third Level')]])
+    eq(result[1], '[Third Level](#third-level)')
+end
+
+T['anchor_links']['anchor-only link detected correctly'] = function()
+    set_lines({ '[Section](#my-section)' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source, _G.anchor = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    local source = child.lua_get('_G.source')
+    local anchor = child.lua_get('_G.anchor')
+    eq(source, '')
+    eq(anchor, '#my-section')
+end
+
+-- =============================================================================
+-- Special character handling tests
+-- =============================================================================
+T['special_chars'] = new_set()
+
+T['special_chars']['link with parentheses in URL'] = function()
+    set_lines({ '[wiki](https://en.wikipedia.org/wiki/Lua_(programming_language))' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+end
+
+T['special_chars']['link with query string'] = function()
+    set_lines({ '[search](https://google.com/search?q=test&lang=en)' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'https://google.com/search?q=test&lang=en')
+end
+
+T['special_chars']['link with percent encoding'] = function()
+    set_lines({ '[file](path%20with%20spaces.md)' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'path%20with%20spaces.md')
+end
+
+T['special_chars']['wiki link without pipe has same source and name'] = function()
+    set_lines({ '[[simple page]]' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    child.lua('_G.name = require("mkdnflow.links").getLinkPart(_G.link, "name")')
+    local source = child.lua_get('_G.source')
+    local name = child.lua_get('_G.name')
+    eq(source, 'simple page')
+    eq(name, 'simple page')
+end
+
+T['special_chars']['auto_link with complex URL'] = function()
+    set_lines({ '<https://example.com/path?query=1&other=2#anchor>' })
+    set_cursor(1, 15)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source, _G.anchor = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    local source = child.lua_get('_G.source')
+    local anchor = child.lua_get('_G.anchor')
+    eq(source, 'https://example.com/path?query=1&other=2')
+    eq(anchor, '#anchor')
+end
+
+T['special_chars']['ref_style_link with angle brackets in definition'] = function()
+    set_lines({ '[text][ref]', '', '[ref]: <https://example.com/path with spaces>' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'https://example.com/path with spaces')
+end
+
+-- =============================================================================
+-- Multiline link tests
+-- =============================================================================
+T['multiline'] = new_set()
+
+T['multiline']['getLinkUnderCursor returns nil for partial link on single line'] = function()
+    -- A link that starts on one line but doesn't complete should not match
+    set_lines({ '[incomplete link', 'second line' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link = child.lua_get('_G.link')
+    eq(link, vim.NIL)
+end
+
+T['multiline']['citation at line boundary'] = function()
+    set_lines({ 'End of line @smith2020', 'next line' })
+    set_cursor(1, 15)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'citation')
+end
+
+T['multiline']['ref_style_link with definition on later line'] = function()
+    set_lines({ 'Paragraph with [text][ref].', '', '', '[ref]: https://example.com' })
+    set_cursor(1, 18)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'https://example.com')
+end
+
+T['multiline']['destroyLink works correctly on single-line link'] = function()
+    set_lines({ 'Line one', '[link](file.md)', 'Line three' })
+    set_cursor(2, 5)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local result = get_line(2)
+    eq(result, 'link')
+end
+
+-- =============================================================================
+-- Pattern export tests (for advanced users)
+-- =============================================================================
+T['patterns'] = new_set()
+
+-- Note: The current links.lua doesn't export patterns publicly.
+-- These tests verify the internal patterns work correctly.
+-- After refactoring, patterns may be exported for advanced use.
+
+T['patterns']['md_link pattern matches standard link'] = function()
+    local result = child.lua_get([[string.match('[text](url)', '(%b[]%b())') ~= nil]])
+    eq(result, true)
+end
+
+T['patterns']['wiki_link pattern matches double brackets'] = function()
+    local result = child.lua_get("string.match('[[page]]', '(%[%b[]%])') ~= nil")
+    eq(result, true)
+end
+
+T['patterns']['image_link pattern matches exclamation mark'] = function()
+    local result = child.lua_get([[string.match('![alt](img)', '(!%b[]%b())') ~= nil]])
+    eq(result, true)
+end
+
+T['patterns']['citation pattern matches at-sign'] = function()
+    local result = child.lua_get(
+        [[string.match(' @smith2020 ', "[^%a%d]-(@[%a%d_%.%-']*[%a%d]+)[%s%p%c]?") ~= nil]]
+    )
+    eq(result, true)
+end
+
+T['patterns']['ref_style_link pattern matches bracket-bracket'] = function()
+    local result = child.lua_get([[string.match('[text][ref]', '(%b[]%s?%b[])') ~= nil]])
+    eq(result, true)
+end
+
+T['patterns']['auto_link pattern matches angle brackets'] = function()
+    local result = child.lua_get([[string.match('<https://url>', '(%b<>)') ~= nil]])
+    eq(result, true)
+end
+
+-- =============================================================================
+-- Link Class Tests
+-- =============================================================================
+T['Link'] = new_set()
+
+T['Link']['new() creates valid instance'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:new({
+            match = '[text](url)',
+            match_lines = { '[text](url)' },
+            type = 'md_link',
+            start_row = 1,
+            start_col = 1,
+            end_row = 1,
+            end_col = 12,
+        })
+    ]])
+    eq(child.lua_get('_G.link.match'), '[text](url)')
+    eq(child.lua_get('_G.link.type'), 'md_link')
+    eq(child.lua_get('_G.link.start_row'), 1)
+    eq(child.lua_get('_G.link.end_col'), 12)
+end
+
+T['Link']['__className is Link'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:new({ match = 'test', type = 'md_link' })
+    ]])
+    eq(child.lua_get('_G.link.__className'), 'Link')
+end
+
+T['Link']['backwards compatible numeric indexing'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:new({
+            match = '[text](url)',
+            match_lines = { '[text](url)' },
+            type = 'md_link',
+            start_row = 5,
+            start_col = 10,
+            end_row = 5,
+            end_col = 21,
+        })
+    ]])
+    -- link[1] = match, link[2] = match_lines, link[3] = type, etc.
+    eq(child.lua_get('_G.link[1]'), '[text](url)')
+    eq(child.lua_get('_G.link[3]'), 'md_link')
+    eq(child.lua_get('_G.link[4]'), 5) -- start_row
+    eq(child.lua_get('_G.link[5]'), 10) -- start_col
+    eq(child.lua_get('_G.link[6]'), 5) -- end_row
+    eq(child.lua_get('_G.link[7]'), 21) -- end_col
+end
+
+T['Link']['read() detects md_link under cursor'] = function()
+    set_lines({ 'Check [this link](https://example.com) out' })
+    child.api.nvim_win_set_cursor(0, { 1, 10 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+    ]])
+    eq(child.lua_get('_G.link.type'), 'md_link')
+    eq(child.lua_get('_G.link.match'), '[this link](https://example.com)')
+end
+
+T['Link']['read() detects wiki_link under cursor'] = function()
+    set_lines({ 'See [[wiki page]] for details' })
+    child.api.nvim_win_set_cursor(0, { 1, 8 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+    ]])
+    eq(child.lua_get('_G.link.type'), 'wiki_link')
+    eq(child.lua_get('_G.link.match'), '[[wiki page]]')
+end
+
+T['Link']['read() detects image_link under cursor'] = function()
+    set_lines({ 'Image: ![alt text](image.png)' })
+    child.api.nvim_win_set_cursor(0, { 1, 12 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+    ]])
+    eq(child.lua_get('_G.link.type'), 'image_link')
+end
+
+T['Link']['read() returns nil when no link under cursor'] = function()
+    set_lines({ 'Just plain text here' })
+    child.api.nvim_win_set_cursor(0, { 1, 5 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+    ]])
+    eq(child.lua_get('_G.link'), vim.NIL)
+end
+
+T['Link']['is_image() returns true for image links'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:new({ match = '![alt](img.png)', type = 'image_link' })
+    ]])
+    eq(child.lua_get('_G.link:is_image()'), true)
+    eq(child.lua_get('_G.link:is_wiki()'), false)
+end
+
+T['Link']['is_wiki() returns true for wiki links'] = function()
+    child.lua(
+        "local core = require('mkdnflow.links.core'); _G.link = core.Link:new({ match = '[[page]]', type = 'wiki_link' })"
+    )
+    eq(child.lua_get('_G.link:is_wiki()'), true)
+    eq(child.lua_get('_G.link:is_image()'), false)
+end
+
+T['Link']['is_citation() returns true for citations'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:new({ match = '@smith2020', type = 'citation' })
+    ]])
+    eq(child.lua_get('_G.link:is_citation()'), true)
+end
+
+T['Link']['get_type() returns type string'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:new({ match = '[text](url)', type = 'md_link' })
+    ]])
+    eq(child.lua_get('_G.link:get_type()'), 'md_link')
+end
+
+T['Link']['has_anchor() returns true when anchor present'] = function()
+    set_lines({ '[text](page.md#section)' })
+    child.api.nvim_win_set_cursor(0, { 1, 5 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+    ]])
+    eq(child.lua_get('_G.link:has_anchor()'), true)
+end
+
+T['Link']['has_anchor() returns false when no anchor'] = function()
+    set_lines({ '[text](page.md)' })
+    child.api.nvim_win_set_cursor(0, { 1, 5 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+    ]])
+    eq(child.lua_get('_G.link:has_anchor()'), false)
+end
+
+T['Link']['get_source() returns LinkPart with source text'] = function()
+    set_lines({ '[link text](https://example.com)' })
+    child.api.nvim_win_set_cursor(0, { 1, 5 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+        _G.source = _G.link:get_source()
+    ]])
+    eq(child.lua_get('_G.source.text'), 'https://example.com')
+    eq(child.lua_get('_G.source.__className'), 'LinkPart')
+end
+
+T['Link']['get_name() returns LinkPart with name text'] = function()
+    set_lines({ '[link text](https://example.com)' })
+    child.api.nvim_win_set_cursor(0, { 1, 5 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+        _G.name = _G.link:get_name()
+    ]])
+    eq(child.lua_get('_G.name.text'), 'link text')
+end
+
+T['Link']['get_anchor() returns LinkPart with anchor'] = function()
+    set_lines({ '[text](page.md#heading)' })
+    child.api.nvim_win_set_cursor(0, { 1, 5 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+        _G.anchor = _G.link:get_anchor()
+    ]])
+    eq(child.lua_get('_G.anchor.text'), '#heading')
+end
+
+T['Link']['get_anchor() returns empty LinkPart when no anchor'] = function()
+    set_lines({ '[text](page.md)' })
+    child.api.nvim_win_set_cursor(0, { 1, 5 })
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:read(nil, 0)
+        _G.anchor = _G.link:get_anchor()
+    ]])
+    eq(child.lua_get('_G.anchor.text'), '')
+    eq(child.lua_get('_G.anchor.anchor'), '')
+end
+
+-- =============================================================================
+-- LinkPart Class Tests
+-- =============================================================================
+T['LinkPart'] = new_set()
+
+T['LinkPart']['new() creates valid instance'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.part = core.LinkPart:new({
+            text = 'https://example.com',
+            anchor = '#section',
+            start_row = 1,
+            start_col = 12,
+            end_row = 1,
+            end_col = 31,
+        })
+    ]])
+    eq(child.lua_get('_G.part.text'), 'https://example.com')
+    eq(child.lua_get('_G.part.anchor'), '#section')
+    eq(child.lua_get('_G.part.start_col'), 12)
+end
+
+T['LinkPart']['__className is LinkPart'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.part = core.LinkPart:new({ text = 'test' })
+    ]])
+    eq(child.lua_get('_G.part.__className'), 'LinkPart')
+end
+
+T['LinkPart']['has_anchor() returns true when anchor present'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.part = core.LinkPart:new({ text = 'page.md', anchor = '#section' })
+    ]])
+    eq(child.lua_get('_G.part:has_anchor()'), true)
+end
+
+T['LinkPart']['has_anchor() returns false when no anchor'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.part = core.LinkPart:new({ text = 'page.md', anchor = '' })
+    ]])
+    eq(child.lua_get('_G.part:has_anchor()'), false)
+end
+
+T['LinkPart']['get_text() returns text without anchor'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.part = core.LinkPart:new({ text = 'page.md', anchor = '#section' })
+    ]])
+    eq(child.lua_get('_G.part:get_text()'), 'page.md')
+end
+
+T['LinkPart']['get_anchor() returns anchor string'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.part = core.LinkPart:new({ text = 'page.md', anchor = '#section' })
+    ]])
+    eq(child.lua_get('_G.part:get_anchor()'), '#section')
+end
+
+T['LinkPart']['get_full_text() returns text with anchor'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.part = core.LinkPart:new({ text = 'page.md', anchor = '#section' })
+    ]])
+    eq(child.lua_get('_G.part:get_full_text()'), 'page.md#section')
+end
+
 return T

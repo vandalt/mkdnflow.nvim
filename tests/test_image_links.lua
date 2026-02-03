@@ -78,7 +78,7 @@ T['image_link_detection']['finds link when cursor on bang prefix'] = function()
     set_cursor(1, 0) -- On '!'
     local result = child.lua_get([[require('mkdnflow.links').getLinkUnderCursor()]])
     eq(result ~= vim.NIL, true) -- Link should be found
-    eq(result[3], 'image_link') -- Should be detected as image_link type
+    eq(result.type, 'image_link') -- Should be detected as image_link type
 end
 
 -- =============================================================================
@@ -93,7 +93,7 @@ T['image_vs_regular']['regular link is detected'] = function()
     local result = child.lua_get([[require('mkdnflow.links').getLinkUnderCursor()]])
     eq(result ~= vim.NIL, true)
     -- Check it's detected as md_link
-    eq(result[3], 'md_link')
+    eq(result.type, 'md_link')
 end
 
 -- Image links should have their own type
@@ -102,7 +102,7 @@ T['image_vs_regular']['image link detected as image_link type'] = function()
     set_cursor(1, 5) -- On 'image'
     local result = child.lua_get([[require('mkdnflow.links').getLinkUnderCursor()]])
     eq(result ~= vim.NIL, true)
-    eq(result[3], 'image_link') -- Should be detected as image_link type
+    eq(result.type, 'image_link') -- Should be detected as image_link type
 end
 
 -- =============================================================================
@@ -151,7 +151,7 @@ T['followLink']['image link gets image path type'] = function()
     -- Get the link and verify it's an image_link type
     local link = child.lua_get([[require('mkdnflow.links').getLinkUnderCursor()]])
     eq(link ~= vim.NIL, true)
-    eq(link[3], 'image_link')
+    eq(link.type, 'image_link')
 
     -- Extract source using getLinkPart
     local source = child.lua_get([[require('mkdnflow.links').getLinkPart(
@@ -159,7 +159,9 @@ T['followLink']['image link gets image path type'] = function()
     eq(source, './images/screenshot.png')
 
     -- Verify pathType returns 'image' for image_link type
-    local path_type = child.lua_get("require('mkdnflow.paths').pathType('./images/screenshot.png', nil, 'image_link')")
+    local path_type = child.lua_get(
+        "require('mkdnflow.paths').pathType('./images/screenshot.png', nil, 'image_link')"
+    )
     eq(path_type, 'image')
 end
 
@@ -277,7 +279,7 @@ T['regression']['regular link detection still works'] = function()
     set_cursor(1, 5)
     local link = child.lua_get([[require('mkdnflow.links').getLinkUnderCursor()]])
     eq(link ~= vim.NIL, true)
-    eq(link[3], 'md_link') -- Should still be md_link type, not image_link
+    eq(link.type, 'md_link') -- Should still be md_link type, not image_link
 end
 
 T['regression']['regular link source extraction works'] = function()
@@ -319,12 +321,12 @@ T['regression']['adjacent image and regular links both detected correctly'] = fu
     -- Check image link type
     set_cursor(1, 3)
     local img_link = child.lua_get([[require('mkdnflow.links').getLinkUnderCursor()]])
-    eq(img_link[3], 'image_link')
+    eq(img_link.type, 'image_link')
 
     -- Check regular link type
     set_cursor(1, 18)
     local reg_link = child.lua_get([[require('mkdnflow.links').getLinkUnderCursor()]])
-    eq(reg_link[3], 'md_link')
+    eq(reg_link.type, 'md_link')
 end
 
 return T
