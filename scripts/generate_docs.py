@@ -26,12 +26,301 @@ Author: Jake W. Vincent
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any, Dict
 from textwrap import wrap, dedent, indent
 from abc import ABC, abstractmethod
 import os
 import re
 import sys
+import yaml
+
+
+# =============================================================================
+# YAML LOADING INFRASTRUCTURE
+# =============================================================================
+
+def get_docs_path() -> str:
+    """Get the path to the docs directory."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(script_dir, "docs")
+
+
+def load_yaml(filename: str) -> Any:
+    """Load a YAML file from the docs directory."""
+    docs_path = get_docs_path()
+    filepath = os.path.join(docs_path, filename)
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def load_lua_file(filename: str) -> str:
+    """Load a Lua file from the docs directory."""
+    docs_path = get_docs_path()
+    filepath = os.path.join(docs_path, filename)
+    if not os.path.exists(filepath):
+        return None
+    with open(filepath, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def yaml_to_config_option(data: Dict[str, Any]) -> ConfigOption:
+    """Convert a YAML dict to a ConfigOption dataclass."""
+    # Add backticks around name and type if not already present
+    name = data['name']
+    if not name.startswith('`'):
+        name = f"`{name}`"
+
+    type_str = data['type']
+    if not type_str.startswith('`'):
+        # Handle types with parenthetical notes: "table (array-like)" -> "`table` (array-like)"
+        paren_match = re.match(r'^(\w+)\s+(\(.+\))$', type_str)
+        if paren_match:
+            type_str = f"`{paren_match.group(1)}` {paren_match.group(2)}"
+        # Handle union types: "string | boolean" -> "`string` | `boolean`"
+        elif ' | ' in type_str:
+            parts = type_str.split(' | ')
+            type_str = ' | '.join(f'`{p.strip()}`' for p in parts)
+        else:
+            type_str = f"`{type_str}`"
+
+    return ConfigOption(
+        name=name,
+        type=type_str,
+        description=data['description'].strip(),
+    )
+
+
+def yaml_to_command(data: Dict[str, Any]) -> Command:
+    """Convert a YAML dict to a Command dataclass."""
+    mapping = data.get('default_mapping')
+    if mapping is None:
+        mapping = '--'
+    elif not mapping.startswith('`'):
+        mapping = f"`{mapping}`"
+    return Command(
+        name=f"`{data['name']}`",
+        default_mapping=mapping,
+        description=data['description'].strip(),
+    )
+
+
+def yaml_to_api_param(data: Dict[str, Any]) -> ApiParam:
+    """Convert a YAML dict to an ApiParam dataclass."""
+    children = [yaml_to_api_param(c) for c in data.get('children', [])]
+    return ApiParam(
+        name=data['name'],
+        type=data['type'],
+        description=data['description'],
+        children=children,
+    )
+
+
+def yaml_to_api_function(data: Dict[str, Any]) -> ApiFunction:
+    """Convert a YAML dict to an ApiFunction dataclass."""
+    params = [yaml_to_api_param(p) for p in data.get('params', [])]
+    return ApiFunction(
+        signature=data['signature'],
+        description=data['description'].strip(),
+        params=params,
+        example=data.get('example', '').strip() if data.get('example') else '',
+    )
+
+
+def load_commands_from_yaml() -> Optional[List[Command]]:
+    """Load commands from YAML file, returns None if file doesn't exist."""
+    data = load_yaml("commands.yaml")
+    if data is None:
+        return None
+    return [yaml_to_command(cmd) for cmd in data.get('commands', [])]
+
+
+def load_config_options_from_yaml(group: str) -> Optional[List[ConfigOption]]:
+    """Load config options for a specific group from YAML file."""
+    data = load_yaml("config.yaml")
+    if data is None:
+        return None
+    group_data = data.get(group, [])
+    return [yaml_to_config_option(opt) for opt in group_data]
+
+
+def load_default_config_from_lua() -> Optional[str]:
+    """Load default config from Lua file."""
+    return load_lua_file("default_config.lua")
+
+
+def get_commands() -> List[Command]:
+    """Get commands from YAML or fall back to Python data."""
+    yaml_commands = load_commands_from_yaml()
+    if yaml_commands is not None:
+        return yaml_commands
+    # Fall back to Python data (defined below)
+    return COMMANDS
+
+
+def get_config_options(group: str, fallback: List[ConfigOption]) -> List[ConfigOption]:
+    """Get config options from YAML or fall back to Python data."""
+    yaml_options = load_config_options_from_yaml(group)
+    if yaml_options is not None:
+        return yaml_options
+    return fallback
+
+
+def get_default_config() -> str:
+    """Get default config from Lua file or fall back to Python constant."""
+    lua_config = load_default_config_from_lua()
+    if lua_config is not None:
+        return lua_config
+    return DEFAULT_CONFIG
+
+
+def load_api_functions_from_yaml(category: str) -> Optional[List[ApiFunction]]:
+    """Load API functions for a specific category from YAML file."""
+    data = load_yaml("api.yaml")
+    if data is None:
+        return None
+    category_data = data.get(category, [])
+    return [yaml_to_api_function(func) for func in category_data]
+
+
+def get_api_functions(category: str, fallback: List[ApiFunction]) -> List[ApiFunction]:
+    """Get API functions from YAML or fall back to Python data."""
+    yaml_funcs = load_api_functions_from_yaml(category)
+    if yaml_funcs is not None:
+        return yaml_funcs
+    return fallback
+
+
+def build_api_section(title: str, tag: str, category: str, fallback_content: List[Content], extra_content: List[Content] = None) -> Section:
+    """Build an API section with content from YAML or fallback."""
+    yaml_funcs = load_api_functions_from_yaml(category)
+    if yaml_funcs is not None:
+        content = list(yaml_funcs)
+    else:
+        content = fallback_content
+
+    # Insert extra content (like admonitions) at the appropriate position
+    if extra_content:
+        content = content + extra_content
+
+    return Section(title=title, tag=tag, content=content)
+
+
+def yaml_to_list_item(data: Dict[str, Any]) -> ListItem:
+    """Convert YAML dict to ListItem."""
+    children = [yaml_to_list_item(c) for c in data.get('children', [])]
+    return ListItem(
+        text=data['text'],
+        done=data.get('done'),
+        children=children,
+    )
+
+
+def yaml_to_content(data: Dict[str, Any]) -> Content:
+    """Convert a YAML content dict to the appropriate Content type."""
+    content_type = data.get('type')
+
+    if content_type == 'prose':
+        return Prose(data['text'])
+
+    elif content_type == 'code':
+        return CodeBlock(data['code'], data.get('language', 'lua'))
+
+    elif content_type == 'list':
+        items = [yaml_to_list_item(item) for item in data.get('items', [])]
+        return BulletList(items, data.get('ordered', False))
+
+    elif content_type == 'table':
+        return Table(
+            headers=data['headers'],
+            rows=data['rows'],
+            alignments=data.get('alignments'),
+        )
+
+    elif content_type == 'admonition':
+        return Admonition(data['kind'], data['content'])
+
+    elif content_type == 'collapsible':
+        content = [yaml_to_content(c) for c in data.get('content', [])]
+        return Collapsible(data['summary'], content)
+
+    elif content_type == 'image':
+        return Image(
+            url=data['url'],
+            alt=data.get('alt', ''),
+            centered=data.get('centered', False),
+        )
+
+    elif content_type == 'responsive_image':
+        return ResponsiveImage(
+            light_url=data['light'],
+            dark_url=data['dark'],
+            alt=data.get('alt', ''),
+            centered=data.get('centered', False),
+        )
+
+    elif content_type == 'badges':
+        return Badges(
+            urls=data['items'],
+            centered=data.get('centered', True),
+        )
+
+    elif content_type == 'config_table':
+        # Reference to config options, need to load from config.yaml
+        ref = data['ref']
+        options = get_config_options(ref, globals().get(f'{ref.upper()}_OPTIONS', []))
+        return ConfigOptionTable(options=options)
+
+    elif content_type == 'command_table':
+        return CommandTable(commands=get_commands())
+
+    elif content_type == 'api_section':
+        # Reference to API functions from api.yaml
+        ref = data['ref']
+        funcs = load_api_functions_from_yaml(ref)
+        if funcs:
+            # Return the list of ApiFunction objects as content items
+            # This is a special case - we return a list and handle it in yaml_to_section
+            return funcs
+        return []
+
+    elif content_type == 'default_config':
+        return CodeBlock(get_default_config())
+
+    else:
+        raise ValueError(f"Unknown content type: {content_type}")
+
+
+def yaml_to_section(data: Dict[str, Any]) -> Section:
+    """Convert a YAML section dict to a Section dataclass."""
+    content = []
+    for item in data.get('content', []):
+        result = yaml_to_content(item)
+        # Handle api_section which returns a list
+        if isinstance(result, list):
+            content.extend(result)
+        else:
+            content.append(result)
+
+    children = [yaml_to_section(c) for c in data.get('children', [])]
+
+    return Section(
+        title=data['title'],
+        tag=data['tag'],
+        emoji=data.get('emoji', ''),
+        content=content,
+        children=children,
+    )
+
+
+def load_sections_from_yaml() -> Optional[List[Section]]:
+    """Load sections from YAML file."""
+    data = load_yaml("sections.yaml")
+    if data is None:
+        return None
+    return [yaml_to_section(s) for s in data.get('sections', [])]
+
 
 # =============================================================================
 # CONTENT PRIMITIVES
@@ -2013,7 +2302,12 @@ DEFAULT_CONFIG = """\
 
 def build_documentation() -> List[Section]:
     """Build the complete documentation structure."""
+    # Try to load from YAML first
+    yaml_sections = load_sections_from_yaml()
+    if yaml_sections is not None:
+        return yaml_sections
 
+    # Fall back to Python data structure
     return [
         # =====================================================================
         # INTRODUCTION
@@ -2358,7 +2652,7 @@ def build_documentation() -> List[Section]:
                         ),
                         Collapsible(
                             summary="🔧 Complete default config",
-                            content=[CodeBlock(DEFAULT_CONFIG)],
+                            content=[CodeBlock(get_default_config())],
                         ),
                     ],
                     children=[
@@ -2392,7 +2686,7 @@ def build_documentation() -> List[Section]:
                                                 }
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=MODULES_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('modules', MODULES_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2405,7 +2699,7 @@ def build_documentation() -> List[Section]:
                                                 create_dirs = true,
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=CREATE_DIRS_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('create_dirs', CREATE_DIRS_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2424,7 +2718,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=PERSPECTIVE_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('perspective', PERSPECTIVE_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2441,7 +2735,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=FILETYPES_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('filetypes', FILETYPES_OPTIONS)),
                                         Admonition(
                                             "note",
                                             """
@@ -2464,7 +2758,7 @@ def build_documentation() -> List[Section]:
                                                 wrap = false,
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=WRAP_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('wrap', WRAP_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2480,7 +2774,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=BIB_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('bib', BIB_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2493,7 +2787,7 @@ def build_documentation() -> List[Section]:
                                                 silent = false,
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=SILENT_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('silent', SILENT_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2508,7 +2802,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=CURSOR_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('cursor', CURSOR_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2535,7 +2829,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=LINKS_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('links', LINKS_OPTIONS)),
                                         Collapsible(
                                             summary="Sample links recipes",
                                             content=[
@@ -2582,7 +2876,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=NEW_FILE_TEMPLATE_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('new_file_template', NEW_FILE_TEMPLATE_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2604,7 +2898,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=TO_DO_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('to_do', TO_DO_OPTIONS)),
                                         Admonition(
                                             "warning",
                                             """
@@ -2653,7 +2947,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=FOLDTEXT_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('foldtext', FOLDTEXT_OPTIONS)),
                                         Collapsible(
                                             summary="Sample foldtext recipes",
                                             content=[
@@ -2747,7 +3041,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=TABLES_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('tables', TABLES_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2762,7 +3056,7 @@ def build_documentation() -> List[Section]:
                                                 },
                                             })"""
                                         ),
-                                        ConfigOptionTable(options=YAML_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('yaml', YAML_OPTIONS)),
                                     ],
                                 ),
                                 Section(
@@ -2823,7 +3117,7 @@ def build_documentation() -> List[Section]:
                                             `mkdnflow.nvim/plugin/mkdnflow.lua` (see `:h Mkdnflow-commands` for a list).
                                             """
                                         ),
-                                        ConfigOptionTable(options=MAPPINGS_OPTIONS),
+                                        ConfigOptionTable(options=get_config_options('mappings', MAPPINGS_OPTIONS)),
                                     ],
                                 ),
                             ],
@@ -2894,7 +3188,7 @@ def build_documentation() -> List[Section]:
                     Configuration options.
                     """
                 ),
-                CommandTable(commands=COMMANDS),
+                CommandTable(commands=get_commands()),
                 Admonition(
                     "tip",
                     """

@@ -31,13 +31,28 @@ Pull requests are welcome for both bugfixes and new features. I reserve the righ
 
 ## Documentation
 
-Both `README.md` and `doc/mkdnflow.txt` are generated from a single source: `scripts/generate_docs.py`. **Do not edit README.md or doc/mkdnflow.txt directly**—your changes will be overwritten.
+Both `README.md` and `doc/mkdnflow.txt` are generated from YAML source files. **Do not edit README.md or doc/mkdnflow.txt directly**—your changes will be overwritten.
 
-To update documentation:
+### Source Files
 
-1. Edit the content in `scripts/generate_docs.py`
-2. Run `make docs` to regenerate both files
-3. Commit all three files together (`generate_docs.py`, `README.md`, `doc/mkdnflow.txt`)
+Documentation content lives in `scripts/docs/`:
+
+| File | Purpose |
+|------|---------|
+| `sections.yaml` | Main content hierarchy and prose text |
+| `config.yaml` | Configuration option definitions |
+| `commands.yaml` | Command definitions |
+| `api.yaml` | API function documentation |
+| `metadata.yaml` | Plugin info, author, license |
+| `default_config.lua` | Default configuration code block |
+
+The rendering logic is in `scripts/generate_docs.py`.
+
+### To Update Documentation
+
+1. Edit the appropriate YAML file in `scripts/docs/`
+2. Run `make docs` to regenerate both output files
+3. Commit the YAML changes along with `README.md` and `doc/mkdnflow.txt`
 
 CI will verify that documentation is in sync. If you forget to run `make docs`, the CI check will fail.
 

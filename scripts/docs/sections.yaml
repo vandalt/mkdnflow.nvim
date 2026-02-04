@@ -1,0 +1,984 @@
+# Mkdnflow Documentation Sections
+# This file defines the complete documentation structure with all prose content
+
+sections:
+  # =====================================================================
+  # INTRODUCTION
+  # =====================================================================
+  - title: Introduction
+    tag: intro
+    emoji: "🚀"
+    content:
+      - type: prose
+        text: |
+          Mkdnflow is designed for the *fluent* navigation and management of
+          [markdown](https://markdownguide.org) documents and document collections
+          (notebooks, wikis, etc). It features numerous convenience functions that
+          make it easier to work within raw markdown documents or document collections:
+          link and reference handling (see `link-handling`), navigation
+          (see `navigation`), table support (see `table-support`), list
+          (see `list-support`) and to-do list (see `todo-support`) support, file
+          management (see `file-mgmt`), section folding (see `folding`), and more.
+          Use it for notetaking, personal knowledge management, static website
+          building, and more. Most features are highly tweakable (see `configuration`).
+
+  # =====================================================================
+  # FEATURES
+  # =====================================================================
+  - title: Features
+    tag: features
+    emoji: "✨"
+    children:
+      - title: Navigation
+        tag: navigation
+        emoji: "🧭"
+        children:
+          - title: Within-buffer navigation
+            tag: nav-buffer
+            content:
+              - type: list
+                items:
+                  - text: Jump to links
+                    done: true
+                  - text: Jump to section headings
+                    done: true
+              - type: image
+                url: https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/gif/in_buffer_nav/in_buffer_nav.gif
+                alt: In-buffer navigation demo
+
+          - title: Within-notebook navigation
+            tag: nav-notebook
+            content:
+              - type: list
+                items:
+                  - text: Link following
+                    done: true
+                    children:
+                      - text: Open markdown and other text filetypes in the current window
+                        done: true
+                      - text: Open other filetypes and URLs with your system's default application
+                        done: true
+                  - text: "Browser-like 'Back' and 'Forward' functionality"
+                    done: true
+                  - text: Table of contents window
+                    done: false
+
+      - title: Link and reference handling
+        tag: link-handling
+        emoji: "🔗"
+        content:
+          - type: list
+            items:
+              - text: Link creation from a visual selection or the word under the cursor
+                done: true
+              - text: Link destruction
+                done: true
+              - text: Follow links to local paths and other Markdown files
+                done: true
+              - text: Follow external links (open using default application)
+                done: true
+              - text: Follow `.bib`-based references
+                done: true
+                children:
+                  - text: Open `url` or `doi` field in the default browser
+                    done: true
+                  - text: Open documents specified in `file` field
+                    done: true
+              - text: Implicit filetype extensions
+                done: true
+              - text: Support for various link types
+                done: true
+                children:
+                  - text: "Standard Markdown links (`[my page](my_page.md)`)"
+                    done: true
+                  - text: "Wiki links (direct `[[my page]]` or piped `[[my_page.md|my page]]`)"
+                    done: true
+                  - text: "Automatic links (`<https://my.page>`)"
+                    done: true
+                  - text: "Reference-style links (`[my page][1]` with `[1]: my_page.md`)"
+                    done: true
+                  - text: "Image links (`![alt text](image.png)`) — opened in system viewer"
+                    done: true
+                  - text: "Citations (`@citekey` or Pandoc-style `[@citekey]`)"
+                    done: true
+
+      - title: Table support
+        tag: table-support
+        emoji: "📊"
+        content:
+          - type: list
+            items:
+              - text: Table creation
+                done: true
+              - text: Table extension (add rows and columns)
+                done: true
+              - text: Table formatting
+                done: true
+              - text: Paste delimited data as a table
+                done: false
+              - text: Import delimited file into a new table
+                done: false
+
+      - title: List support
+        tag: list-support
+        emoji: "📝"
+        content:
+          - type: list
+            items:
+              - text: Automatic list extension
+                done: true
+              - text: Sensible auto-indentation and auto-dedentation
+                done: true
+              - text: Ordered list number updating
+                done: true
+
+      - title: To-do list support
+        tag: todo-support
+        emoji: "✅"
+        content:
+          - type: list
+            items:
+              - text: Toggle to-do item status
+                done: true
+              - text: Status propagation
+                done: true
+              - text: To-do list sorting
+                done: true
+              - text: Create to-do items from plain ordered or unordered list items
+                done: true
+              - text: Customizable highlighting for to-do status markers and content
+                done: true
+
+      - title: File management
+        tag: file-mgmt
+        emoji: "📁"
+        content:
+          - type: list
+            items:
+              - text: Simultaneous link and file renaming
+                done: true
+              - text: As-needed directory creation
+                done: true
+
+      - title: Folding
+        tag: folding
+        emoji: "🪗"
+        content:
+          - type: list
+            items:
+              - text: Section folding and fold toggling
+                done: true
+              - text: Helpful indicators for folded section contents
+                done: true
+                children:
+                  - text: Section heading level
+                    done: true
+                  - text: Counts of Markdown objects (tables, lists, code blocks, etc.)
+                    done: true
+                  - text: Line and word counts
+                    done: true
+              - text: YAML block folding
+                done: false
+
+      - title: Completion
+        tag: completion
+        emoji: "🔮"
+        content:
+          - type: list
+            items:
+              - text: Path completion
+                done: true
+              - text: Completion of bibliography items
+                done: true
+
+      - title: YAML block parsing
+        tag: yaml-parsing
+        emoji: "🧩"
+        content:
+          - type: list
+            items:
+              - text: Specify a bibliography file in YAML front matter
+                done: true
+
+      - title: Visual enhancements
+        tag: visual
+        emoji: "🖌️"
+        content:
+          - type: list
+            items:
+              - text: Conceal markdown and wiki link syntax
+                done: true
+              - text: Extended link highlighting
+                done: false
+                children:
+                  - text: Automatic links
+                    done: false
+                  - text: Wiki links
+                    done: false
+
+  # =====================================================================
+  # INSTALLATION
+  # =====================================================================
+  - title: Installation
+    tag: installation
+    emoji: "💾"
+    content:
+      - type: prose
+        text: |
+          **Requirements**:
+
+          * Linux, macOS, or Windows
+          * Neovim >= 0.9.5 (tested on 0.9.5, 0.10.x, and stable)
+
+          Install Mkdnflow using your preferred package manager for Neovim. Once installed,
+          Mkdnflow is configured and initialized using a setup function.
+      - type: collapsible
+        summary: Install with Lazy
+        content:
+          - type: code
+            language: lua
+            code: |
+              require('lazy').setup({
+                  -- Your other plugins
+                  {
+                      'jakewvincent/mkdnflow.nvim',
+                      config = function()
+                          require('mkdnflow').setup({
+                              -- Your config
+                          })
+                      end
+                  }
+                  -- Your other plugins
+              })
+      - type: collapsible
+        summary: Install with Vim-Plug
+        content:
+          - type: code
+            language: vim
+            code: |
+              " Vim-Plug
+              Plug 'jakewvincent/mkdnflow.nvim'
+
+              " Include the setup function somewhere else in your init.vim file, or the
+              " plugin won't activate itself:
+              lua << EOF
+              require('mkdnflow').setup({
+                  -- Config goes here; leave blank for defaults
+              })
+              EOF
+
+  # =====================================================================
+  # CONFIGURATION (includes all config subsections)
+  # =====================================================================
+  - title: Configuration
+    tag: configuration
+    emoji: "⚙️"
+    children:
+      - title: Quick start
+        tag: quickstart
+        emoji: "⚡"
+        content:
+          - type: prose
+            text: |
+              Mkdnflow is configured and initialized using a setup function. To use
+              the default settings, pass no arguments or an empty table to the setup function:
+          - type: code
+            language: lua
+            code: |
+              {
+                  'jakewvincent/mkdnflow.nvim',
+                  config = function()
+                      require('mkdnflow').setup({})
+                  end
+              }
+
+      - title: Advanced configuration and sample recipes
+        tag: config-advanced
+        emoji: "🔧"
+        content:
+          - type: prose
+            text: |
+              Most features are highly configurable. Study the default config first
+              and read the documentation for the configuration options below or in
+              the help files.
+          - type: collapsible
+            summary: "🔧 Complete default config"
+            content:
+              - type: default_config
+        children:
+          - title: Configuration options
+            tag: config-options
+            emoji: "🎨"
+            children:
+              - title: modules
+                tag: config-modules
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          modules = {
+                              bib = true,
+                              buffers = true,
+                              conceal = true,
+                              cursor = true,
+                              folds = true,
+                              foldtext = true,
+                              links = true,
+                              lists = true,
+                              maps = true,
+                              paths = true,
+                              tables = true,
+                              to_do = true,
+                              yaml = false,
+                              cmp = false,
+                          }
+                      })
+                  - type: config_table
+                    ref: modules
+
+              - title: create_dirs
+                tag: config-create-dirs
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          create_dirs = true,
+                      })
+                  - type: config_table
+                    ref: create_dirs
+
+              - title: perspective
+                tag: config-perspective
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          perspective = {
+                              priority = 'first',
+                              fallback = 'current',
+                              root_tell = false,
+                              nvim_wd_heel = false,
+                              update = false,
+                          },
+                      })
+                  - type: config_table
+                    ref: perspective
+
+              - title: filetypes
+                tag: config-filetypes
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          filetypes = {
+                              md = true,
+                              rmd = true,
+                              markdown = true,
+                          },
+                      })
+                  - type: config_table
+                    ref: filetypes
+                  - type: admonition
+                    kind: note
+                    content: |
+                      This functionality references the file's extension. It does not rely on
+                      Neovim's filetype recognition. The extension must be provided in lower case
+                      because the plugin converts file names to lowercase. Any arbitrary extension
+                      can be supplied. Setting an extension to `false` is the same as not including
+                      it in the list.
+
+              - title: wrap
+                tag: config-wrap
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          wrap = false,
+                      })
+                  - type: config_table
+                    ref: wrap
+
+              - title: bib
+                tag: config-bib
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          bib = {
+                              default_path = nil,
+                              find_in_root = true,
+                          },
+                      })
+                  - type: config_table
+                    ref: bib
+
+              - title: silent
+                tag: config-silent
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          silent = false,
+                      })
+                  - type: config_table
+                    ref: silent
+
+              - title: cursor
+                tag: config-cursor
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          cursor = {
+                              jump_patterns = nil,
+                          },
+                      })
+                  - type: config_table
+                    ref: cursor
+
+              - title: links
+                tag: config-links
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          links = {
+                              style = 'markdown',
+                              name_is_source = false,
+                              conceal = false,
+                              context = 0,
+                              implicit_extension = nil,
+                              transform_implicit = false,
+                              transform_explicit = function(text)
+                                  text = text:gsub(" ", "-")
+                                  text = text:lower()
+                                  text = os.date('%Y-%m-%d_') .. text
+                                  return(text)
+                              end,
+                              create_on_follow_failure = true,
+                          },
+                      })
+                  - type: config_table
+                    ref: links
+                  - type: collapsible
+                    summary: Sample links recipes
+                    content:
+                      - type: code
+                        language: lua
+                        code: |
+                          require('mkdnflow').setup({
+                              links = {
+                                  -- If you want all link paths to be explicitly prefixed with the year
+                                  -- and for the path to be converted to uppercase:
+                                  transform_explicit = function(input)
+                                      return(string.upper(os.date('%Y-')..input))
+                                  end,
+                                  -- Link paths that match a date pattern can be opened in a `journals`
+                                  -- subdirectory of your notebook, and all others can be opened in a
+                                  -- `pages` subdirectory:
+                                  transform_implicit = function(input)
+                                      if input:match('%d%d%d%d%-%d%d%-%d%d') then
+                                          return('journals/'..input)
+                                      else
+                                          return('pages/'..input)
+                                      end
+                                  end
+                              }
+                          })
+
+              - title: new_file_template
+                tag: config-new-file-template
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          new_file_template = {
+                              use_template = false,
+                              placeholders = {
+                                  before = { title = 'link_title', date = 'os_date' },
+                                  after = {},
+                              },
+                              template = '# {{ title }}',
+                          },
+                      })
+                  - type: config_table
+                    ref: new_file_template
+
+              - title: to_do
+                tag: config-to-do
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          to_do = {
+                              highlight = false,
+                              status_propagation = { up = true, down = true },
+                              sort = {
+                                  on_status_change = false,
+                                  recursive = false,
+                                  cursor_behavior = { track = true },
+                              },
+                              statuses = { ... },  -- See full default in docs
+                          },
+                      })
+                  - type: config_table
+                    ref: to_do
+                  - type: admonition
+                    kind: warning
+                    content: |
+                      The following to-do configuration options are deprecated. Please use the
+                      `to_do.statuses` table instead. Continued support for these options is
+                      temporarily provided by a compatibility layer that will be removed in the
+                      near future.
+
+                      * `to_do.symbols` - A list of markers representing to-do completion statuses
+                      * `to_do.not_started` - Which marker represents a not-yet-started to-do
+                      * `to_do.in_progress` - Which marker represents an in-progress to-do
+                      * `to_do.complete` - Which marker represents a complete to-do
+                      * `to_do.update_parents` - Whether parent to-dos' statuses should be updated
+
+              - title: foldtext
+                tag: config-foldtext
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          foldtext = {
+                              object_count = true,
+                              object_count_icon_set = 'emoji',
+                              object_count_opts = function()
+                                  return require('mkdnflow').foldtext.default_count_opts
+                              end,
+                              line_count = true,
+                              line_percentage = true,
+                              word_count = false,
+                              title_transformer = function()
+                                  return require('mkdnflow').foldtext.default_title_transformer
+                              end,
+                              fill_chars = {
+                                  left_edge = '⢾⣿⣿',
+                                  right_edge = '⣿⣿⡷',
+                                  item_separator = ' · ',
+                                  section_separator = ' ⣹⣿⣏ ',
+                                  left_inside = ' ⣹',
+                                  right_inside = '⣏ ',
+                                  middle = '⣿',
+                              },
+                          },
+                      })
+                  - type: config_table
+                    ref: foldtext
+                  - type: collapsible
+                    summary: Sample foldtext recipes
+                    content:
+                      - type: code
+                        language: lua
+                        code: |
+                          -- SAMPLE FOLDTEXT CONFIGURATION RECIPE WITH COMMENTS
+                          require('mkdnflow').setup({
+                              foldtext = {
+                                  title_transformer = function()
+                                      local function my_title_transformer(text)
+                                          local updated_title = text:gsub('%b{}', '')
+                                          updated_title = updated_title:gsub('^%s*', '')
+                                          updated_title = updated_title:gsub('%s*$', '')
+                                          updated_title = updated_title:gsub('^######', '░░░░░▓')
+                                          updated_title = updated_title:gsub('^#####', '░░░░▓▓')
+                                          updated_title = updated_title:gsub('^####', '░░░▓▓▓')
+                                          updated_title = updated_title:gsub('^###', '░░▓▓▓▓')
+                                          updated_title = updated_title:gsub('^##', '░▓▓▓▓▓')
+                                          updated_title = updated_title:gsub('^#', '▓▓▓▓▓▓')
+                                          return updated_title
+                                      end
+                                      return my_title_transformer
+                                  end,
+                                  object_count_icon_set = 'nerdfont',
+                                  object_count_opts = function()
+                                      local opts = {
+                                          link = false,
+                                          blockquote = {
+                                              icon = ' ',
+                                              count_method = {
+                                                  pattern = { '^>.+$' },
+                                                  tally = 'blocks',
+                                              }
+                                          },
+                                          fncblk = { icon = ' ' }
+                                      }
+                                      return opts
+                                  end,
+                                  line_count = false,
+                                  word_count = true,
+                                  fill_chars = {
+                                      left_edge = '╾─🖿 ─',
+                                      right_edge = '──╼',
+                                      item_separator = ' · ',
+                                      section_separator = ' // ',
+                                      left_inside = ' ┝',
+                                      right_inside = '┥ ',
+                                      middle = '─',
+                                  },
+                              },
+                          })
+                      - type: prose
+                        text: |
+                          The above recipe will produce foldtext like the following
+                          (for an h3-level section heading called `My section`):
+                      - type: responsive_image
+                        light: https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/foldtext/foldtext_ex.png
+                        dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/foldtext/foldtext_ex_dark.png
+                        alt: Enhanced foldtext example
+                        centered: true
+
+              - title: tables
+                tag: config-tables
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          tables = {
+                              trim_whitespace = true,
+                              format_on_move = true,
+                              auto_extend_rows = false,
+                              auto_extend_cols = false,
+                              style = {
+                                  cell_padding = 1,
+                                  separator_padding = 1,
+                                  outer_pipes = true,
+                                  mimic_alignment = true,
+                              },
+                              line_breaks = {
+                                  pandoc = true,
+                                  html = false,
+                              },
+                          },
+                      })
+                  - type: config_table
+                    ref: tables
+
+              - title: yaml
+                tag: config-yaml
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          yaml = {
+                              bib = { override = false },
+                          },
+                      })
+                  - type: config_table
+                    ref: yaml
+
+              - title: mappings
+                tag: config-mappings
+                content:
+                  - type: code
+                    language: lua
+                    code: |
+                      require('mkdnflow').setup({
+                          mappings = {
+                              MkdnEnter = { { 'n', 'v' }, '<CR>' },
+                              MkdnGoBack = { 'n', '<BS>' },
+                              MkdnGoForward = { 'n', '<Del>' },
+                              MkdnMoveSource = { 'n', '<F2>' },
+                              MkdnNextLink = { 'n', '<Tab>' },
+                              MkdnPrevLink = { 'n', '<S-Tab>' },
+                              MkdnFollowLink = false,
+                              MkdnDestroyLink = { 'n', '<M-CR>' },
+                              MkdnTagSpan = { 'v', '<M-CR>' },
+                              MkdnYankAnchorLink = { 'n', 'yaa' },
+                              MkdnYankFileAnchorLink = { 'n', 'yfa' },
+                              MkdnNextHeading = { 'n', ']]' },
+                              MkdnPrevHeading = { 'n', '[[' },
+                              MkdnIncreaseHeading = { { 'n', 'v' }, '+' },
+                              MkdnDecreaseHeading = { { 'n', 'v' }, '-' },
+                              MkdnIncreaseHeadingOp = { { 'n', 'v' }, 'g+' },
+                              MkdnDecreaseHeadingOp = { { 'n', 'v' }, 'g-' },
+                              MkdnToggleToDo = { { 'n', 'v' }, '<C-Space>' },
+                              MkdnNewListItem = false,
+                              MkdnNewListItemBelowInsert = { 'n', 'o' },
+                              MkdnNewListItemAboveInsert = { 'n', 'O' },
+                              MkdnExtendList = false,
+                              MkdnUpdateNumbering = { 'n', '<leader>nn' },
+                              MkdnTableNextCell = { 'i', '<Tab>' },
+                              MkdnTablePrevCell = { 'i', '<S-Tab>' },
+                              MkdnTableNextRow = false,
+                              MkdnTablePrevRow = { 'i', '<M-CR>' },
+                              MkdnTableNewRowBelow = { 'n', '<leader>ir' },
+                              MkdnTableNewRowAbove = { 'n', '<leader>iR' },
+                              MkdnTableNewColAfter = { 'n', '<leader>ic' },
+                              MkdnTableNewColBefore = { 'n', '<leader>iC' },
+                              MkdnTableDeleteRow = { 'n', '<leader>dr' },
+                              MkdnTableDeleteCol = { 'n', '<leader>dc' },
+                              MkdnFoldSection = { 'n', '<leader>f' },
+                              MkdnUnfoldSection = { 'n', '<leader>F' },
+                              MkdnTab = false,
+                              MkdnSTab = false,
+                              MkdnCreateLink = false,
+                              MkdnCreateLinkFromClipboard = { { 'n', 'v' }, '<leader>p' },
+                          },
+                      })
+                  - type: prose
+                    text: |
+                      See descriptions of commands and mappings below.
+
+                      **Note**: `<command>` should be the name of a command defined in
+                      `mkdnflow.nvim/plugin/mkdnflow.lua` (see `:h Mkdnflow-commands` for a list).
+                  - type: config_table
+                    ref: mappings
+
+          - title: Completion setup
+            tag: completion-setup
+            emoji: "🔮"
+            content:
+              - type: prose
+                text: |
+                  To enable completion via `cmp` using the provided source, add `mkdnflow` as a
+                  source in your `cmp` setup function. You may also want to modify the formatting
+                  to see which completions are coming from Mkdnflow:
+              - type: code
+                language: lua
+                code: |
+                  cmp.setup({
+                      -- Add 'mkdnflow' as a completion source
+                      sources = cmp.config.sources({
+                          { name = 'mkdnflow' },
+                      }),
+                      -- Completion source attribution
+                      formatting = {
+                          format = function(entry, vim_item)
+                              vim_item.menu = ({
+                                  -- Other attributions
+                                  mkdnflow = '[Mkdnflow]',
+                              })[entry.source_name]
+                              return vim_item
+                          end
+                      }
+                  })
+              - type: admonition
+                kind: warning
+                content: |
+                  There may be some compatibility issues with the completion module and
+                  `links.transform_explicit`/`links.transform_implicit` functions.
+
+                  If you have some `transform_explicit` option for links to organizing in folders
+                  then the folder name will be inserted accordingly. Some transformations may not
+                  work as expected in completions.
+
+                  To prevent this, make sure you write sensible transformation functions,
+                  preferably using it for folder organization.
+
+  # =====================================================================
+  # COMMANDS & MAPPINGS
+  # =====================================================================
+  - title: Commands & mappings
+    tag: commands
+    emoji: "🛠️"
+    content:
+      - type: prose
+        text: |
+          Below are descriptions of the user commands defined by Mkdnflow. For the
+          default mappings to these commands, see the `mappings = ...` section of
+          Configuration options.
+      - type: command_table
+      - type: admonition
+        kind: tip
+        content: |
+          If you are attempting to (re)map `<CR>` in insert mode but can't get it to
+          work, try inspecting your current insert mode mappings and seeing if anything
+          is overriding your mapping. Possible candidates are completion plugins and
+          auto-pair plugins.
+
+          If using nvim-cmp, consider using the mapping with a fallback.
+          If using an autopair plugin that automatically maps `<CR>` (e.g. nvim-autopairs),
+          see if it provides a way to disable its `<CR>` mapping.
+
+  # =====================================================================
+  # API
+  # =====================================================================
+  - title: API
+    tag: api
+    emoji: "📚"
+    content:
+      - type: prose
+        text: |
+          Mkdnflow provides a range of Lua functions that can be called directly to
+          manipulate markdown files, navigate through buffers, manage links, and more.
+          Below are the primary functions available:
+      - type: list
+        ordered: true
+        items:
+          - text: Initialization (see `initialization`)
+          - text: Link management (see `linkmanagement`)
+          - text: Link & path handling (see `linkpathhandling`)
+          - text: Buffer navigation (see `buffernavigation`)
+          - text: Cursor movement (see `cursormovement`)
+          - text: Cursor-aware manipulations (see `cursorawaremanipulations`)
+          - text: List management (see `listmanagement`)
+          - text: To-do list management (see `todolistmanagement`)
+          - text: Table management (see `tablemanagement`)
+          - text: Folds (see `folds`)
+          - text: Yaml blocks (see `yamlblocks`)
+          - text: Bibliography (see `bibliography`)
+    children:
+      - title: Initialization
+        tag: initialization
+        content:
+          - type: api_section
+            ref: initialization
+
+      - title: Link management
+        tag: linkmanagement
+        content:
+          - type: api_section
+            ref: linkmanagement
+
+      - title: Link and path handling
+        tag: linkpathhandling
+        content:
+          - type: api_section
+            ref: linkpathhandling
+
+      - title: Buffer navigation
+        tag: buffernavigation
+        content:
+          - type: api_section
+            ref: buffernavigation
+
+      - title: Cursor movement
+        tag: cursormovement
+        content:
+          - type: api_section
+            ref: cursormovement
+
+      - title: Cursor-aware manipulations
+        tag: cursorawaremanipulations
+        content:
+          - type: api_section
+            ref: cursorawaremanipulations
+
+      - title: List management
+        tag: listmanagement
+        content:
+          - type: api_section
+            ref: listmanagement
+          - type: admonition
+            kind: warning
+            content: |
+              `require('mkdnflow').lists.toggleToDo(opts)` is deprecated. For convenience, it is
+              now a wrapper function that calls its replacement, `require('mkdnflow').to_do.toggle_to_do(opts)`.
+              See `require('mkdnflow').to_do.toggle_to_do()` for details.
+
+      - title: To-do list management
+        tag: todolistmanagement
+        content:
+          - type: api_section
+            ref: todolistmanagement
+
+      - title: Table management
+        tag: tablemanagement
+        content:
+          - type: api_section
+            ref: tablemanagement
+
+      - title: Folds
+        tag: folds
+        content:
+          - type: api_section
+            ref: folds
+
+      - title: Yaml blocks
+        tag: yamlblocks
+        content:
+          - type: api_section
+            ref: yamlblocks
+
+      - title: Bibliography
+        tag: bibliography
+        content:
+          - type: api_section
+            ref: bibliography
+
+  # =====================================================================
+  # CONTRIBUTING
+  # =====================================================================
+  - title: Contributing
+    tag: contributing
+    emoji: "🤝"
+    content:
+      - type: prose
+        text: |
+          See [CONTRIBUTING.md](https://github.com/jakewvincent/mkdnflow.nvim/blob/main/CONTRIBUTING.md)
+
+  # =====================================================================
+  # VERSION INFORMATION
+  # =====================================================================
+  - title: Version information
+    tag: versioninformation
+    emoji: "🔢"
+    content:
+      - type: prose
+        text: |
+          Mkdnflow uses [Semantic Versioning](https://semver.org/). Version numbers
+          follow the format MAJOR.MINOR.PATCH:
+      - type: list
+        items:
+          - text: "**MAJOR**: Incompatible API or configuration changes"
+          - text: "**MINOR**: New functionality in a backward-compatible manner"
+          - text: "**PATCH**: Backward-compatible bug fixes"
+      - type: prose
+        text: |
+          For a detailed history of changes, see
+          [CHANGELOG.md](https://github.com/jakewvincent/mkdnflow.nvim/blob/main/CHANGELOG.md).
+
+  # =====================================================================
+  # RELATED PROJECTS
+  # =====================================================================
+  - title: Related projects
+    tag: related
+    emoji: "🔗"
+    children:
+      - title: Competition
+        tag: related-competition
+        content:
+          - type: list
+            items:
+              - text: "[obsidian.nvim](https://github.com/epwalsh/obsidian.nvim)"
+              - text: "[wiki.vim](https://github.com/lervag/wiki.vim/)"
+              - text: "[Neorg](https://github.com/nvim-neorg/neorg)"
+              - text: "[markdown.nvim](https://github.com/tadmccorkle/markdown.nvim)"
+              - text: "[Vimwiki](https://github.com/vimwiki/vimwiki)"
+              - text: "[follow-md-links.nvim](https://github.com/jghauser/follow-md-links.nvim)"
+
+      - title: Complementary plugins
+        tag: related-complementary
+        content:
+          - type: list
+            items:
+              - text: "[Obsidian.md](https://obsidian.md)"
+              - text: "[clipboard-image.nvim](https://github.com/ekickx/clipboard-image.nvim)"
+              - text: "[mdeval.nvim](https://github.com/jubnzv/mdeval.nvim)"
+              - text: In-editor rendering
+                children:
+                  - text: "[render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)"
+                  - text: "[markview.nvim](https://github.com/OXY2DEV/markview.nvim)"
+              - text: Preview plugins
+                children:
+                  - text: "[Markdown Preview for (Neo)vim](https://github.com/iamcco/markdown-preview.nvim)"
+                  - text: "[nvim-markdown-preview](https://github.com/davidgranstrom/nvim-markdown-preview)"
+                  - text: "[glow.nvim](https://github.com/npxbr/glow.nvim)"
+                  - text: "[auto-pandoc.nvim](https://github.com/jghauser/auto-pandoc.nvim)"

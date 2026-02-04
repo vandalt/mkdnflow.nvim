@@ -1,8 +1,9 @@
-.PHONY: docs help test test_file test-compat
+.PHONY: docs docs-verify help test test_file test-compat
 
 help:
 	@echo "Available targets:"
 	@echo "  make docs       - Regenerate README.md and doc/mkdnflow.txt"
+	@echo "  make docs-verify - Verify docs are in sync with YAML sources"
 	@echo "  make test       - Run all tests"
 	@echo "  make test_file FILE=<path>  - Run a specific test file"
 	@echo "  make test-compat - Run tests on all supported Neovim versions (requires bob)"
@@ -10,6 +11,17 @@ help:
 docs:
 	@echo "Generating documentation..."
 	@python3 scripts/generate_docs.py
+
+# Verify documentation is in sync with YAML sources
+docs-verify:
+	@echo "Verifying documentation..."
+	@python3 scripts/generate_docs.py
+	@if git diff --quiet README.md doc/mkdnflow.txt; then \
+		echo "✓ Documentation is in sync"; \
+	else \
+		echo "✗ Documentation out of sync. Run 'make docs' and commit the changes."; \
+		exit 1; \
+	fi
 
 # Run all tests
 test: deps/mini.nvim

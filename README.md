@@ -1291,11 +1291,6 @@ Toggles (rotates) the status of a to-do list item based on the provided options.
 - **Parameters:**
     - `opts`: (table) Options for toggling.
 
-> [!WARNING]
-> `require('mkdnflow').lists.toggleToDo(opts)` is deprecated. For convenience, it is
-> now a wrapper function that calls its replacement, `require('mkdnflow').to_do.toggle_to_do(opts)`.
-> See `require('mkdnflow').to_do.toggle_to_do()` for details.
-
 `require('mkdnflow').lists.updateNumbering(opts, offset)`
 
 Updates the numbering of the list items in the current list.
@@ -1304,6 +1299,11 @@ Updates the numbering of the list items in the current list.
     - `opts`: (table) Options for updating numbering.
         - `opts[1]`: (integer) The number to start the current ordered list with.
     - `offset`: (number) The offset to start numbering from. Defaults to `0` if not provided.
+
+> [!WARNING]
+> `require('mkdnflow').lists.toggleToDo(opts)` is deprecated. For convenience, it is
+> now a wrapper function that calls its replacement, `require('mkdnflow').to_do.toggle_to_do(opts)`.
+> See `require('mkdnflow').to_do.toggle_to_do()` for details.
 
 ### To-do list management
 

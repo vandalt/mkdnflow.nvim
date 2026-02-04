@@ -1,0 +1,511 @@
+# Configuration options organized by group
+# Each option has: name, type, description
+
+modules:
+  - name: modules.bib
+    type: boolean
+    description: |
+      **`true`** (default): `bib` module is enabled (required for parsing `.bib` files and following citations).
+      `false`: Disable `bib` module functionality.
+
+  - name: modules.buffers
+    type: boolean
+    description: |
+      **`true`** (default): `buffers` module is enabled (required for backward and forward navigation through buffers).
+      `false`: Disable `buffers` module functionality.
+
+  - name: modules.conceal
+    type: boolean
+    description: |
+      **`true`** (default): `conceal` module is enabled (required if you wish to enable link concealing. This does not automatically enable conceal behavior; see `links.conceal`.)
+      `false`: Disable `conceal` module functionality.
+
+  - name: modules.cursor
+    type: boolean
+    description: |
+      **`true`** (default): `cursor` module is enabled (required for cursor movements: jumping to links, headings, etc.).
+      `false`: Disable `cursor` module functionality.
+
+  - name: modules.folds
+    type: boolean
+    description: |
+      **`true`** (default): `folds` module is enabled (required for section folding).
+      `false`: Disable `folds` module functionality.
+
+  - name: modules.foldtext
+    type: boolean
+    description: |
+      **`true`** (default): `foldtext` module is enabled (required for prettified foldtext).
+      `false`: Disable `foldtext` module functionality.
+
+  - name: modules.links
+    type: boolean
+    description: |
+      **`true`** (default): `links` module is enabled (required for creating, destroying, and following links).
+      `false`: Disable `links` module functionality.
+
+  - name: modules.lists
+    type: boolean
+    description: |
+      **`true`** (default): `lists` module is enabled (required for working in and manipulating lists, etc.).
+      `false`: Disable `lists` module functionality.
+
+  - name: modules.to_do
+    type: boolean
+    description: |
+      **`true`** (default): `to_do` module is enabled (required for manipulating to-do statuses/lists, toggling to-do items, to-do list sorting, etc.)
+      `false`: Disable `to_do` module functionality.
+
+  - name: modules.paths
+    type: boolean
+    description: |
+      **`true`** (default): `paths` module is enabled (required for link interpretation, link following, etc.).
+      `false`: Disable `paths` module functionality.
+
+  - name: modules.tables
+    type: boolean
+    description: |
+      **`true`** (default): `tables` module is enabled (required for table management, navigation, formatting, etc.).
+      `false`: Disable `tables` module functionality.
+
+  - name: modules.yaml
+    type: boolean
+    description: |
+      `true`: `yaml` module is enabled (required for parsing yaml headers).
+      **`false`** (default): Disable `yaml` module functionality.
+
+  - name: modules.cmp
+    type: boolean
+    description: |
+      `true`: `cmp` module is enabled (required if you wish to enable completion for `nvim-cmp`).
+      **`false`** (default): Disable `cmp` module functionality.
+
+create_dirs:
+  - name: create_dirs
+    type: boolean
+    description: |
+      **`true`** (default): Directories referenced in a link will be (recursively) created if they do not exist.
+      `false`: No action will be taken when directories referenced in a link do not exist. Neovim will open a new file, but you will get an error when you attempt to write the file.
+
+perspective:
+  - name: perspective.priority
+    type: string
+    description: |
+      **`'first'`** (default): Links will be interpreted relative to the first-opened file (when the current instance of Neovim was started).
+      `'current'`: Links will always be interpreted relative to the current file.
+      `'root'`: Links will be always interpreted relative to the root directory of the current notebook (requires `perspective.root_tell` to be specified).
+
+  - name: perspective.fallback
+    type: string
+    description: |
+      `'first'`: (see above)
+      **`'current'`** (default): (see above)
+      `'root'`: (see above)
+
+  - name: perspective.root_tell
+    type: string | boolean
+    description: |
+      **`false`** (default): The plugin does not look for the notebook root.
+      `string`: The name of a file (not a full path) by which a notebook's root directory can be identified. For instance, `'.root'` or `'index.md'`.
+
+  - name: perspective.nvim_wd_heel
+    type: boolean
+    description: |
+      `true`: Changes in perspective will be reflected in the nvim working directory. (In other words, the working directory will "heel" to the plugin's perspective.) This helps ensure (at least) that path completions (if using a completion plugin with support for paths) will be accurate and usable.
+      **`false`** (default): Neovim's working directory will not be affected by Mkdnflow.
+
+  - name: perspective.update
+    type: boolean
+    description: |
+      `true`: Perspective will be updated when following a link to a file in a separate notebook/wiki (or navigating backwards to a file in another notebook/wiki).
+      **`false`** (default): Perspective will be not updated when following a link to a file in a separate notebook/wiki. (Links in the file in the separate notebook/wiki will be interpreted relative to the original notebook/wiki.)
+
+filetypes:
+  - name: filetypes.md
+    type: boolean
+    description: |
+      **`true`** (default): The plugin activates for files with a `.md` extension.
+      `false`: The plugin does not activate for files with a `.md` extension.
+
+  - name: filetypes.rmd
+    type: boolean
+    description: |
+      **`true`** (default): The plugin activates for files with a `.rmd` (rmarkdown) extension.
+      `false`: The plugin does not activate for files with a `.rmd` extension.
+
+  - name: filetypes.markdown
+    type: boolean
+    description: |
+      **`true`** (default): The plugin activates for files with a `.markdown` extension.
+      `false`: The plugin does not activate for files with a `.markdown` extension.
+
+  - name: filetypes.<ext>
+    type: boolean
+    description: |
+      `true`: The plugin activates for files with the specified extension.
+      `false`: The plugin does not activate for files with the specified extension.
+
+wrap:
+  - name: wrap
+    type: boolean
+    description: |
+      `true`: When jumping to next/previous links or headings, the cursor will continue searching at the beginning/end of the file.
+      **`false`** (default): When jumping to next/previous links or headings, the cursor will stop searching at the end/beginning of the file.
+
+bib:
+  - name: bib.default_path
+    type: string | nil
+    description: |
+      **`nil`** (default): No default/fallback bib file will be used to search for citation keys.
+      `string`: A path to a default .bib file to look for citation keys in when attempting to follow a reference. The path need not be in the root directory of the notebook.
+
+  - name: bib.find_in_root
+    type: boolean
+    description: |
+      **`true`** (default): When `perspective.priority` is also set to `root` (and a root directory was found), the plugin will search for bib files to reference in the notebook's top-level directory. If `bib.default_path` is also specified, the default path will be added to the list of bib files found in the top-level directory so that it will also be searched.
+      `false`: The notebook's root directory will not be searched for bib files.
+
+silent:
+  - name: silent
+    type: boolean
+    description: |
+      `true`: The plugin will not display any messages in the console except compatibility warnings related to your config.
+      **`false`** (default): The plugin will display messages to the console.
+
+cursor:
+  - name: cursor.jump_patterns
+    type: table | nil
+    description: |
+      **`nil`** (default): The default jump patterns for the configured link style are used (markdown-style links by default).
+      `table`: A table of custom Lua regex patterns.
+      `{}` (empty table): Disable link jumping without disabling the `cursor` module.
+
+  - name: cursor.yank_register
+    type: string
+    description: |
+      **`'"'`** (default): Anchor links are yanked to the unnamed register.
+      `'+'`: Yank to the system clipboard.
+      `'<any register>'`: Yank to any valid Vim register (e.g. `'a'`, `'*'`, `'0'`).
+
+links:
+  - name: links.style
+    type: string
+    description: |
+      **`'markdown'`** (default): Links will be expected in the standard markdown format: `[<title>](<source>)`
+      `'wiki'`: Links will be expected in the unofficial wiki-link style, specifically the title-after-pipe format: `[[<source>|<title>]]`.
+
+  - name: links.name_is_source
+    type: boolean
+    description: |
+      `true`: Wiki-style links will be created with the source and name being the same (e.g. `[[Link]]` will display as "Link" and go to a file named "Link.md").
+      **`false`** (default): Wiki-style links will be created with separate name and source (e.g. `[[link-to-source|Link]]` will display as "Link" and go to a file named "link-to-source.md").
+
+  - name: links.conceal
+    type: boolean
+    description: |
+      `true`: Link sources and delimiters will be concealed (depending on which link style is selected).
+      **`false`** (default): Link sources and delimiters will not be concealed by mkdnflow.
+
+  - name: links.context
+    type: integer
+    description: |
+      When following or jumping to links, consider `n` lines before and after a given line (useful if you ever permit links to be interrupted by a hard line break). Default: **`0`**.
+
+  - name: links.implicit_extension
+    type: string
+    description: |
+      A string that instructs the plugin (a) how to interpret links to files that do not have an extension, and (b) how to create new links from the word under cursor or text selection.
+
+      **`nil`** (default): Extensions will be explicit when a link is created and must be explicit in any notebook link.
+      `'<any extension>'` (e.g. `'md'`): Links without an extension (e.g. `[Homepage](index)`) will be interpreted with the implicit extension (e.g. `index.md`), and new links will be created without an extension.
+
+  - name: links.transform_explicit
+    type: "fun(string): string | boolean"
+    description: |
+      `false`: No transformations are applied to the text to be turned into the name of the link source/path.
+      **`fun(string): string`** (default): A function that transforms the text to be inserted as the source/path of a link when a link is created. Anchor links are not currently customizable. For an example, see the sample recipes beneath this table.
+
+  - name: links.transform_implicit
+    type: "fun(string): string | boolean"
+    description: |
+      **`false`** (default): Do not perform any implicit transformations on the link's source.
+      `fun(string): string`: A function that transforms the path of a link immediately before interpretation. It does not transform the actual text in the buffer but can be used to modify link interpretation. For an example, see the sample recipe below.
+
+  - name: links.create_on_follow_failure
+    type: boolean
+    description: |
+      **`true`** (default): Try to create a link from the word under the cursor if there is no link under the cursor to follow.
+      `false`: Do nothing if trying to follow a link and a link can't be found under the cursor.
+
+new_file_template:
+  - name: new_file_template.use_template
+    type: boolean
+    description: |
+      `true`: Use the new-file template when opening a new file by following a link.
+      **`false`** (default): Don't use the new-file template when opening a new file by following a link.
+
+  - name: new_file_template.placeholders.before
+    type: "table<string, string|fun(): string>"
+    description: |
+      A table whose keys are placeholder names mapped either to a function (to be evaluated immediately before the buffer is opened in the current window) or to one of a limited set of recognized strings:
+
+      `'link_title'`: The title of the link that was followed to get to the just-opened file.
+      `'os_date'`: The current date, according to the OS.
+
+      Default: `{ title = 'link_title', date = 'os_date' }`
+
+  - name: new_file_template.placeholders.after
+    type: "table<string, string|fun(): string>"
+    description: |
+      A table whose keys are placeholder names mapped either to a function (to be evaluated immediately after the buffer is opened in the current window) or to one of a limited set of recognized strings (see above). Default: `{}`
+
+  - name: new_file_template.template
+    type: string
+    description: |
+      A string, optionally containing placeholder names, that will be inserted into a new file. Default: `'# {{ title }}'`
+
+to_do:
+  - name: to_do.highlight
+    type: boolean
+    description: |
+      `true`: Apply highlighting to to-do status markers and/or content (as defined in `to_do.statuses[*].highlight`).
+      **`false`** (default): Do not apply any highlighting.
+
+  - name: to_do.status_propagation.up
+    type: boolean
+    description: |
+      **`true`** (default): Update ancestor statuses (recursively) when a descendant status is changed. Updated according to logic provided in `to_do.statuses[*].propagate.up`.
+      `false`: Ancestor statuses are not affected by descendant status changes.
+
+  - name: to_do.status_propagation.down
+    type: boolean
+    description: |
+      **`true`** (default): Update descendant statuses (recursively) when an ancestor's status is changed. Updated according to logic provided in `to_do.statuses[*].propagate.down`.
+      `false`: Descendant statuses are not affected by ancestor status changes.
+
+  - name: to_do.sort_on_status_change
+    type: boolean
+    description: |
+      `true`: Sort a to-do list when an item's status is changed.
+      **`false`** (default): Leave all to-do items in their current position when an item's status is changed.
+      Note: This will not apply if the to-do item's status is changed manually (i.e. by typing or pasting in the status marker).
+
+  - name: to_do.sort.recursive
+    type: boolean
+    description: |
+      `true`: `sort_on_status_change` applies recursively, sorting the host list of each successive parent until the root of the list is reached.
+      **`false`** (default): `sort_on_status_change` only applies at the current to-do list level (not to the host list of the parent to-do item).
+
+  - name: to_do.sort.cursor_behavior.track
+    type: boolean
+    description: |
+      **`true`** (default): Move the cursor so that it remains on the same to-do item, even after a to-do list sort relocates the item.
+      `false`: The cursor remains on its current line number, even if the to-do item is relocated by sorting.
+
+  - name: to_do.statuses
+    type: table (array-like)
+    description: |
+      A list of tables, each of which represents a to-do status. See options in the following rows. An arbitrary number of to-do status tables can be provided. See default statuses in the settings table.
+
+  - name: to_do.statuses[*].name
+    type: string
+    description: |
+      The designated name of the to-do status.
+
+  - name: to_do.statuses[*].marker
+    type: string | table
+    description: |
+      The marker symbol to use for the status. The marker's string width must be 1.
+
+  - name: to_do.statuses[*].highlight.marker
+    type: table (highlight definition)
+    description: |
+      A table of highlight definitions to apply to a status marker, including brackets. See the `{val}` parameter of `:h nvim_set_hl` for possible options.
+
+  - name: to_do.statuses[*].highlight.content
+    type: table (highlight definition)
+    description: |
+      A table of highlight definitions to apply to the to-do item content (everything following the status marker). See the `{val}` parameter of `:h nvim_set_hl` for possible options.
+
+  - name: to_do.statuses[*].exclude_from_rotation
+    type: boolean
+    description: |
+      `true`: When toggling/rotating a to-do item's status, exclude the current symbol from the list of symbols used.
+      `false`: Leave the symbol in the rotation.
+      Note: This setting is useful if there is a status marker that you never want to manually set and only want to apply when automatically updating ancestors or descendants.
+
+  - name: to_do.statuses[*].sort.section
+    type: integer
+    description: |
+      The integer should represent the linear section of the list in which items of this status should be placed when sorted. A section refers to a segment of a to-do list. If you want items with the `'in_progress'` status to be first in the list, you would set this option to `1` for the status.
+      Note: Sections are not visually delineated in any way other than items with the same section number occurring on adjacent lines in the list.
+
+  - name: to_do.statuses[*].sort.position
+    type: string
+    description: |
+      Where in its assigned section a to-do item should be placed:
+      `'top'`: Place a sorted item at the top of its corresponding section.
+      `'bottom'`: Place a sorted item at the bottom of its corresponding section.
+      `'relative'`: Maintain the current relative order of the sorted item whose status was just changed (vs. other list items).
+
+  - name: to_do.statuses[*].propagate.up
+    type: "fun(to_do_list): string | nil"
+    description: |
+      A function that accepts a to-do list instance and returns a valid to-do status name. The list passed in is the list that hosts the to-do item whose status was just changed. The return value should be the desired value of the parent. Return `nil` to leave the parent's status as is.
+
+  - name: to_do.statuses[*].propagate.down
+    type: "fun(to_do_list): string[]"
+    description: |
+      A function that accepts a to-do list instance and returns a list of valid to-do status names. The list passed in will be the child list of the to-do item whose status was just changed. Return `nil` or an empty table to leave the children's status as is.
+
+foldtext:
+  - name: foldtext.object_count
+    type: boolean
+    description: |
+      **`true`** (default): Show a count of all objects inside of a folded section.
+      `false`: Do not show a count of any objects inside of a folded section.
+
+  - name: foldtext.object_count_icon_set
+    type: string | table
+    description: |
+      **`'emoji'`** (default): Use pre-defined emojis as icons for counted objects.
+      `'plain'`: Use pre-defined plaintext UTF-8 characters as icons for counted objects.
+      `'nerdfont'`: Use pre-defined nerdfont characters as icons for counted objects. Requires a nerdfont.
+      `table<string, string>`: Use custom mapping of object names to icons.
+
+  - name: foldtext.object_count_opts
+    type: "fun(): table<string, table>"
+    description: |
+      A function that returns the options table defining the final attributes of the objects to be counted, including icons and counting methods. The pre-defined object types are `tbl`, `ul`, `ol`, `todo`, `img`, `fncblk`, `sec`, `par`, and `link`.
+
+  - name: foldtext.line_count
+    type: boolean
+    description: |
+      **`true`** (default): Show a count of the lines contained in the folded section.
+      `false`: Don't show a line count.
+
+  - name: foldtext.line_percentage
+    type: boolean
+    description: |
+      **`true`** (default): Show the percentage of document (buffer) lines contained in the folded section.
+      `false`: Don't show the percentage.
+
+  - name: foldtext.word_count
+    type: boolean
+    description: |
+      `true`: Show a count of the paragraph words in the folded section, ignoring words inside of other objects.
+      **`false`** (default): Don't show a word count.
+
+  - name: foldtext.title_transformer
+    type: "fun(): fun(string): string"
+    description: |
+      A function that returns another function. The inner function accepts a string (the section heading text) and returns a potentially modified string.
+
+  - name: foldtext.fill_chars.left_edge
+    type: string
+    description: |
+      The character(s) to use at the very left edge of the foldtext. Default: `'⢾⣿⣿'`.
+
+  - name: foldtext.fill_chars.right_edge
+    type: string
+    description: |
+      The character(s) to use at the very right edge of the foldtext. Default: `'⣿⣿⡷'`
+
+  - name: foldtext.fill_chars.item_separator
+    type: string
+    description: |
+      The character(s) used to separate the items within a section. Default: `' · '`
+
+  - name: foldtext.fill_chars.section_separator
+    type: string
+    description: |
+      The character(s) used to separate adjacent sections. Default: `' ⣹⣿⣏ '`
+
+  - name: foldtext.fill_chars.left_inside
+    type: string
+    description: |
+      The character(s) used at the internal left edge of fill characters. Default: `' ⣹'`
+
+  - name: foldtext.fill_chars.right_inside
+    type: string
+    description: |
+      The character(s) used at the internal right edge of fill characters. Default: `'⣏ '`
+
+  - name: foldtext.fill_chars.middle
+    type: string
+    description: |
+      The character used to fill empty space in the foldtext line. Default: `'⣿'`
+
+tables:
+  - name: tables.trim_whitespace
+    type: boolean
+    description: |
+      **`true`** (default): Trim extra whitespace from the end of a table cell when a table is formatted.
+      `false`: Leave whitespace at the end of a table cell when formatting.
+
+  - name: tables.format_on_move
+    type: boolean
+    description: |
+      **`true`** (default): Format the table each time the cursor is moved to the next/previous cell/row using the plugin's API.
+      `false`: Don't format the table when the cursor is moved.
+
+  - name: tables.auto_extend_rows
+    type: boolean
+    description: |
+      `true`: Add another row when attempting to jump to the next row and the row doesn't exist.
+      **`false`** (default): Leave the table when attempting to jump to the next row and the row doesn't exist.
+
+  - name: tables.auto_extend_cols
+    type: boolean
+    description: |
+      `true`: Add another column when attempting to jump to the next column and the column doesn't exist.
+      **`false`** (default): Go to the first cell of the next row when attempting to jump to the next column and the column doesn't exist.
+
+  - name: tables.style.cell_padding
+    type: integer
+    description: |
+      **`1`** (default): Use one space as padding at the beginning and end of each cell.
+      `<n>`: Use `<n>` spaces as cell padding.
+
+  - name: tables.style.separator_padding
+    type: integer
+    description: |
+      **`1`** (default): Use one space as padding in the separator row.
+      `<n>`: Use `<n>` spaces as padding in the separator row.
+
+  - name: tables.style.outer_pipes
+    type: boolean
+    description: |
+      **`true`** (default): Include outer pipes when formatting a table.
+      `false`: Do not use outer pipes when formatting a table.
+
+  - name: tables.style.mimic_alignment
+    type: boolean
+    description: |
+      **`true`** (default): Mimic the cell alignment indicated in the separator row when formatting the table.
+      `false`: Always visually left-align cell contents when formatting a table.
+
+  - name: tables.line_breaks.pandoc
+    type: boolean
+    description: |
+      **`true`** (default): Enable Pandoc-style multiline cells using a trailing backslash (`\`) to continue content on the next line. Content on continuation lines belongs to the last cell and will be preserved during formatting.
+      `false`: Treat backslash at end of line as literal content.
+
+  - name: tables.line_breaks.html
+    type: boolean
+    description: |
+      `true`: Enable HTML-style line breaks within cells using `<br>`. During formatting, content after `<br>` will be split onto continuation lines.
+      **`false`** (default): Treat `<br>` as literal content within cells.
+
+yaml:
+  - name: yaml.bib.override
+    type: boolean
+    description: |
+      `true`: A bib path specified in a markdown file's yaml header should be the only source considered for bib references in that file.
+      **`false`** (default): All known bib paths will be considered, whether specified in the yaml header or in your configuration settings.
+
+mappings:
+  - name: mappings.<command>
+    type: "[string|string[], string]"
+    description: |
+      The first item is a string or an array of strings representing the mode(s) that the mapping should apply in (`'n'`, `'v'`, etc.). The second item is a string representing the mapping (in the expected format for vim).
