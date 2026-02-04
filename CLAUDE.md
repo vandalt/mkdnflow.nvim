@@ -13,7 +13,9 @@ mkdnflow.nvim/
 ├── lua/
 │   ├── mkdnflow.lua          # Main entry point, default config, setup()
 │   └── mkdnflow/             # Feature modules
-│       ├── bib.lua           # Bibliography/citation handling
+│       ├── bib/              # Bibliography/citation handling
+│       │   ├── init.lua
+│       │   └── core.lua      # BibEntry class
 │       ├── buffers.lua       # Buffer navigation (back/forward)
 │       ├── cmp.lua           # nvim-cmp completion source
 │       ├── compat.lua        # Backwards compatibility layer
@@ -172,6 +174,9 @@ return M
 - First line ≤ 72 characters
 - Reference issues/PRs after first line
 - **No AI co-attribution** — do not add "Co-Authored-By" or similar for coding agents
+
+### GitHub Issues
+Before creating or handling issues, check the templates in `.github/ISSUE_TEMPLATE/` for the expected format (bug reports, feature requests).
 
 ## Error Handling
 - Use `vim.api.nvim_echo()` with highlight groups for user messages
