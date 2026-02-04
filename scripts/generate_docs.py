@@ -1210,7 +1210,7 @@ class VimdocFormatter(Formatter):
             "                                                 |/                    ~",
             "                                                 '                     ~",
             self.separator(),
-            self.right_align("MKDNFLOW.NVIM REFERENCE", "*Mkdnflow.nvim*"),
+            self.right_align("MKDNFLOW.NVIM REFERENCE", "*mkdnflow-reference*"),
             "",
             f"Author: Jake Vincent (jake@jwv.dev)                            {self.tag('author')}",
             f"Website: github.com/jakewvincent/mkdnflow.nvim                 {self.tag('website')}",

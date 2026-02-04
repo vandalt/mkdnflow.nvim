@@ -10,7 +10,7 @@ in markdown
                                                  |/                    ~
                                                  '                     ~
 ==============================================================================
-MKDNFLOW.NVIM REFERENCE                                        *Mkdnflow.nvim*
+MKDNFLOW.NVIM REFERENCE                                   *mkdnflow-reference*
 
 Author: Jake Vincent (jake@jwv.dev)                            *Mkdnflow-author*
 Website: github.com/jakewvincent/mkdnflow.nvim                 *Mkdnflow-website*
