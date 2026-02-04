@@ -377,6 +377,25 @@ M.fold_text = function()
     return left .. string.rep(mi, fill_count) .. right
 end
 
-vim.opt_local.foldtext = "v:lua.require('mkdnflow').foldtext.fold_text()"
+-- Set up autocommand to apply foldtext to markdown buffers
+-- Using autocmd ensures foldtext is applied to the correct buffer/window context
+local foldtext_augroup = vim.api.nvim_create_augroup('MkdnflowFoldtext', { clear = true })
+
+local ft_patterns = function()
+    local filetypes = require('mkdnflow').config.filetypes
+    local ft_pattern = ''
+    for ext, _ in pairs(filetypes) do
+        ft_pattern = ft_pattern .. '*.' .. ext .. ','
+    end
+    return ft_pattern
+end
+
+vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWinEnter' }, {
+    pattern = ft_patterns(),
+    callback = function()
+        vim.opt_local.foldtext = "v:lua.require('mkdnflow').foldtext.fold_text()"
+    end,
+    group = foldtext_augroup,
+})
 
 return M
