@@ -166,28 +166,31 @@ local function setup_conceal_test(lines)
     child.api.nvim_win_set_cursor(0, { #lines, 0 })
 end
 
+-- Screenshot options: ignore_attr because highlight groups differ between environments
+local screenshot_opts = { ignore_attr = true }
+
 T['screenshot']['wiki_link_simple'] = function()
     -- [[target]] should display as: target
     setup_conceal_test({ '[[wiki target]]', '', 'cursor here' })
-    MiniTest.expect.reference_screenshot(child.get_screenshot())
+    MiniTest.expect.reference_screenshot(child.get_screenshot(), nil, screenshot_opts)
 end
 
 T['screenshot']['wiki_link_with_alias'] = function()
     -- [[target|alias]] should display as: alias
     setup_conceal_test({ '[[hidden target|visible alias]]', '', 'cursor here' })
-    MiniTest.expect.reference_screenshot(child.get_screenshot())
+    MiniTest.expect.reference_screenshot(child.get_screenshot(), nil, screenshot_opts)
 end
 
 T['screenshot']['markdown_inline_link'] = function()
     -- [text](url) should display as: text
     setup_conceal_test({ '[click here](https://example.com)', '', 'cursor here' })
-    MiniTest.expect.reference_screenshot(child.get_screenshot())
+    MiniTest.expect.reference_screenshot(child.get_screenshot(), nil, screenshot_opts)
 end
 
 T['screenshot']['markdown_reference_link'] = function()
     -- [text][ref] should display as: text
     setup_conceal_test({ '[link text][ref1]', '', '[ref1]: https://example.com', '', 'cursor here' })
-    MiniTest.expect.reference_screenshot(child.get_screenshot())
+    MiniTest.expect.reference_screenshot(child.get_screenshot(), nil, screenshot_opts)
 end
 
 T['screenshot']['mixed_links'] = function()
@@ -203,7 +206,7 @@ T['screenshot']['mixed_links'] = function()
         '',
         'cursor here',
     })
-    MiniTest.expect.reference_screenshot(child.get_screenshot())
+    MiniTest.expect.reference_screenshot(child.get_screenshot(), nil, screenshot_opts)
 end
 
 -- =============================================================================
