@@ -347,4 +347,334 @@ T['edge_cases']['handles list items with colons'] = function()
     eq(links[2], 'http://test.org')
 end
 
+-- =============================================================================
+-- YAMLFrontmatter Class - Construction & Factory
+-- =============================================================================
+T['YAMLFrontmatter'] = new_set()
+T['YAMLFrontmatter']['construction'] = new_set()
+
+T['YAMLFrontmatter']['construction'][':new() creates empty instance with valid=false'] = function()
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:new()')
+    eq(child.lua_get('_fm.valid'), false)
+    eq(child.lua_get('_fm.bufnr'), -1)
+    eq(child.lua_get('_fm.line_range.start'), -1)
+    eq(child.lua_get('_fm.line_range.finish'), -1)
+    eq(child.lua_get('vim.tbl_isempty(_fm.data)'), true)
+end
+
+T['YAMLFrontmatter']['construction'][':new(opts) accepts initial data'] = function()
+    child.lua([[
+        _fm = require("mkdnflow.yaml").YAMLFrontmatter:new({
+            data = { title = { 'Test' } },
+            valid = true,
+            bufnr = 5,
+            line_range = { start = 0, finish = 2 }
+        })
+    ]])
+    eq(child.lua_get('_fm.valid'), true)
+    eq(child.lua_get('_fm.bufnr'), 5)
+    eq(child.lua_get('_fm.data.title[1]'), 'Test')
+    eq(child.lua_get('_fm.line_range.start'), 0)
+    eq(child.lua_get('_fm.line_range.finish'), 2)
+end
+
+T['YAMLFrontmatter']['construction'][':read() from buffer with valid YAML'] = function()
+    set_lines({ '---', 'title: Hello', 'author: World', '---', 'Content' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm.valid'), true)
+    eq(child.lua_get('_fm.line_range.start'), 0)
+    eq(child.lua_get('_fm.line_range.finish'), 3)
+    eq(child.lua_get('_fm.data.title[1]'), 'Hello')
+    eq(child.lua_get('_fm.data.author[1]'), 'World')
+end
+
+T['YAMLFrontmatter']['construction'][':read() from buffer without YAML returns valid=false'] = function()
+    set_lines({ '# Heading', 'Some content' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm.valid'), false)
+    eq(child.lua_get('_fm.line_range.start'), -1)
+end
+
+T['YAMLFrontmatter']['construction'][':read(0) explicitly reads current buffer'] = function()
+    set_lines({ '---', 'key: value', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read(0)')
+    eq(child.lua_get('_fm.valid'), true)
+    eq(child.lua_get('_fm.bufnr'), 0)
+end
+
+-- =============================================================================
+-- YAMLFrontmatter Class - :get() method
+-- =============================================================================
+T['YAMLFrontmatter']['get'] = new_set()
+
+T['YAMLFrontmatter']['get'][':get(key) returns first value for existing key'] = function()
+    set_lines({ '---', 'title: My Title', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("title")'), 'My Title')
+end
+
+T['YAMLFrontmatter']['get'][':get(key) returns nil for non-existent key'] = function()
+    set_lines({ '---', 'title: Test', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("missing") == nil'), true)
+end
+
+T['YAMLFrontmatter']['get'][':get(key) returns first item for list keys'] = function()
+    set_lines({ '---', 'tags:', '  - first', '  - second', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("tags")'), 'first')
+end
+
+T['YAMLFrontmatter']['get'][':get(key) returns nil for key with empty value'] = function()
+    set_lines({ '---', 'empty:', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("empty") == nil'), true)
+end
+
+-- =============================================================================
+-- YAMLFrontmatter Class - :get_all() method
+-- =============================================================================
+T['YAMLFrontmatter']['get_all'] = new_set()
+
+T['YAMLFrontmatter']['get_all'][':get_all(key) returns all values as array'] = function()
+    set_lines({ '---', 'tags:', '  - lua', '  - neovim', '  - markdown', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local tags = child.lua_get('_fm:get_all("tags")')
+    eq(#tags, 3)
+    eq(tags[1], 'lua')
+    eq(tags[2], 'neovim')
+    eq(tags[3], 'markdown')
+end
+
+T['YAMLFrontmatter']['get_all'][':get_all(key) returns empty array for non-existent key'] = function()
+    set_lines({ '---', 'title: Test', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local result = child.lua_get('_fm:get_all("missing")')
+    eq(type(result), 'table')
+    eq(#result, 0)
+end
+
+T['YAMLFrontmatter']['get_all'][':get_all(key) returns single-element array for scalar values'] = function()
+    set_lines({ '---', 'title: Single Value', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local result = child.lua_get('_fm:get_all("title")')
+    eq(#result, 1)
+    eq(result[1], 'Single Value')
+end
+
+T['YAMLFrontmatter']['get_all'][':get_all(key) returns empty array for key with empty value'] = function()
+    set_lines({ '---', 'empty:', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local result = child.lua_get('_fm:get_all("empty")')
+    eq(type(result), 'table')
+    eq(#result, 0)
+end
+
+-- =============================================================================
+-- YAMLFrontmatter Class - :has() method
+-- =============================================================================
+T['YAMLFrontmatter']['has'] = new_set()
+
+T['YAMLFrontmatter']['has'][':has(key) returns true for existing key'] = function()
+    set_lines({ '---', 'title: Test', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:has("title")'), true)
+end
+
+T['YAMLFrontmatter']['has'][':has(key) returns false for non-existent key'] = function()
+    set_lines({ '---', 'title: Test', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:has("missing")'), false)
+end
+
+T['YAMLFrontmatter']['has'][':has(key) returns true for key with empty value'] = function()
+    set_lines({ '---', 'empty:', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:has("empty")'), true)
+end
+
+-- =============================================================================
+-- YAMLFrontmatter Class - :is_valid() method
+-- =============================================================================
+T['YAMLFrontmatter']['is_valid'] = new_set()
+
+T['YAMLFrontmatter']['is_valid'][':is_valid() returns true after successful read'] = function()
+    set_lines({ '---', 'title: Test', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:is_valid()'), true)
+end
+
+T['YAMLFrontmatter']['is_valid'][':is_valid() returns false for new empty instance'] = function()
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:new()')
+    eq(child.lua_get('_fm:is_valid()'), false)
+end
+
+T['YAMLFrontmatter']['is_valid'][':is_valid() returns false after read from buffer without YAML'] = function()
+    set_lines({ '# Heading', 'Content' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:is_valid()'), false)
+end
+
+-- =============================================================================
+-- YAMLFrontmatter Class - :get_line_range() method
+-- =============================================================================
+T['YAMLFrontmatter']['get_line_range'] = new_set()
+
+T['YAMLFrontmatter']['get_line_range'][':get_line_range() returns {start, finish} for valid frontmatter'] = function()
+    set_lines({ '---', 'title: Test', 'author: Someone', '---', 'Content' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local range = child.lua_get('_fm:get_line_range()')
+    eq(range.start, 0)
+    eq(range.finish, 3)
+end
+
+T['YAMLFrontmatter']['get_line_range'][':get_line_range() returns {-1, -1} for invalid'] = function()
+    set_lines({ '# No YAML' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local range = child.lua_get('_fm:get_line_range()')
+    eq(range.start, -1)
+    eq(range.finish, -1)
+end
+
+-- =============================================================================
+-- YAMLFrontmatter Class - :keys() method
+-- =============================================================================
+T['YAMLFrontmatter']['keys'] = new_set()
+
+T['YAMLFrontmatter']['keys'][':keys() returns array of all keys'] = function()
+    set_lines({ '---', 'title: Test', 'author: Jake', 'date: 2024-01-01', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local keys = child.lua_get('_fm:keys()')
+    eq(#keys, 3)
+    -- Keys are sorted alphabetically
+    eq(keys[1], 'author')
+    eq(keys[2], 'date')
+    eq(keys[3], 'title')
+end
+
+T['YAMLFrontmatter']['keys'][':keys() returns empty array for invalid frontmatter'] = function()
+    set_lines({ '# No YAML' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local keys = child.lua_get('_fm:keys()')
+    eq(#keys, 0)
+end
+
+T['YAMLFrontmatter']['keys'][':keys() returns empty array for empty YAML block'] = function()
+    set_lines({ '---', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    local keys = child.lua_get('_fm:keys()')
+    eq(#keys, 0)
+end
+
+-- =============================================================================
+-- YAMLFrontmatter Class - :to_table() method
+-- =============================================================================
+T['YAMLFrontmatter']['to_table'] = new_set()
+
+T['YAMLFrontmatter']['to_table'][':to_table() returns raw data table'] = function()
+    set_lines({ '---', 'title: Test', 'tags:', '  - one', '  - two', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    child.lua('_data = _fm:to_table()')
+    eq(child.lua_get('_data.title[1]'), 'Test')
+    eq(child.lua_get('#_data.tags'), 2)
+end
+
+T['YAMLFrontmatter']['to_table'][':to_table() returns empty table for invalid frontmatter'] = function()
+    set_lines({ '# No YAML' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    child.lua('_data = _fm:to_table()')
+    eq(child.lua_get('vim.tbl_isempty(_data)'), true)
+end
+
+-- =============================================================================
+-- YAMLFrontmatter Class - Edge Cases
+-- =============================================================================
+T['YAMLFrontmatter']['edge_cases'] = new_set()
+
+T['YAMLFrontmatter']['edge_cases']['handles URL values with colons'] = function()
+    set_lines({ '---', 'url: https://example.com/path?query=1', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("url")'), 'https://example.com/path?query=1')
+end
+
+T['YAMLFrontmatter']['edge_cases']['handles time values (HH:MM:SS)'] = function()
+    set_lines({ '---', 'time: 14:30:45', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("time")'), '14:30:45')
+end
+
+T['YAMLFrontmatter']['edge_cases']['handles keys with underscores and hyphens'] = function()
+    set_lines({ '---', 'created_at: 2024-01-01', 'last-modified: 2024-01-02', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("created_at")'), '2024-01-01')
+    eq(child.lua_get('_fm:get("last-modified")'), '2024-01-02')
+end
+
+T['YAMLFrontmatter']['edge_cases']['handles quoted values'] = function()
+    set_lines({ '---', 'title: "A: Special Title"', '---' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("title")'), '"A: Special Title"')
+end
+
+T['YAMLFrontmatter']['edge_cases']['handles mixed scalar and list content'] = function()
+    set_lines({
+        '---',
+        'title: My Document',
+        'tags:',
+        '  - lua',
+        '  - neovim',
+        'author: Jake',
+        'categories:',
+        '  - programming',
+        '---',
+    })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:get("title")'), 'My Document')
+    eq(child.lua_get('_fm:get("author")'), 'Jake')
+    eq(child.lua_get('#_fm:get_all("tags")'), 2)
+    eq(child.lua_get('#_fm:get_all("categories")'), 1)
+end
+
+T['YAMLFrontmatter']['edge_cases']['handles empty YAML block'] = function()
+    set_lines({ '---', '---', 'Content' })
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:read()')
+    eq(child.lua_get('_fm:is_valid()'), true)
+    eq(child.lua_get('#_fm:keys()'), 0)
+end
+
+T['YAMLFrontmatter']['edge_cases']['class has __className property'] = function()
+    child.lua('_fm = require("mkdnflow.yaml").YAMLFrontmatter:new()')
+    eq(child.lua_get('getmetatable(_fm).__className'), 'YAMLFrontmatter')
+end
+
+-- =============================================================================
+-- Backward Compatibility
+-- =============================================================================
+T['backward_compat'] = new_set()
+
+T['backward_compat']['hasYaml() function still works'] = function()
+    set_lines({ '---', 'title: Test', '---', 'Content' })
+    child.lua('_start, _finish = require("mkdnflow.yaml").hasYaml()')
+    eq(child.lua_get('_start'), 0)
+    eq(child.lua_get('_finish'), 2)
+end
+
+T['backward_compat']['ingestYamlBlock() function still works'] = function()
+    set_lines({ '---', 'title: Test', 'author: Jake', '---' })
+    child.lua([[
+        local yaml = require('mkdnflow.yaml')
+        _start, _finish = yaml.hasYaml()
+        _data = yaml.ingestYamlBlock(_start, _finish)
+    ]])
+    eq(child.lua_get('_data.title[1]'), 'Test')
+    eq(child.lua_get('_data.author[1]'), 'Jake')
+end
+
+T['backward_compat']['YAMLFrontmatter class is exported'] = function()
+    child.lua('_class = require("mkdnflow.yaml").YAMLFrontmatter')
+    eq(child.lua_get('_class ~= nil'), true)
+    eq(child.lua_get('type(_class.new) == "function"'), true)
+    eq(child.lua_get('type(_class.read) == "function"'), true)
+end
+
 return T
