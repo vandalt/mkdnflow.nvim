@@ -110,6 +110,7 @@ make test_file FILE=tests/test_utils.lua  # Run specific file
 
 - Test files go in `tests/` with `test_` prefix
 - CI runs tests on Neovim v0.9.5, v0.10.0, and stable
+- Use `make test-compat` to run locally across all versions (requires [bob](https://github.com/MordechaiHadad/bob))
 
 ### Test Levels
 
