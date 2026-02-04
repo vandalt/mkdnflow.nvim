@@ -14,72 +14,84 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-local link_style = require('mkdnflow').config.links.style
+-- Check if treesitter highlighting is active for the buffer
+local function ts_highlight_active(bufnr)
+    bufnr = bufnr or vim.api.nvim_get_current_buf()
+    local ok, hl = pcall(require, 'vim.treesitter.highlighter')
+    return ok and hl.active[bufnr] ~= nil
+end
 
-local start_link_concealing = function()
-    if link_style == 'markdown' then
-        vim.fn.matchadd('Conceal', '\\[[^[]\\{-}\\]\\zs([^(]\\{-})\\ze', 0, -1, { conceal = '' })
-        vim.fn.matchadd('Conceal', '\\zs\\[\\ze[^[]\\{-}\\]([^(]\\{-})', 0, -1, { conceal = '' })
-        vim.fn.matchadd('Conceal', '\\[[^[]\\{-}\\zs\\]\\ze([^(]\\{-})', 0, -1, { conceal = '' })
-        vim.fn.matchadd(
-            'Conceal',
-            '\\[[^[]\\{-}\\]\\zs\\%[ ]\\[[^[]\\{-}\\]\\ze\\%[ ]\\v([^(]|$)',
-            0,
-            -1,
-            { conceal = '' }
-        )
-        vim.fn.matchadd(
-            'Conceal',
-            '\\zs\\[\\ze[^[]\\{-}\\]\\%[ ]\\[[^[]\\{-}\\]\\%[ ]\\v([^(]|$)',
-            0,
-            -1,
-            { conceal = '' }
-        )
-        vim.fn.matchadd(
-            'Conceal',
-            '\\[[^[]\\{-}\\zs\\]\\ze\\%[ ]\\[[^[]\\{-}\\]\\%[ ]\\v([^(]|$)',
-            0,
-            -1,
-            { conceal = '' }
-        )
-        vim.fn.matchadd(
-            'Conceal',
-            '\\[[^[]\\{-}\\]\\zs\\%[ ]\\[[^[]\\{-}\\]\\ze\\n',
-            0,
-            -1,
-            { conceal = '' }
-        )
-        vim.fn.matchadd(
-            'Conceal',
-            '\\zs\\[\\ze[^[]\\{-}\\]\\%[ ]\\[[^[]\\{-}\\]\\n',
-            0,
-            -1,
-            { conceal = '' }
-        )
-        vim.fn.matchadd(
-            'Conceal',
-            '\\[[^[]\\{-}\\zs\\]\\ze\\%[ ]\\[[^[]\\{-}\\]\\n',
-            0,
-            -1,
-            { conceal = '' }
-        )
-    elseif link_style == 'wiki' then
-        vim.fn.matchadd(
-            'Conceal',
-            '\\zs\\[\\[[^[]\\{-}[|]\\ze[^[]\\{-}\\]\\]',
-            0,
-            -1,
-            { conceal = '' }
-        )
-        vim.fn.matchadd(
-            'Conceal',
-            '\\[\\[[^[\\{-}[|][^[]\\{-}\\zs\\]\\]\\ze',
-            0,
-            -1,
-            { conceal = '' }
-        )
-        vim.fn.matchadd('Conceal', '\\zs\\[\\[\\ze[^[]\\{-}\\]\\]', 0, -1, { conceal = '' })
-        vim.fn.matchadd('Conceal', '\\[\\[[^[]\\{-}\\zs\\]\\]\\ze', 0, -1, { conceal = '' })
+-- Add conceal patterns for wiki-style links: [[target]] and [[target|alias]]
+local function add_wiki_patterns()
+    -- [[target|alias]] - conceal [[target| prefix
+    vim.fn.matchadd('Conceal', '\\zs\\[\\[[^[]\\{-}[|]\\ze[^[]\\{-}\\]\\]', 0, -1, { conceal = '' })
+    -- [[target|alias]] - conceal ]] suffix
+    vim.fn.matchadd('Conceal', '\\[\\[[^[\\{-}[|][^[]\\{-}\\zs\\]\\]\\ze', 0, -1, { conceal = '' })
+    -- [[target]] - conceal [[ prefix
+    vim.fn.matchadd('Conceal', '\\zs\\[\\[\\ze[^[]\\{-}\\]\\]', 0, -1, { conceal = '' })
+    -- [[target]] - conceal ]] suffix
+    vim.fn.matchadd('Conceal', '\\[\\[[^[]\\{-}\\zs\\]\\]\\ze', 0, -1, { conceal = '' })
+end
+
+-- Add conceal patterns for markdown-style links: [text](url) and [text][ref]
+local function add_markdown_patterns()
+    -- Inline links: [text](url)
+    vim.fn.matchadd('Conceal', '\\[[^[]\\{-}\\]\\zs([^(]\\{-})\\ze', 0, -1, { conceal = '' })
+    vim.fn.matchadd('Conceal', '\\zs\\[\\ze[^[]\\{-}\\]([^(]\\{-})', 0, -1, { conceal = '' })
+    vim.fn.matchadd('Conceal', '\\[[^[]\\{-}\\zs\\]\\ze([^(]\\{-})', 0, -1, { conceal = '' })
+    -- Reference links: [text][ref] (with optional space, mid-line)
+    vim.fn.matchadd(
+        'Conceal',
+        '\\[[^[]\\{-}\\]\\zs\\%[ ]\\[[^[]\\{-}\\]\\ze\\%[ ]\\v([^(]|$)',
+        0,
+        -1,
+        { conceal = '' }
+    )
+    vim.fn.matchadd(
+        'Conceal',
+        '\\zs\\[\\ze[^[]\\{-}\\]\\%[ ]\\[[^[]\\{-}\\]\\%[ ]\\v([^(]|$)',
+        0,
+        -1,
+        { conceal = '' }
+    )
+    vim.fn.matchadd(
+        'Conceal',
+        '\\[[^[]\\{-}\\zs\\]\\ze\\%[ ]\\[[^[]\\{-}\\]\\%[ ]\\v([^(]|$)',
+        0,
+        -1,
+        { conceal = '' }
+    )
+    -- Reference links: [text][ref] (at end of line)
+    vim.fn.matchadd(
+        'Conceal',
+        '\\[[^[]\\{-}\\]\\zs\\%[ ]\\[[^[]\\{-}\\]\\ze\\n',
+        0,
+        -1,
+        { conceal = '' }
+    )
+    vim.fn.matchadd(
+        'Conceal',
+        '\\zs\\[\\ze[^[]\\{-}\\]\\%[ ]\\[[^[]\\{-}\\]\\n',
+        0,
+        -1,
+        { conceal = '' }
+    )
+    vim.fn.matchadd(
+        'Conceal',
+        '\\[[^[]\\{-}\\zs\\]\\ze\\%[ ]\\[[^[]\\{-}\\]\\n',
+        0,
+        -1,
+        { conceal = '' }
+    )
+end
+
+local function start_link_concealing()
+    -- Always add wiki link patterns (treesitter doesn't handle [[...]] syntax)
+    add_wiki_patterns()
+
+    -- Only add markdown link patterns if treesitter isn't already handling them
+    if not ts_highlight_active() then
+        add_markdown_patterns()
     end
 
     -- Set conceal level
