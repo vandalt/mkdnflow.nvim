@@ -397,7 +397,21 @@ T['yank_register']['defaults to unnamed register'] = function()
 end
 
 T['yank_register']['works with system clipboard register'] = function()
-    -- This test uses the mock clipboard from test setup
+    -- Set up a mock clipboard provider for CI environments without xclip/xsel
+    child.lua([[
+        _G._mock_clipboard = { ['+'] = '', ['*'] = '' }
+        vim.g.clipboard = {
+            name = 'mock_lua',
+            copy = {
+                ['+'] = function(lines, _) _G._mock_clipboard['+'] = table.concat(lines, '\n') end,
+                ['*'] = function(lines, _) _G._mock_clipboard['*'] = table.concat(lines, '\n') end,
+            },
+            paste = {
+                ['+'] = function() return { _G._mock_clipboard['+'] }, 'c' end,
+                ['*'] = function() return { _G._mock_clipboard['*'] }, 'c' end,
+            },
+        }
+    ]])
     child.lua(
         [[require('mkdnflow').setup({ cursor = { yank_register = '+' }, links = { transform_explicit = false }, silent = true })]]
     )
