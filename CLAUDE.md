@@ -137,6 +137,29 @@ See `tests/test_todo.lua` for examples of integration tests with buffer manipula
 
 **When tests fail:** Tests define expected behavior. If a test fails, fix the **code**, not the test. Never modify a test to make it pass when the underlying bug still exists. If a bug can't be fixed immediately, leave the test failing and document the issue.
 
+### CI Environment Limitations
+
+GitHub Actions runners (ubuntu-latest) have limited capabilities compared to local development:
+
+- **No clipboard provider**: The `+` and `*` registers require xclip/xsel which aren't installed. Use a Lua-based mock clipboard instead:
+  ```lua
+  _G._mock_clipboard = { ['+'] = '', ['*'] = '' }
+  vim.g.clipboard = {
+      name = 'mock_lua',
+      copy = {
+          ['+'] = function(lines, _) _G._mock_clipboard['+'] = table.concat(lines, '\n') end,
+          ['*'] = function(lines, _) _G._mock_clipboard['*'] = table.concat(lines, '\n') end,
+      },
+      paste = {
+          ['+'] = function() return { _G._mock_clipboard['+'] }, 'c' end,
+          ['*'] = function() return { _G._mock_clipboard['*'] }, 'c' end,
+      },
+  }
+  ```
+  See `tests/test_cursor.lua` (`yank_register` tests) for a working example.
+
+- **No treesitter highlighting**: Headless Neovim doesn't activate treesitter highlighting, so `vim.treesitter.highlighter.active[bufnr]` returns nil. Tests naturally run the "no treesitter" code path.
+
 ## Code Style
 
 ### Formatting
