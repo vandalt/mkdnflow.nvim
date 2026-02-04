@@ -377,6 +377,12 @@ M.fold_text = function()
     return left .. string.rep(mi, fill_count) .. right
 end
 
+-- Global wrapper function for v:lua compatibility with older Neovim versions
+-- Complex chained expressions like v:lua.require('x').y.z() fail in Neovim 0.9.x
+_G.MkdnflowFoldText = function()
+    return require('mkdnflow').foldtext.fold_text()
+end
+
 -- Set up autocommand to apply foldtext to markdown buffers
 -- Using autocmd ensures foldtext is applied to the correct buffer/window context
 local foldtext_augroup = vim.api.nvim_create_augroup('MkdnflowFoldtext', { clear = true })
@@ -393,7 +399,7 @@ end
 vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWinEnter' }, {
     pattern = ft_patterns(),
     callback = function()
-        vim.opt_local.foldtext = "v:lua.require('mkdnflow').foldtext.fold_text()"
+        vim.opt_local.foldtext = 'v:lua.MkdnflowFoldText()'
     end,
     group = foldtext_augroup,
 })
