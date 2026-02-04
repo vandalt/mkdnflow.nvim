@@ -104,7 +104,7 @@ end
 
 -- Pattern order: more specific patterns should come before less specific ones
 local pattern_order =
-    { 'image_link', 'md_link', 'wiki_link', 'auto_link', 'ref_style_link', 'citation' }
+    { 'image_link', 'md_link', 'wiki_link', 'auto_link', 'ref_style_link', 'pandoc_citation', 'citation' }
 
 local patterns = {
     image_link = '(!%b[]%b())', -- Must come before md_link
@@ -112,6 +112,7 @@ local patterns = {
     wiki_link = '(%[%b[]%])',
     ref_style_link = '(%b[]%s?%b[])',
     auto_link = '(%b<>)',
+    pandoc_citation = '(%[@[^%[%]]+%])', -- Pandoc-style bracketed citation [@citekey]
     citation = "[^%a%d]-(@[%a%d_%.%-']*[%a%d]+)[%s%p%c]?",
 }
 
@@ -124,6 +125,7 @@ local part_patterns = {
         wiki_link_no_bar = '%[%[(.-)%]%]',
         wiki_link_anchor_no_bar = '%[%[(.-)#.-%]%]',
         ref_style_link = '%[(.-)%]%s?%[',
+        pandoc_citation = '%[@([^%[%]]+)%]', -- Captures citekey without @ or brackets
         citation = '(@.*)',
     },
     source = {
@@ -133,6 +135,7 @@ local part_patterns = {
         wiki_link_no_bar = '%[%[(.-)%]%]',
         ref_style_link = '%]%[(.-)%]',
         auto_link = '<(.-)>',
+        pandoc_citation = '%[(@[^%[%]]+)%]', -- Captures @citekey (without brackets)
         citation = '(@.*)',
     },
     anchor = {
@@ -210,7 +213,7 @@ end
 --- @class Link A class representing a detected link
 --- @field match string The raw matched text
 --- @field match_lines table The multiline context
---- @field type string The link type ('image_link'|'md_link'|'wiki_link'|'auto_link'|'ref_style_link'|'citation')
+--- @field type string The link type ('image_link'|'md_link'|'wiki_link'|'auto_link'|'ref_style_link'|'pandoc_citation'|'citation')
 --- @field start_row integer Start row (1-indexed)
 --- @field start_col integer Start column (1-indexed)
 --- @field end_row integer End row (1-indexed)
@@ -477,6 +480,11 @@ function Link:get_source()
         s_col, e_col, text = string.find(self.match, pat)
         s_row, e_row = self.start_row, self.end_row
         anchor = ''
+    elseif self.type == 'pandoc_citation' then
+        local pat = part_patterns.source.pandoc_citation
+        s_col, e_col, text = string.find(self.match, pat)
+        s_row, e_row = self.start_row, self.end_row
+        anchor = ''
     end
 
     self._source = LinkPart:new({
@@ -539,6 +547,10 @@ function Link:get_name()
         local pat = part_patterns.name.citation
         s_col, e_col, text = string.find(self.match, pat)
         s_row, e_row = self.start_row, self.end_row
+    elseif self.type == 'pandoc_citation' then
+        local pat = part_patterns.name.pandoc_citation
+        s_col, e_col, text = string.find(self.match, pat)
+        s_row, e_row = self.start_row, self.end_row
     end
 
     self._name = LinkPart:new({
@@ -595,6 +607,12 @@ end
 --- @return boolean
 function Link:is_citation()
     return self.type == 'citation'
+end
+
+--- Check if this is a Pandoc-style bracketed citation
+--- @return boolean
+function Link:is_pandoc_citation()
+    return self.type == 'pandoc_citation'
 end
 
 --- Check if this is a markdown link

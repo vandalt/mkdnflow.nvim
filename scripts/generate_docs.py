@@ -2119,6 +2119,7 @@ def build_documentation() -> List[Section]:
                                         ListItem("Automatic links (`<https://my.page>`)", done=True),
                                         ListItem("Reference-style links (`[my page][1]` with `[1]: my_page.md`)", done=True),
                                         ListItem("Image links (`![alt text](image.png)`) — opened in system viewer", done=True),
+                                        ListItem("Citations (`@citekey` or Pandoc-style `[@citekey]`)", done=True),
                                     ],
                                 ),
                             ]

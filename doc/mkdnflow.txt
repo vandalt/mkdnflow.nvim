@@ -111,6 +111,7 @@ Link and reference handling                           *Mkdnflow-link-handling*
     [x] Automatic links (``)
     [x] Reference-style links (`[my page][1]` with `[1]: my_page.md`)
     [x] Image links (`!alt text`) — opened in system viewer
+    [x] Citations (`@citekey` or Pandoc-style `[@citekey]`)
 
 
 ------------------------------------------------------------------------------

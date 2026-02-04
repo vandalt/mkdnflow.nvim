@@ -97,6 +97,7 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
     - [x] Automatic links (`<https://my.page>`)
     - [x] Reference-style links (`[my page][1]` with `[1]: my_page.md`)
     - [x] Image links (`![alt text](image.png)`) — opened in system viewer
+    - [x] Citations (`@citekey` or Pandoc-style `[@citekey]`)
 
 ### 📊 Table support
 

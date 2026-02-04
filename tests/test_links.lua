@@ -356,6 +356,223 @@ T['getLinkUnderCursor']['handles possessive citation'] = function()
     eq(result, '@smith2020')
 end
 
+-- =============================================================================
+-- Pandoc-style bracketed citations (Issue #285)
+-- =============================================================================
+T['pandoc_citation'] = new_set()
+
+T['pandoc_citation']['detects on opening bracket'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 4) -- cursor on '['
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'pandoc_citation')
+end
+
+T['pandoc_citation']['detects on @ symbol'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 5) -- cursor on '@'
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'pandoc_citation')
+end
+
+T['pandoc_citation']['detects on citekey'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 8) -- cursor in middle of citekey
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'pandoc_citation')
+end
+
+T['pandoc_citation']['detects on closing bracket'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 15) -- cursor on ']'
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'pandoc_citation')
+end
+
+T['pandoc_citation']['extracts source with @ prefix'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_source = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    local result = child.lua_get('_G.test_source')
+    eq(result, '@smith2020')
+end
+
+T['pandoc_citation']['extracts name without @ prefix'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_name = require("mkdnflow.links").getLinkPart(_G.test_link, "name")')
+    local result = child.lua_get('_G.test_name')
+    eq(result, 'smith2020')
+end
+
+T['pandoc_citation']['returns correct boundaries including brackets'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 8)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local start_col = child.lua_get('_G.test_link[5]')
+    local end_col = child.lua_get('_G.test_link[7]')
+    eq(start_col, 5) -- '[' at position 5
+    eq(end_col, 16) -- ']' at position 16
+end
+
+T['pandoc_citation']['destroyLink removes brackets'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 8)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local result = get_line(1)
+    eq(result, 'See smith2020 for details.')
+end
+
+T['pandoc_citation']['standalone @citekey still detected as citation'] = function()
+    set_lines({ 'As noted by @smith2020, this is true.' })
+    set_cursor(1, 15)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'citation') -- Regular citation, not pandoc_citation
+end
+
+T['pandoc_citation']['handles special chars in citekey'] = function()
+    set_lines({ 'See [@smith_2020-a.b] for details.' })
+    set_cursor(1, 8)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_source = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    local result = child.lua_get('_G.test_source')
+    eq(result, '@smith_2020-a.b')
+end
+
+T['pandoc_citation']['handles multiple on same line'] = function()
+    set_lines({ 'See [@smith2020] and [@jones2021].' })
+    set_cursor(1, 22) -- cursor on second citation
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local match = child.lua_get('_G.test_link and _G.test_link[1] or nil')
+    eq(match, '[@jones2021]')
+end
+
+T['pandoc_citation']['at start of line'] = function()
+    set_lines({ '[@smith2020] says this.' })
+    set_cursor(1, 0)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'pandoc_citation')
+end
+
+T['pandoc_citation']['at end of line'] = function()
+    set_lines({ 'See [@smith2020]' })
+    set_cursor(1, 15)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'pandoc_citation')
+end
+
+-- =============================================================================
+-- Pandoc citation integration with bib module
+-- =============================================================================
+T['pandoc_citation_bib'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            -- Get the absolute path to the test bib file
+            local test_bib_path = vim.fn.fnamemodify('tests/fixtures/test.bib', ':p')
+            child.lua(
+                [[
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    modules = { bib = true },
+                    bib = {
+                        default_path = ']]
+                    .. test_bib_path
+                    .. [[',
+                        find_in_root = false
+                    },
+                    links = { transform_explicit = false },
+                    silent = true
+                })
+            ]]
+            )
+        end,
+    },
+})
+
+T['pandoc_citation_bib']['source works with handleCitation'] = function()
+    -- Verify that the source extracted from [@citekey] works with bib.handleCitation()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 5) -- on '['
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+        _G.bib_result = require('mkdnflow.bib').handleCitation(_G.source)
+    ]])
+    local source = child.lua_get('_G.source')
+    local bib_result = child.lua_get('_G.bib_result')
+    eq(source, '@smith2020')
+    eq(bib_result, 'https://example.com/smith2020')
+end
+
+T['pandoc_citation_bib']['cursor on bracket still resolves bib entry'] = function()
+    -- The key test: cursor on '[' bracket should still find the citation
+    set_lines({ 'Reference: [@jones2021]' })
+    set_cursor(1, 11) -- on '[' bracket
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+        _G.bib_result = require('mkdnflow.bib').handleCitation(_G.source)
+    ]])
+    local link_type = child.lua_get('_G.link and _G.link.type or nil')
+    local source = child.lua_get('_G.source')
+    local bib_result = child.lua_get('_G.bib_result')
+    eq(link_type, 'pandoc_citation')
+    eq(source, '@jones2021')
+    eq(bib_result, 'file:/path/to/jones2021.pdf')
+end
+
+T['pandoc_citation_bib']['pathType identifies citation correctly'] = function()
+    -- Verify that paths.pathType() correctly identifies the extracted source as a citation
+    set_lines({ 'See [@doe2022] here.' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+        _G.path_type = require('mkdnflow.paths').pathType(_G.source, nil, _G.link.type)
+    ]])
+    local path_type = child.lua_get('_G.path_type')
+    eq(path_type, 'citation')
+end
+
+T['pandoc_citation_bib']['nonexistent citekey returns nil'] = function()
+    set_lines({ 'See [@nonexistent2099] here.' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+        _G.bib_result = require('mkdnflow.bib').handleCitation(_G.source)
+    ]])
+    local link_type = child.lua_get('_G.link and _G.link.type or nil')
+    local bib_result = child.lua_get('_G.bib_result')
+    eq(link_type, 'pandoc_citation')
+    eq(bib_result, vim.NIL)
+end
+
+T['pandoc_citation_bib']['special chars in citekey works with bib'] = function()
+    set_lines({ 'See [@special_key-2024] here.' })
+    set_cursor(1, 5)
+    child.lua([[
+        _G.link = require('mkdnflow.links').getLinkUnderCursor()
+        _G.source = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+        _G.bib_result = require('mkdnflow.bib').handleCitation(_G.source)
+    ]])
+    local source = child.lua_get('_G.source')
+    local bib_result = child.lua_get('_G.bib_result')
+    eq(source, '@special_key-2024')
+    eq(bib_result, 'https://example.com/special')
+end
+
 -- Edge cases
 T['getLinkUnderCursor']['handles link at end of line'] = function()
     set_lines({ 'See [this](file.md)' })
@@ -1690,6 +1907,15 @@ T['Link']['is_citation() returns true for citations'] = function()
         _G.link = core.Link:new({ match = '@smith2020', type = 'citation' })
     ]])
     eq(child.lua_get('_G.link:is_citation()'), true)
+end
+
+T['Link']['is_pandoc_citation() returns true for pandoc citations'] = function()
+    child.lua([[
+        local core = require('mkdnflow.links.core')
+        _G.link = core.Link:new({ match = '[@smith2020]', type = 'pandoc_citation' })
+    ]])
+    eq(child.lua_get('_G.link:is_pandoc_citation()'), true)
+    eq(child.lua_get('_G.link:is_citation()'), false)
 end
 
 T['Link']['get_type() returns type string'] = function()
