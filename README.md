@@ -997,8 +997,8 @@ Configuration options.
 | `MkdnMoveSource` | `{ 'n', '<F2>' }` | Open a dialog where you can provide a new source for a link and the plugin will rename and move the associated file on the backend (and rename the link source). |
 | `MkdnYankAnchorLink` | `{ 'n', 'yaa' }` | Yank a formatted anchor link (if cursor is currently on a line with a heading). |
 | `MkdnYankFileAnchorLink` | `{ 'n', 'yfa' }` | Yank a formatted anchor link with the filename included before the anchor (if cursor is currently on a line with a heading). |
-| `MkdnIncreaseHeading` | `{ { 'n', 'v' }, '+' }` | Increase heading importance (remove hashes). Supports visual selection to change multiple headings at once. |
-| `MkdnDecreaseHeading` | `{ { 'n', 'v' }, '-' }` | Decrease heading importance (add hashes). Supports visual selection to change multiple headings at once. |
+| `MkdnIncreaseHeading` | `{ { 'n', 'v' }, '+' }` | Increase heading importance (remove hashes). Supports visual selection to change multiple headings at once. Visual mode supports dot-repeat (like Vim's `<` and `>`). |
+| `MkdnDecreaseHeading` | `{ { 'n', 'v' }, '-' }` | Decrease heading importance (add hashes). Supports visual selection to change multiple headings at once. Visual mode supports dot-repeat (like Vim's `<` and `>`). |
 | `MkdnIncreaseHeadingOp` | `{ { 'n', 'v' }, 'g+' }` | Operator version of MkdnIncreaseHeading. In normal mode, use with a motion (e.g., `g+}` to increase headings to next paragraph). In visual mode, operates on selection. Supports dot-repeat. |
 | `MkdnDecreaseHeadingOp` | `{ { 'n', 'v' }, 'g-' }` | Operator version of MkdnDecreaseHeading. In normal mode, use with a motion (e.g., `g-}` to decrease headings to next paragraph). In visual mode, operates on selection. Supports dot-repeat. |
 | `MkdnToggleToDo` | `{ { 'n', 'v' }, '<C-Space>' }` | Toggle to-do list item's completion status or convert a list item into a to-do list item. |

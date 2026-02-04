@@ -854,12 +854,12 @@ Note: The back-end function for `:MkdnGoBack` (`require('mkdnflow').buffers.goBa
     Command(
         name='`MkdnIncreaseHeading`',
         default_mapping="`{ { 'n', 'v' }, '+' }`",
-        description="""Increase heading importance (remove hashes). Supports visual selection to change multiple headings at once.""",
+        description="""Increase heading importance (remove hashes). Supports visual selection to change multiple headings at once. Visual mode supports dot-repeat (like Vim's `<` and `>`).""",
     ),
     Command(
         name='`MkdnDecreaseHeading`',
         default_mapping="`{ { 'n', 'v' }, '-' }`",
-        description="""Decrease heading importance (add hashes). Supports visual selection to change multiple headings at once.""",
+        description="""Decrease heading importance (add hashes). Supports visual selection to change multiple headings at once. Visual mode supports dot-repeat (like Vim's `<` and `>`).""",
     ),
     Command(
         name='`MkdnIncreaseHeadingOp`',

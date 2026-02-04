@@ -1621,13 +1621,15 @@ Configuration options.
     Default mapping: { { 'n', 'v' }, '+' }
 
     Increase heading importance (remove hashes). Supports visual selection to
-    change multiple headings at once.
+    change multiple headings at once. Visual mode supports dot-repeat (like
+    Vim's ``).
 
 :MkdnDecreaseHeading                        *Mkdnflow-cmd-MkdnDecreaseHeading*
     Default mapping: { { 'n', 'v' }, '-' }
 
     Decrease heading importance (add hashes). Supports visual selection to
-    change multiple headings at once.
+    change multiple headings at once. Visual mode supports dot-repeat (like
+    Vim's ``).
 
 :MkdnIncreaseHeadingOp                    *Mkdnflow-cmd-MkdnIncreaseHeadingOp*
     Default mapping: { { 'n', 'v' }, 'g+' }
