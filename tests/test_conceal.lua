@@ -139,4 +139,115 @@ T['settings']['sets conceallevel to 2'] = function()
     eq(conceallevel, 2)
 end
 
+-- =============================================================================
+-- Screenshot tests for visual concealing verification
+-- =============================================================================
+T['screenshot'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            -- Set consistent window size for reproducible screenshots
+            child.o.lines = 8
+            child.o.columns = 40
+            child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+            ]])
+        end,
+    },
+})
+
+-- Helper to set up concealing and position cursor
+local function setup_conceal_test(lines)
+    child.lua([[require('mkdnflow').setup({ links = { conceal = true }, silent = true })]])
+    child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+    child.cmd('doautocmd BufEnter test.md')
+    -- Move cursor to last line so other lines are concealed
+    child.api.nvim_win_set_cursor(0, { #lines, 0 })
+end
+
+T['screenshot']['wiki_link_simple'] = function()
+    -- [[target]] should display as: target
+    setup_conceal_test({ '[[wiki target]]', '', 'cursor here' })
+    MiniTest.expect.reference_screenshot(child.get_screenshot())
+end
+
+T['screenshot']['wiki_link_with_alias'] = function()
+    -- [[target|alias]] should display as: alias
+    setup_conceal_test({ '[[hidden target|visible alias]]', '', 'cursor here' })
+    MiniTest.expect.reference_screenshot(child.get_screenshot())
+end
+
+T['screenshot']['markdown_inline_link'] = function()
+    -- [text](url) should display as: text
+    setup_conceal_test({ '[click here](https://example.com)', '', 'cursor here' })
+    MiniTest.expect.reference_screenshot(child.get_screenshot())
+end
+
+T['screenshot']['markdown_reference_link'] = function()
+    -- [text][ref] should display as: text
+    setup_conceal_test({ '[link text][ref1]', '', '[ref1]: https://example.com', '', 'cursor here' })
+    MiniTest.expect.reference_screenshot(child.get_screenshot())
+end
+
+T['screenshot']['mixed_links'] = function()
+    -- All link types together - use larger window to fit all content
+    child.o.lines = 12
+    setup_conceal_test({
+        '[[wiki link]]',
+        '[[target|alias]]',
+        '[markdown](url)',
+        '[ref link][r1]',
+        '',
+        '[r1]: https://example.com',
+        '',
+        'cursor here',
+    })
+    MiniTest.expect.reference_screenshot(child.get_screenshot())
+end
+
+-- =============================================================================
+-- Treesitter detection
+-- =============================================================================
+T['treesitter'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                vim.fn.clearmatches()
+            ]])
+        end,
+    },
+})
+
+T['treesitter']['skips markdown patterns when ts active'] = function()
+    -- Mock treesitter as active by patching the detection function after setup
+    child.lua([[
+        -- First, load the conceal module to get the autocmd registered
+        require('mkdnflow').setup({ links = { conceal = true }, silent = true })
+
+        -- Clear any matches from the initial load
+        vim.fn.clearmatches()
+
+        -- Now mock the treesitter highlighter to appear active
+        local hl = require('vim.treesitter.highlighter')
+        hl.active[vim.api.nvim_get_current_buf()] = true
+    ]])
+
+    -- Trigger the autocmd again with mocked treesitter
+    child.cmd('doautocmd BufEnter test.md')
+
+    local matches = child.lua_get('vim.fn.getmatches()')
+
+    -- Should have wiki patterns (contain \[\[)
+    local has_wiki = has_pattern_containing(matches, '\\[\\[')
+    -- Should NOT have markdown patterns when treesitter is active
+    local has_markdown = has_pattern_containing(matches, '([^(]')
+
+    eq(has_wiki, true)
+    eq(has_markdown, false)
+end
+
 return T
