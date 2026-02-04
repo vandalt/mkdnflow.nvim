@@ -2266,7 +2266,7 @@ def build_documentation() -> List[Section]:
                     **Requirements**:
 
                     * Linux, macOS, or Windows
-                    * Neovim >= 0.10.0 (older versions may work, but the plugin is only tested on Neovim 0.10.x)
+                    * Neovim >= 0.9.5 (tested on 0.9.5, 0.10.x, and stable)
 
                     Install Mkdnflow using your preferred package manager for Neovim. Once installed,
                     Mkdnflow is configured and initialized using a setup function.

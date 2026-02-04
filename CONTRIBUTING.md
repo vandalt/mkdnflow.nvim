@@ -41,6 +41,37 @@ To update documentation:
 
 CI will verify that documentation is in sync. If you forget to run `make docs`, the CI check will fail.
 
+## Development
+
+### Running tests
+
+Tests use the [mini.test](https://github.com/echasnovski/mini.test) framework. To run tests:
+
+```bash
+make deps/mini.nvim   # One-time: download test dependency
+make test             # Run all tests
+make test_file FILE=tests/test_foo.lua  # Run a specific test file
+```
+
+### Multi-version compatibility testing
+
+The plugin supports Neovim 0.9.5+. To test across all supported versions locally, use [bob](https://github.com/MordechaiHadad/bob) (a Neovim version manager):
+
+```bash
+# Install bob (macOS)
+brew install bob
+
+# Install the versions we test against
+bob install 0.9.5
+bob install 0.10.0
+bob install stable
+
+# Run tests on all versions
+make test-compat
+```
+
+CI automatically tests against 0.9.5, 0.10.0, and stable on every push.
+
 ## Styleguides
 
 ### Git commit messages
