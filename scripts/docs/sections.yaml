@@ -242,6 +242,7 @@ sections:
                   -- Your other plugins
                   {
                       'jakewvincent/mkdnflow.nvim',
+                      ft = { 'markdown', 'rmd' },  -- Add custom filetypes here if configured
                       config = function()
                           require('mkdnflow').setup({
                               -- Your config
@@ -375,9 +376,8 @@ sections:
                     code: |
                       require('mkdnflow').setup({
                           filetypes = {
-                              md = true,
-                              rmd = true,
                               markdown = true,
+                              rmd = true,
                           },
                       })
                   - type: config_table
@@ -385,11 +385,14 @@ sections:
                   - type: admonition
                     kind: note
                     content: |
-                      This functionality references the file's extension. It does not rely on
-                      Neovim's filetype recognition. The extension must be provided in lower case
-                      because the plugin converts file names to lowercase. Any arbitrary extension
-                      can be supplied. Setting an extension to `false` is the same as not including
-                      it in the list.
+                      Mkdnflow activates based on Neovim's filetype detection, not file extensions.
+                      This means files with modelines like `vim: ft=markdown` will activate the plugin
+                      regardless of their extension.
+
+                      **Lazy loading note**: If you use a plugin manager with lazy loading (e.g., `ft = { 'markdown' }`)
+                      and configure custom extensions like `wiki = true`, you must add those filetypes
+                      to your lazy loading configuration (e.g., `ft = { 'markdown', 'wiki' }`), since the
+                      plugin won't load until it sees a matching filetype.
 
               - title: wrap
                 tag: config-wrap

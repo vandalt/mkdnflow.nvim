@@ -14,16 +14,17 @@ initialization:
 
   - signature: "require('mkdnflow').forceStart(opts)"
     description: |
-      Similar to setup, but forces the initialization of the plugin regardless
-      of the current buffer's filetype.
+      Activates the plugin if it has not already been activated. This is called
+      automatically when a buffer with a matching filetype is opened, but can
+      be triggered manually via the :Mkdnflow command.
     params:
       - name: opts
         type: table
         description: Table of options.
         children:
           - name: opts[1]
-            type: boolean
-            description: Whether to attempt initialization silently (`true`) or not (`false`).
+            type: string
+            description: Pass `'silent'` to suppress the startup message.
 
 linkmanagement:
   - signature: "require('mkdnflow').links.createLink(args)"

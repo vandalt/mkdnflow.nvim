@@ -26,9 +26,8 @@
         update = true,
     },
     filetypes = {
-        md = true,
-        rmd = true,
         markdown = true,
+        rmd = true,
     },
     foldtext = {
         object_count = true,

@@ -121,29 +121,38 @@ perspective:
       **`false`** (default): Perspective will be not updated when following a link to a file in a separate notebook/wiki. (Links in the file in the separate notebook/wiki will be interpreted relative to the original notebook/wiki.)
 
 filetypes:
-  - name: filetypes.md
+  - name: filetypes.markdown
     type: boolean
     description: |
-      **`true`** (default): The plugin activates for files with a `.md` extension.
-      `false`: The plugin does not activate for files with a `.md` extension.
+      **`true`** (default): The plugin activates for files with the `markdown` filetype (includes `.md`, `.markdown`, `.mkd`, `.mkdn`, `.mdwn`, `.mdown` extensions).
+      `false`: The plugin does not activate for markdown files.
 
   - name: filetypes.rmd
     type: boolean
     description: |
-      **`true`** (default): The plugin activates for files with a `.rmd` (rmarkdown) extension.
-      `false`: The plugin does not activate for files with a `.rmd` extension.
+      **`true`** (default): The plugin activates for files with the `rmd` filetype (`.rmd` extension).
+      `false`: The plugin does not activate for R Markdown files.
 
-  - name: filetypes.markdown
-    type: boolean
+  - name: filetypes.<name>
+    type: boolean | string
     description: |
-      **`true`** (default): The plugin activates for files with a `.markdown` extension.
-      `false`: The plugin does not activate for files with a `.markdown` extension.
+      Custom filetype/extension configuration:
 
-  - name: filetypes.<ext>
-    type: boolean
-    description: |
-      `true`: The plugin activates for files with the specified extension.
-      `false`: The plugin does not activate for files with the specified extension.
+      - `true`: If Neovim recognizes this as an extension (e.g., `md`), the detected filetype is used. Otherwise, the extension is auto-registered as its own filetype (e.g., `wiki = true` registers `.wiki` files as filetype `wiki`).
+      - `'filetype'` (string): Register this extension as the specified filetype. Example: `txt = 'markdown'` makes `.txt` files activate mkdnflow and be treated as markdown.
+      - `false`: Disable for this filetype/extension.
+
+      Note: Old extension-based configs (e.g., `md = true`) are automatically migrated to filetype-based configs (e.g., `markdown = true`).
+
+      Examples:
+      ```lua
+      filetypes = {
+          markdown = true,      -- Standard (default)
+          rmd = true,           -- Standard (default)
+          wiki = true,          -- Auto-register .wiki as 'wiki' filetype
+          txt = 'markdown',     -- Treat .txt files as markdown
+      }
+      ```
 
 wrap:
   - name: wrap

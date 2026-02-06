@@ -169,6 +169,7 @@ require('lazy').setup({
     -- Your other plugins
     {
         'jakewvincent/mkdnflow.nvim',
+        ft = { 'markdown', 'rmd' },  -- Add custom filetypes here if configured
         config = function()
             require('mkdnflow').setup({
                 -- Your config
@@ -253,9 +254,8 @@ the help files.
         update = true,
     },
     filetypes = {
-        md = true,
-        rmd = true,
         markdown = true,
+        rmd = true,
     },
     foldtext = {
         object_count = true,
@@ -515,26 +515,27 @@ require('mkdnflow').setup({
 ```lua
 require('mkdnflow').setup({
     filetypes = {
-        md = true,
-        rmd = true,
         markdown = true,
+        rmd = true,
     },
 })
 ```
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `filetypes.md` | `boolean` | **`true`** (default): The plugin activates for files with a `.md` extension.<br>`false`: The plugin does not activate for files with a `.md` extension. |
-| `filetypes.rmd` | `boolean` | **`true`** (default): The plugin activates for files with a `.rmd` (rmarkdown) extension.<br>`false`: The plugin does not activate for files with a `.rmd` extension. |
-| `filetypes.markdown` | `boolean` | **`true`** (default): The plugin activates for files with a `.markdown` extension.<br>`false`: The plugin does not activate for files with a `.markdown` extension. |
-| `filetypes.<ext>` | `boolean` | `true`: The plugin activates for files with the specified extension.<br>`false`: The plugin does not activate for files with the specified extension. |
+| `filetypes.markdown` | `boolean` | **`true`** (default): The plugin activates for files with the `markdown` filetype (includes `.md`, `.markdown`, `.mkd`, `.mkdn`, `.mdwn`, `.mdown` extensions).<br>`false`: The plugin does not activate for markdown files. |
+| `filetypes.rmd` | `boolean` | **`true`** (default): The plugin activates for files with the `rmd` filetype (`.rmd` extension).<br>`false`: The plugin does not activate for R Markdown files. |
+| `filetypes.<name>` | `boolean` \| `string` | Custom filetype/extension configuration:<br><br>- `true`: If Neovim recognizes this as an extension (e.g., `md`), the detected filetype is used. Otherwise, the extension is auto-registered as its own filetype (e.g., `wiki = true` registers `.wiki` files as filetype `wiki`).<br>- `'filetype'` (string): Register this extension as the specified filetype. Example: `txt = 'markdown'` makes `.txt` files activate mkdnflow and be treated as markdown.<br>- `false`: Disable for this filetype/extension.<br><br>Note: Old extension-based configs (e.g., `md = true`) are automatically migrated to filetype-based configs (e.g., `markdown = true`).<br><br>Examples:<br>```lua<br>filetypes = {<br>    markdown = true,      -- Standard (default)<br>    rmd = true,           -- Standard (default)<br>    wiki = true,          -- Auto-register .wiki as 'wiki' filetype<br>    txt = 'markdown',     -- Treat .txt files as markdown<br>}<br>``` |
 
 > [!NOTE]
-> This functionality references the file's extension. It does not rely on
-> Neovim's filetype recognition. The extension must be provided in lower case
-> because the plugin converts file names to lowercase. Any arbitrary extension
-> can be supplied. Setting an extension to `false` is the same as not including
-> it in the list.
+> Mkdnflow activates based on Neovim's filetype detection, not file extensions.
+> This means files with modelines like `vim: ft=markdown` will activate the plugin
+> regardless of their extension.
+>
+> **Lazy loading note**: If you use a plugin manager with lazy loading (e.g., `ft = { 'markdown' }`)
+> and configure custom extensions like `wiki = true`, you must add those filetypes
+> to your lazy loading configuration (e.g., `ft = { 'markdown', 'wiki' }`), since the
+> plugin won't load until it sees a matching filetype.
 
 ##### wrap
 
@@ -1069,12 +1070,13 @@ default configuration is used.
 
 `require('mkdnflow').forceStart(opts)`
 
-Similar to setup, but forces the initialization of the plugin regardless
-of the current buffer's filetype.
+Activates the plugin if it has not already been activated. This is called
+automatically when a buffer with a matching filetype is opened, but can
+be triggered manually via the :Mkdnflow command.
 
 - **Parameters:**
     - `opts`: (table) Table of options.
-        - `opts[1]`: (boolean) Whether to attempt initialization silently (`true`) or not (`false`).
+        - `opts[1]`: (string) Pass `'silent'` to suppress the startup message.
 
 ### Link management
 
