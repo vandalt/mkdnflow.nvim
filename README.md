@@ -1018,6 +1018,7 @@ Configuration options.
 | `MkdnTableFormat` | -- | Format a table under the cursor. |
 | `MkdnTableNextCell` | `{ 'i', '<Tab>' }` | Move the cursor to the beginning of the next cell in the table, jumping to the next row if needed. |
 | `MkdnTablePrevCell` | `{ 'i', '<S-Tab>' }` | Move the cursor to the beginning of the previous cell in the table, jumping to the previous row if needed. |
+| `MkdnTableCellNewLine` | `{ 'i', '<S-CR>' }` | Insert a new line within the current table cell. In grid tables, this adds a new content line within the current row. In pipe tables, this inserts a `<br>` tag at the cursor position. |
 | `MkdnTableNextRow` | -- | Move the cursor to the beginning of the same cell in the next row of the table. |
 | `MkdnTablePrevRow` | `{ 'i', '<M-CR>' }` | Move the cursor to the beginning of the same cell in the previous row of the table. |
 | `MkdnTableNewRowBelow` | `{ 'n', '<leader>ir' }` | Add a new row below the row the cursor is currently in. |

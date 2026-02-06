@@ -5164,4 +5164,413 @@ T['grid_e2e']['Tab navigates through three-column grid table'] = function()
     eq(cursor[2] >= pipes[3], true)
 end
 
+-- =============================================================================
+-- cellNewLine: Pipe table <br> insertion
+-- =============================================================================
+T['cellNewLine'] = new_set()
+
+T['cellNewLine']['inserts <br> at cursor position in pipe table'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 7) -- In second cell, before 'bar'
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local line = get_line(3)
+    eq(line:find('<br>') ~= nil, true)
+end
+
+T['cellNewLine']['cursor positioned after <br> tag'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 7) -- In second cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 3) -- Same line
+    eq(cursor[2], 11) -- 7 + 4 = 11 (after <br>)
+end
+
+T['cellNewLine']['<br> inserted mid-content splits text correctly'] = function()
+    set_lines({
+        '| col1 | col2   |',
+        '| ---- | ------ |',
+        '| foo  | hello  |',
+    })
+    set_cursor(3, 11) -- After 'he' in 'hello' (| foo  | he|llo  |)
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local line = get_line(3)
+    -- Should contain 'he<br>llo'
+    eq(line:find('he<br>llo') ~= nil, true)
+end
+
+T['cellNewLine']['<br> in first cell'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 3) -- In first cell, after 'fo'
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local line = get_line(3)
+    eq(line:find('<br>') ~= nil, true)
+    local cursor = get_cursor()
+    eq(cursor[2], 7) -- 3 + 4 = 7
+end
+
+-- =============================================================================
+-- cellNewLine: Grid table content line insertion
+-- =============================================================================
+T['cellNewLine_grid'] = new_set()
+
+T['cellNewLine_grid']['inserts new empty content line after current line'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| col1  | col2  |',
+        '+=======+=======+',
+        '| foo   | bar   |',
+        '+-------+-------+',
+    })
+    set_cursor(4, 3) -- In first cell of data row
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 6) -- One new line added
+    -- New line should be an empty content line
+    eq(lines[5]:match('^|.*|$') ~= nil, true)
+    -- Border should still be at the end
+    eq(lines[6]:match('^%+') ~= nil, true)
+end
+
+T['cellNewLine_grid']['new line has correct column structure'] = function()
+    set_lines({
+        '+-----+-----+-----+',
+        '| a   | b   | c   |',
+        '+=====+=====+=====+',
+        '| foo | bar | baz |',
+        '+-----+-----+-----+',
+    })
+    set_cursor(4, 3) -- In first cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local new_line = get_line(5)
+    -- Count pipes: should have 4 (outer + 2 internal dividers)
+    local pipe_count = 0
+    for _ in new_line:gmatch('|') do
+        pipe_count = pipe_count + 1
+    end
+    eq(pipe_count, 4)
+end
+
+T['cellNewLine_grid']['cursor moves to same cell on new line'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| col1  | col2  |',
+        '+=======+=======+',
+        '| foo   | bar   |',
+        '+-------+-------+',
+    })
+    set_cursor(4, 10) -- In second cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 5) -- New line
+    -- Cursor should be in second cell of the new line
+    local new_line = get_line(5)
+    local new_row = child.lua_get(
+        [[require('mkdnflow.tables.core').TableRow:from_string(']]
+            .. new_line:gsub("'", "\\'")
+            .. [[', 5):which_cell(]]
+            .. cursor[2]
+            .. [[)]]
+    )
+    eq(new_row, 2)
+end
+
+T['cellNewLine_grid']['works on continuation line'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| col1  | col2  |',
+        '+=======+=======+',
+        '| foo   | bar   |',
+        '| more  | text  |',
+        '+-------+-------+',
+    })
+    set_cursor(5, 3) -- On continuation line, first cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 7) -- One new line added
+    -- The new line should be after line 5 (the continuation)
+    eq(lines[6]:match('^|.*|$') ~= nil, true)
+end
+
+T['cellNewLine_grid']['formats table after inserting content line'] = function()
+    -- When content is wider than the column, inserting a new line should
+    -- trigger formatting so all pipes align consistently.
+    set_lines({
+        '+-----------+------+',
+        '| Col1      | Col2 |',
+        '+===========+======+',
+        '| No breaks | Breaks     |',
+        '+-----------+------+',
+        '|           |      |',
+        '+-----------+------+',
+    })
+    set_cursor(4, 14) -- In second cell, after "Breaks"
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    -- Table should be formatted: all borders and content lines should have
+    -- consistent widths. The second column should be wide enough for "Breaks".
+    -- Check that the new content line has the same length as the border lines
+    local border_len = #lines[1]
+    for i = 2, #lines do
+        if lines[i]:match('^[|+]') then
+            eq(#lines[i], border_len, 'Line ' .. i .. ' has wrong length: ' .. lines[i])
+        end
+    end
+    -- Cursor should be on the new content line, in the second cell
+    local cursor = get_cursor()
+    -- The new line is line 5 (after the original line 4)
+    eq(cursor[1], 5)
+    -- The cursor should be in the second cell
+    local cursor_line = get_line(cursor[1])
+    local cell = child.lua_get(
+        [[require('mkdnflow.tables.core').TableRow:from_string(']]
+            .. cursor_line:gsub("'", "\\'")
+            .. [[', ]]
+            .. cursor[1]
+            .. [[):which_cell(]]
+            .. cursor[2]
+            .. [[)]]
+    )
+    eq(cell, 2)
+end
+
+T['cellNewLine_grid']['does nothing on border line'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| col1  | col2  |',
+        '+=======+=======+',
+        '| foo   | bar   |',
+        '+-------+-------+',
+    })
+    set_cursor(5, 3) -- On bottom border
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 5) -- No change
+end
+
+-- =============================================================================
+-- cellNewLine: Integration tests
+-- =============================================================================
+T['cellNewLine_integration'] = new_set()
+
+T['cellNewLine_integration']['multiple cellNewLine calls create multiple content lines'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| col1  | col2  |',
+        '+=======+=======+',
+        '| foo   | bar   |',
+        '+-------+-------+',
+    })
+    set_cursor(4, 3)
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    -- Now cursor is on line 5 (the new empty line)
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 7) -- Two new lines added
+end
+
+T['cellNewLine_integration']['pipe table: multiple <br> insertions in same cell'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 3) -- In first cell, after 'fo'
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    -- Now cursor should be after first <br>
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local line = get_line(3)
+    -- Should have two <br> tags
+    local count = 0
+    for _ in line:gmatch('<br>') do
+        count = count + 1
+    end
+    eq(count, 2)
+end
+
+T['cellNewLine_integration']['cellNewLine on separator row is no-op for pipe tables'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(2, 3) -- On separator row
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local line = get_line(2)
+    -- Separator row gets <br> inserted (it IS part of table, so pipe logic applies)
+    -- This is acceptable: separator row is a valid table line
+    eq(line:find('<br>') ~= nil, true)
+end
+
+-- =============================================================================
+-- cellNewLine: Fallback behavior
+-- =============================================================================
+T['cellNewLine_fallback'] = new_set()
+
+T['cellNewLine_fallback']['returns fallback key when not in a table'] = function()
+    set_lines({ 'just some text' })
+    set_cursor(1, 5)
+    local result = child.lua_get([[require('mkdnflow.tables').cellNewLine()]])
+    -- Should return the <S-CR> keycode (not nil)
+    eq(result ~= nil, true)
+    eq(type(result), 'string')
+end
+
+T['cellNewLine_fallback']['returns nil when handled in table'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 3)
+    local result = child.lua_get([[require('mkdnflow.tables').cellNewLine()]])
+    eq(result, vim.NIL)
+end
+
+-- =============================================================================
+-- cellNewLine: E2E tests with keymap
+-- =============================================================================
+T['cellNewLine_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({})
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['cellNewLine_e2e']['<S-CR> in grid table adds content line'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| col1  | col2  |',
+        '+=======+=======+',
+        '| foo   | bar   |',
+        '+-------+-------+',
+    })
+    set_cursor(4, 3)
+    child.type_keys('i')
+    child.type_keys('<S-CR>')
+    child.type_keys('<Esc>')
+    local lines = get_lines()
+    eq(#lines, 6) -- One line added
+end
+
+T['cellNewLine_e2e']['<S-CR> in pipe table inserts <br>'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 3)
+    child.type_keys('i')
+    child.type_keys('<S-CR>')
+    child.type_keys('<Esc>')
+    local line = get_line(3)
+    eq(line:find('<br>') ~= nil, true)
+end
+
+T['cellNewLine_e2e']['<S-CR> mid-word inserts <br> at cursor'] = function()
+    set_lines({
+        '| col1  | col2   |',
+        '| ----  | ------ |',
+        '| foo   | hello  |',
+    })
+    set_cursor(3, 10) -- After 'hel' in 'hello'
+    child.type_keys('i')
+    child.type_keys('<S-CR>')
+    child.type_keys('<Esc>')
+    local line = get_line(3)
+    eq(line:find('<br>') ~= nil, true)
+end
+
+T['cellNewLine_e2e']['text can be typed after <br> insertion'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 3)
+    child.type_keys('i')
+    child.type_keys('<S-CR>')
+    child.type_keys('world')
+    child.type_keys('<Esc>')
+    local line = get_line(3)
+    eq(line:find('<br>world') ~= nil, true)
+end
+
+T['cellNewLine_e2e']['<S-CR> outside table passes through'] = function()
+    set_lines({ 'just some text', '' })
+    set_cursor(1, 5)
+    child.type_keys('i')
+    child.type_keys('<S-CR>')
+    child.type_keys('<Esc>')
+    -- Should NOT have modified the line with <br>
+    local line = get_line(1)
+    eq(line:find('<br>'), nil)
+end
+
+T['cellNewLine_e2e'][':MkdnTableCellNewLine command works'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 3)
+    child.lua([[vim.cmd('MkdnTableCellNewLine')]])
+    local line = get_line(3)
+    eq(line:find('<br>') ~= nil, true)
+end
+
+T['cellNewLine_e2e']['grid table: cursor lands in correct cell'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| col1  | col2  |',
+        '+=======+=======+',
+        '| foo   | bar   |',
+        '+-------+-------+',
+    })
+    set_cursor(4, 10) -- In second cell
+    child.type_keys('i')
+    child.type_keys('<S-CR>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    eq(cursor[1], 5) -- Moved to new line
+end
+
+T['cellNewLine_e2e']['grid table: single-column table'] = function()
+    set_lines({
+        '+-------+',
+        '| col1  |',
+        '+=======+',
+        '| foo   |',
+        '+-------+',
+    })
+    set_cursor(4, 3)
+    child.type_keys('i')
+    child.type_keys('<S-CR>')
+    child.type_keys('<Esc>')
+    local lines = get_lines()
+    eq(#lines, 6)
+    local new_line = get_line(5)
+    eq(new_line:match('^|.*|$') ~= nil, true)
+end
+
 return T

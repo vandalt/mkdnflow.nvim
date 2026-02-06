@@ -155,6 +155,11 @@ commands:
     description: |
       Move the cursor to the beginning of the previous cell in the table, jumping to the previous row if needed.
 
+  - name: MkdnTableCellNewLine
+    default_mapping: "{ 'i', '<S-CR>' }"
+    description: |
+      Insert a new line within the current table cell. In grid tables, this adds a new content line within the current row. In pipe tables, this inserts a `<br>` tag at the cursor position.
+
   - name: MkdnTableNextRow
     default_mapping: null
     description: |

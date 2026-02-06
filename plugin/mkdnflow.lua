@@ -286,6 +286,12 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             tables.deleteCol()
         end
     end, {})
+    user_command('MkdnTableCellNewLine', function(opts)
+        local tables = require_module('tables')
+        if tables then
+            tables.cellNewLine()
+        end
+    end, {})
     user_command('MkdnFoldSection', function(opts)
         local folds = require_module('folds')
         if folds then

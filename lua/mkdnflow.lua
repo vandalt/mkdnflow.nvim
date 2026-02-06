@@ -244,6 +244,7 @@ local default_config = {
         MkdnUpdateNumbering = { 'n', '<leader>nn' },
         MkdnTableNextCell = { 'i', '<Tab>' },
         MkdnTablePrevCell = { 'i', '<S-Tab>' },
+        MkdnTableCellNewLine = { 'i', '<S-CR>' },
         MkdnTableNextRow = false,
         MkdnTablePrevRow = { 'i', '<M-CR>' },
         MkdnTableNewRowBelow = { 'n', '<leader>ir' },
@@ -481,6 +482,7 @@ init.command_deps = {
     MkdnTableNewColBefore = { 'tables' },
     MkdnTableDeleteRow = { 'tables' },
     MkdnTableDeleteCol = { 'tables' },
+    MkdnTableCellNewLine = { 'tables' },
     MkdnFoldSection = { 'folds' },
     MkdnUnfoldSection = { 'folds' },
     -- The following three depend on multiple modules; they will be defined but will

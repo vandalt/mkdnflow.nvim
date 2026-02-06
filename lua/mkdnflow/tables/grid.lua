@@ -963,4 +963,57 @@ function M.delete_col(tbl)
     end
 end
 
+-- =============================================================================
+-- Grid Table Cell New Line
+-- =============================================================================
+
+--- Insert a new empty content line within the current grid table row.
+--- The line is inserted after the cursor's current line, before the next border.
+--- Cursor moves to the same cell on the new line.
+--- @param tbl table MarkdownTable instance
+--- @param cursor_position table {row, col} from nvim_win_get_cursor
+function M.add_cell_line(tbl, cursor_position)
+    local core = get_core()
+    local TableRow = core.TableRow
+    local MarkdownTable = core.MarkdownTable
+    local config = get_config()
+    local padding = config.tables.style.cell_padding or 1
+
+    -- If cursor is on a border line, do nothing
+    local current_line_text =
+        vim.api.nvim_buf_get_lines(0, cursor_position[1] - 1, cursor_position[1], false)[1]
+    if MarkdownTable.isGridBorder(current_line_text) then
+        return
+    end
+
+    -- Determine which cell the cursor is in before any modifications
+    local current_row = TableRow:from_string(current_line_text, cursor_position[1])
+    local current_cell = current_row:which_cell(cursor_position[2])
+
+    -- Build empty content line matching table's column structure
+    local empty_cells = {}
+    for _ = 1, tbl.col_count do
+        table.insert(empty_cells, '')
+    end
+    local new_line = build_content_line(empty_cells, tbl.col_widths, padding)
+
+    -- Insert after the current line
+    local insert_at = cursor_position[1] -- 1-indexed line number
+    vim.api.nvim_buf_set_lines(0, insert_at, insert_at, false, { new_line })
+
+    -- Re-read and format the table so all lines have consistent widths
+    local refreshed_tbl = MarkdownTable:read(insert_at)
+    if refreshed_tbl.valid then
+        M.format(refreshed_tbl)
+    end
+
+    -- Find the new line's position after formatting (line number may have shifted)
+    -- The inserted line is still at insert_at + 1 since format replaces in-place
+    local new_line_nr = insert_at + 1
+    local formatted_line = vim.api.nvim_buf_get_lines(0, new_line_nr - 1, new_line_nr, false)[1]
+    local new_row = TableRow:from_string(formatted_line, new_line_nr)
+    local cell_start, _ = new_row:locate_cell(current_cell)
+    vim.api.nvim_win_set_cursor(0, { new_line_nr, cell_start - 1 })
+end
+
 return M

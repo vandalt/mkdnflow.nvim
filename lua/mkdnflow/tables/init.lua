@@ -403,6 +403,42 @@ function M.deleteCol()
     tbl:delete_col()
 end
 
+--- Insert a new line within the current table cell.
+--- Grid tables: inserts a new empty content line within the current row.
+--- Pipe tables: inserts a `<br>` tag at the cursor position.
+--- @return string|nil Fallback key if not in a table, nil if handled
+function M.cellNewLine()
+    local position = vim.api.nvim_win_get_cursor(0)
+    local line = vim.api.nvim_get_current_line()
+
+    if not MarkdownTable.isPartOfTable(line, position[1]) then
+        return vim.api.nvim_replace_termcodes('<S-CR>', true, false, true)
+    end
+
+    -- Check if on a continuation line; use primary row for context
+    local is_cont, primary_row_nr = is_continuation_line(position[1])
+    local effective_line = is_cont and primary_row_nr or position[1]
+
+    if MarkdownTable._isGridContext(effective_line) then
+        -- Grid table: insert new content line within the row
+        local tbl = MarkdownTable:read(effective_line)
+        if tbl.valid then
+            require('mkdnflow.tables.grid').add_cell_line(tbl, position)
+        end
+    else
+        -- Pipe table: insert <br> at cursor position
+        local row = position[1]
+        local col = position[2]
+        local current_line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+        local before = current_line:sub(1, col)
+        local after = current_line:sub(col + 1)
+        local new_line = before .. '<br>' .. after
+        vim.api.nvim_buf_set_lines(0, row - 1, row, false, { new_line })
+        vim.api.nvim_win_set_cursor(0, { row, col + 4 })
+    end
+    return nil
+end
+
 -- =============================================================================
 -- Export classes for advanced usage
 -- =============================================================================

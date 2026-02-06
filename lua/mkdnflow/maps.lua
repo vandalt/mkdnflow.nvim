@@ -47,6 +47,7 @@ local descriptions = {
     MkdnUpdateNumbering = 'Update numbering in ordered list',
     MkdnTableNextCell = 'Jump to next table cell',
     MkdnTablePrevCell = 'Jump to previous table cell',
+    MkdnTableCellNewLine = 'Insert new line in table cell',
     MkdnTableNextRow = 'Jump to next table row',
     MkdnTablePrevRow = 'Jump to previous table row',
     MkdnTableNewRowBelow = 'Insert table row below',
@@ -85,6 +86,7 @@ local fallback_commands = {
     MkdnEnter = true,
     MkdnTab = true,
     MkdnSTab = true,
+    MkdnTableCellNewLine = true,
 }
 
 -- Helper to set up a single mapping
@@ -183,6 +185,17 @@ local function setup_mapping(mode, lhs, command)
                 desc = descriptions[command],
                 callback = function()
                     local fallback = require('mkdnflow.wrappers').indentListItemOrJumpTableCell(-1)
+                    if fallback then
+                        vim.api.nvim_feedkeys(fallback, 'n', true)
+                    end
+                end,
+            })
+        elseif command == 'MkdnTableCellNewLine' then
+            vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+                noremap = true,
+                desc = descriptions[command],
+                callback = function()
+                    local fallback = require('mkdnflow.tables').cellNewLine()
                     if fallback then
                         vim.api.nvim_feedkeys(fallback, 'n', true)
                     end
