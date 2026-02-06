@@ -19,10 +19,10 @@ local silent = require('mkdnflow').config.silent
 local warn = function(message)
     vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
 end
--- Show a warning message if nvim < 0.7.x
-if require('mkdnflow').nvim_version < 7 and not silent then
+-- Show a warning message if nvim < 0.9.x
+if require('mkdnflow').nvim_version < 9 and not silent then
     warn(
-        '⬇️  Not all Mkdnflow functionality will work for your current version of Neovim, including mappings. Please upgrade to Neovim >= 0.7 or make sure to set your mappings in your Neovim config.'
+        '⬇️  Not all Mkdnflow functionality will work for your current version of Neovim, including mappings. Please upgrade to Neovim >= 0.9 or make sure to set your mappings in your Neovim config.'
     )
 end
 local M = {}
@@ -33,6 +33,49 @@ since been migrated to another setting or another format. It returns an equiva-
 lent user config that is upgraded to the new format.
 --]]
 M.userConfigCheck = function(user_config)
+    -- Migrate old extension-based filetypes config to filetype-based
+    -- Extensions like 'md' are migrated to their corresponding filetype ('markdown')
+    local extension_to_filetype = {
+        md = 'markdown',
+        mkd = 'markdown',
+        mkdn = 'markdown',
+        mdwn = 'markdown',
+        mdown = 'markdown',
+    }
+
+    if user_config.filetypes then
+        local new_filetypes = {}
+        local migrated = false
+
+        for key, value in pairs(user_config.filetypes) do
+            if extension_to_filetype[key] then
+                -- Known extension, migrate to filetype
+                local ft = extension_to_filetype[key]
+                -- false takes precedence over true (explicit disable wins)
+                if new_filetypes[ft] == nil or value == false then
+                    new_filetypes[ft] = value
+                end
+                migrated = true
+            else
+                -- Already a filetype or unknown extension, keep as-is
+                -- But still respect false precedence
+                if new_filetypes[key] == nil or value == false then
+                    new_filetypes[key] = value
+                end
+            end
+        end
+
+        if migrated and not silent then
+            warn(
+                "⬇️  Config 'filetypes' now uses Neovim filetypes. "
+                    .. "Extensions like 'md' are auto-migrated to 'markdown'. "
+                    .. 'See :h mkdnflow-filetypes'
+            )
+        end
+
+        user_config.filetypes = new_filetypes
+    end
+
     -- Check if to-do markers are being customized but no values were provided
     -- for not_started, in_progress, and complete
     if user_config.to_do then

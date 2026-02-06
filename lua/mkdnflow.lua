@@ -43,9 +43,8 @@ local default_config = {
         update = true,
     },
     filetypes = {
-        md = true,
-        rmd = true,
-        markdown = true,
+        markdown = true, -- Covers .md, .markdown, .mkd, .mkdn, .mdwn, .mdown
+        rmd = true, -- Covers .rmd
     },
     foldtext = {
         object_count = true,
@@ -261,11 +260,187 @@ local default_config = {
     },
 }
 
+-- Known Neovim filetypes (explicit list to avoid fragile heuristics)
+local known_filetypes = {
+    markdown = true,
+    rmd = true,
+}
+
+-- Extensions that map to known filetypes
+local extension_to_filetype = {
+    md = 'markdown',
+    markdown = 'markdown',
+    mkd = 'markdown',
+    mkdn = 'markdown',
+    mdwn = 'markdown',
+    mdown = 'markdown',
+    rmd = 'rmd',
+}
+
+-- Process filetypes config and return list of filetype patterns for autocmd
+-- Also registers unknown extensions via vim.filetype.add()
+local function resolve_filetypes(filetypes_config)
+    local patterns = {} -- Set of filetypes to enable
+    local disabled = {} -- Set of filetypes explicitly disabled
+
+    -- First pass: collect disabled filetypes (false takes precedence)
+    for key, value in pairs(filetypes_config) do
+        if value == false then
+            local ft = extension_to_filetype[key] or key
+            disabled[ft] = true
+        end
+    end
+
+    -- Second pass: process enabled filetypes
+    for key, value in pairs(filetypes_config) do
+        if value == false then
+            -- Skip (handled above)
+        elseif known_filetypes[key] then
+            -- Direct filetype name (e.g., 'markdown')
+            if not disabled[key] then
+                patterns[key] = true
+            end
+        elseif extension_to_filetype[key] then
+            -- Known extension (e.g., 'md' -> 'markdown')
+            local ft = extension_to_filetype[key]
+            if not disabled[ft] then
+                patterns[ft] = true
+            end
+        elseif type(value) == 'string' then
+            -- Unknown extension, register as specified filetype
+            vim.filetype.add({ extension = { [key] = value } })
+            if not disabled[value] then
+                patterns[value] = true
+            end
+        else
+            -- Unknown extension (value = true), register as its own filetype
+            vim.filetype.add({ extension = { [key] = key } })
+            if not disabled[key] then
+                patterns[key] = true
+            end
+        end
+    end
+
+    -- Convert to array for autocmd pattern
+    local result = {}
+    for ft, _ in pairs(patterns) do
+        table.insert(result, ft)
+    end
+    return result
+end
+
 local init = {} -- Init functions & variables
 init.utils = require('mkdnflow.utils')
 init.user_config = {} -- For user config
 init.config = {} -- For merged configs
 init.loaded = nil -- For load status
+
+-- Activate: loads modules and sets up perspective/root directory.
+-- This is defined at module level so both setup() and forceStart() can call it.
+local function activate()
+    if init.loaded then
+        return
+    end
+
+    -- Get silence preference
+    local silent = init.config.silent
+    -- Determine perspective
+    local perspective = init.config.perspective
+    if perspective.priority == 'root' then
+        -- Retrieve the root 'tell'
+        local root_tell = perspective.root_tell
+        -- If one was provided, try to find the root directory for the notebook/wiki using the tell
+        if root_tell then
+            init.root_dir = init.utils.getRootDir(init.initial_dir, root_tell, init.this_os)
+            -- Get notebook name
+            if init.root_dir then
+                vim.api.nvim_set_current_dir(init.root_dir)
+                local name = init.root_dir:match('.*/(.*)') or init.root_dir
+                if not silent then
+                    vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
+                end
+            else
+                local fallback = init.config.perspective.fallback
+                if not silent then
+                    vim.api.nvim_echo({
+                        {
+                            '⬇️  No notebook found. Fallback perspective: ' .. fallback,
+                            'WarningMsg',
+                        },
+                    }, true, {})
+                end
+                -- Set working directory according to current perspective
+                if fallback == 'first' then
+                    vim.api.nvim_set_current_dir(init.initial_dir)
+                else
+                    local bufname = vim.api.nvim_buf_get_name(0)
+                    if init.this_os:match('Windows') then
+                        vim.api.nvim_set_current_dir(bufname:match('(.*)\\.-$'))
+                    else
+                        vim.api.nvim_set_current_dir(bufname:match('(.*)/.-$'))
+                    end
+                end
+            end
+        else
+            if not silent then
+                vim.api.nvim_echo({
+                    {
+                        "⬇️  No tell was provided for the notebook's root directory. See :h mkdnflow-configuration.",
+                        'WarningMsg',
+                    },
+                }, true, {})
+            end
+            if init.config.perspective.fallback == 'first' then
+                vim.api.nvim_set_current_dir(init.initial_dir)
+            else
+                -- Set working directory
+                local bufname = vim.api.nvim_buf_get_name(0)
+                if init.this_os:match('Windows') then
+                    vim.api.nvim_set_current_dir(bufname:match('(.*)\\.-$'))
+                else
+                    vim.api.nvim_set_current_dir(bufname:match('(.*)/.-$'))
+                end
+            end
+        end
+    end
+    -- Set jump pattern set based on user's link type
+    if init.config.cursor.jump_patterns == nil then
+        if init.config.links.style == 'markdown' then
+            init.config.cursor.jump_patterns = {
+                '!%b[]%b()', -- Image links
+                '%b[]%b()',
+                '<[^<>]->',
+                '%b[] ?%b[]',
+                '%[@[^%[%]]-%]',
+            }
+        elseif init.config.links.style == 'wiki' then
+            init.config.cursor.jump_patterns = {
+                '%[%[[^%[%]]-%]%]',
+            }
+        else
+            init.config.cursor.jump_patterns = {}
+        end
+    end
+    -- Load modules
+    init.conceal = init.config.links.conceal and require('mkdnflow.conceal')
+    init.bib = init.config.modules.bib and require('mkdnflow.bib')
+    init.buffers = init.config.modules.buffers and require('mkdnflow.buffers')
+    init.folds = init.config.modules.folds and require('mkdnflow.folds')
+    init.foldtext = init.config.modules.foldtext and require('mkdnflow.foldtext')
+    init.links = init.config.modules.links and require('mkdnflow.links')
+    init.cursor = init.config.modules.cursor and require('mkdnflow.cursor')
+    init.lists = init.config.modules.lists and require('mkdnflow.lists')
+    init.maps = init.config.modules.maps and require('mkdnflow.maps')
+    init.paths = init.config.modules.paths and require('mkdnflow.paths')
+    init.tables = init.config.modules.tables and require('mkdnflow.tables')
+    init.yaml = init.config.modules.yaml and require('mkdnflow.yaml')
+    init.cmp = init.config.modules.cmp and require('mkdnflow.cmp')
+    init.to_do = init.config.modules.to_do and require('mkdnflow.to_do')
+    -- Record load status
+    init.loaded = true
+    -- Re-trigger FileType so module autocmds (maps, conceal, foldtext, yaml) fire
+    vim.cmd('doautocmd FileType')
+end
 
 init.command_deps = {
     MkdnGoBack = { 'buffers' },
@@ -324,155 +499,71 @@ init.setup = function(user_config)
     -- Determine initial_dir according to OS
     init.initial_dir = (init.this_os:match('Windows') ~= nil and init.initial_buf:match('(.*)\\.-'))
         or init.initial_buf:match('(.*)/.-')
-    -- Get the extension of the file being edited
-    local ft = init.utils.getFileType(init.initial_buf)
-    -- Before fully loading config see if the plugin should be started
-    local load_on_ft = default_config.filetypes
+
+    -- Store user config for potential re-setup
     if next(user_config) then
-        if user_config.filetypes then
-            load_on_ft = init.utils.mergeTables(load_on_ft, user_config.filetypes)
-        end
         init.user_config = user_config
     end
+
     -- Read compatibility module & pass user config through config checker
     local compat = require('mkdnflow.compat')
-    -- Load extension if the filetype has a match in config.filetypes
-    -- Overwrite defaults w/ user's config settings, if any
     user_config = compat.userConfigCheck(user_config)
+
+    -- Merge user config with defaults
     init.config = init.utils.mergeTables(default_config, user_config)
-    if load_on_ft[ft] then
-        -- Get silence preference
-        local silent = init.config.silent
-        -- Determine perspective
-        local perspective = init.config.perspective
-        if perspective.priority == 'root' then
-            -- Retrieve the root 'tell'
-            local root_tell = perspective.root_tell
-            -- If one was provided, try to find the root directory for the notebook/wiki using the tell
-            if root_tell then
-                init.root_dir = init.utils.getRootDir(init.initial_dir, root_tell, init.this_os)
-                -- Get notebook name
-                if init.root_dir then
-                    vim.api.nvim_set_current_dir(init.root_dir)
-                    local name = init.root_dir:match('.*/(.*)') or init.root_dir
-                    if not silent then
-                        vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
-                    end
-                else
-                    local fallback = init.config.perspective.fallback
-                    if not silent then
-                        vim.api.nvim_echo({
-                            {
-                                '⬇️  No notebook found. Fallback perspective: ' .. fallback,
-                                'WarningMsg',
-                            },
-                        }, true, {})
-                    end
-                    --init.config.perspective.priority = init.config.perspective.fallback
-                    -- Set working directory according to current perspective
-                    if fallback == 'first' then
-                        vim.api.nvim_set_current_dir(init.initial_dir)
-                    else
-                        local bufname = vim.api.nvim_buf_get_name(0)
-                        if init.this_os:match('Windows') then
-                            vim.api.nvim_set_current_dir(bufname:match('(.*)\\.-$'))
-                        else
-                            vim.api.nvim_set_current_dir(bufname:match('(.*)/.-$'))
-                        end
-                    end
-                end
-            else
-                if not silent then
-                    vim.api.nvim_echo({
-                        {
-                            "⬇️  No tell was provided for the notebook's root directory. See :h mkdnflow-configuration.",
-                            'WarningMsg',
-                        },
-                    }, true, {})
-                end
-                if init.config.perspective.fallback == 'first' then
-                    vim.api.nvim_set_current_dir(init.initial_dir)
-                else
-                    -- Set working directory
-                    local bufname = vim.api.nvim_buf_get_name(0)
-                    if init.this_os:match('Windows') then
-                        vim.api.nvim_set_current_dir(bufname:match('(.*)\\.-$'))
-                    else
-                        vim.api.nvim_set_current_dir(bufname:match('(.*)/.-$'))
-                    end
-                end
-            end
+
+    -- Resolve filetypes (registers unknown extensions via vim.filetype.add)
+    local filetype_patterns = resolve_filetypes(init.config.filetypes)
+    init.config.resolved_filetypes = filetype_patterns
+
+    -- Re-detect current buffer's filetype if it was opened before registration
+    local current_file = vim.api.nvim_buf_get_name(0)
+    if current_file ~= '' then
+        local detected = vim.filetype.match({ filename = current_file })
+        if detected and vim.tbl_contains(filetype_patterns, detected) and vim.bo.filetype ~= detected then
+            vim.bo.filetype = detected -- This triggers FileType autocmd
         end
-        -- Set jump pattern set based on user's link type
-        if init.config.cursor.jump_patterns == nil then
-            if init.config.links.style == 'markdown' then
-                init.config.cursor.jump_patterns = {
-                    '!%b[]%b()', -- Image links
-                    '%b[]%b()',
-                    '<[^<>]->',
-                    '%b[] ?%b[]',
-                    '%[@[^%[%]]-%]',
-                }
-            elseif init.config.links.style == 'wiki' then
-                init.config.cursor.jump_patterns = {
-                    '%[%[[^%[%]]-%]%]',
-                }
-            else
-                init.config.cursor.jump_patterns = {}
-            end
-        end
-        -- Load modules
-        init.conceal = init.config.links.conceal and require('mkdnflow.conceal')
-        init.bib = init.config.modules.bib and require('mkdnflow.bib')
-        init.buffers = init.config.modules.buffers and require('mkdnflow.buffers')
-        init.folds = init.config.modules.folds and require('mkdnflow.folds')
-        init.foldtext = init.config.modules.foldtext and require('mkdnflow.foldtext')
-        init.links = init.config.modules.links and require('mkdnflow.links')
-        init.cursor = init.config.modules.cursor and require('mkdnflow.cursor')
-        init.lists = init.config.modules.lists and require('mkdnflow.lists')
-        init.maps = init.config.modules.maps and require('mkdnflow.maps')
-        init.paths = init.config.modules.paths and require('mkdnflow.paths')
-        init.tables = init.config.modules.tables and require('mkdnflow.tables')
-        init.yaml = init.config.modules.yaml and require('mkdnflow.yaml')
-        init.cmp = init.config.modules.cmp and require('mkdnflow.cmp')
-        init.to_do = init.config.modules.to_do and require('mkdnflow.to_do')
-        -- Record load status (i.e. loaded)
-        init.loaded = true
-    else
-        -- Record load status (i.e. not loaded)
-        init.loaded = false
-        -- Make table of extension patterns to try to match
-        local extension_patterns = {}
-        for key, _ in pairs(load_on_ft) do
-            table.insert(extension_patterns, '*.' .. key)
-        end
-        -- Define an autocommand to enable to plugin when the right buffer type is entered
-        if init.nvim_version >= 7 then
-            init.autocmd_id = vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWinEnter' }, {
-                pattern = extension_patterns,
-                command = 'Mkdnflow silent',
-            })
-        end
-        -- If maps module is not disabled, load the mapping autocmds
-        if init.config.modules.maps then
-            require('mkdnflow.maps')
-        end
+    end
+
+    -- Register activation augroup (clear ensures repeated setup() calls are safe)
+    vim.api.nvim_create_augroup('MkdnflowActivation', { clear = true })
+
+    -- Only create FileType autocmd if there are filetypes to watch
+    if #filetype_patterns > 0 then
+        vim.api.nvim_create_autocmd('FileType', {
+            group = 'MkdnflowActivation',
+            pattern = filetype_patterns,
+            callback = function()
+                activate()
+            end,
+        })
+    end
+
+    -- If current buffer already matches, activate immediately
+    local ft = vim.bo.filetype
+    if vim.tbl_contains(filetype_patterns, ft) then
+        activate()
     end
 end
 
 -- Force start
 init.forceStart = function(opts)
-    local silent = opts[1] or false
-    if init.loaded == true then
-        vim.api.nvim_echo({ { '⬇️  Mkdnflow is already running!', 'ErrorMsg' } }, true, {})
-    else
-        if silent ~= 'silent' then
-            vim.api.nvim_echo({ { '⬇️  Starting Mkdnflow', 'WarningMsg' } }, true, {})
+    local silent = (opts[1] == 'silent') or (init.config and init.config.silent)
+    if init.loaded then
+        if not silent then
+            vim.api.nvim_echo({ { '⬇️  Mkdnflow is already running!', 'ErrorMsg' } }, true, {})
         end
-        init.setup(init.user_config)
-        if vim.fn.api_info().version.minor >= 7 then
-            -- Delete the autocommand
-            vim.api.nvim_del_autocmd(init.autocmd_id)
+    else
+        -- If setup() was never called, call it first
+        if not init.config.resolved_filetypes then
+            init.setup(init.user_config or {})
+        end
+        -- If still not loaded (e.g. non-matching buffer), force activate
+        if not init.loaded then
+            activate()
+        end
+        if not silent then
+            vim.api.nvim_echo({ { '⬇️  Mkdnflow started!', 'WarningMsg' } }, true, {})
         end
     end
 end

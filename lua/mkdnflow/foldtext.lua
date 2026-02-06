@@ -387,17 +387,8 @@ end
 -- Using autocmd ensures foldtext is applied to the correct buffer/window context
 local foldtext_augroup = vim.api.nvim_create_augroup('MkdnflowFoldtext', { clear = true })
 
-local ft_patterns = function()
-    local filetypes = require('mkdnflow').config.filetypes
-    local ft_pattern = ''
-    for ext, _ in pairs(filetypes) do
-        ft_pattern = ft_pattern .. '*.' .. ext .. ','
-    end
-    return ft_pattern
-end
-
-vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWinEnter' }, {
-    pattern = ft_patterns(),
+vim.api.nvim_create_autocmd('FileType', {
+    pattern = require('mkdnflow').config.resolved_filetypes,
     callback = function()
         vim.opt_local.foldtext = 'v:lua.MkdnflowFoldText()'
     end,

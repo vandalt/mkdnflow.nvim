@@ -65,7 +65,7 @@ T['patterns'] = new_set({
 
 T['patterns']['wiki patterns are always added'] = function()
     child.lua([[require('mkdnflow').setup({ links = { conceal = true }, silent = true })]])
-    child.cmd('doautocmd BufEnter test.md')
+    child.cmd('doautocmd FileType')
 
     local matches = child.lua_get('vim.fn.getmatches()')
     -- Wiki patterns contain \[\[ (escaped brackets)
@@ -76,7 +76,7 @@ end
 T['patterns']['markdown patterns are added when no treesitter'] = function()
     -- In headless test environment, treesitter highlighting is not active
     child.lua([[require('mkdnflow').setup({ links = { conceal = true }, silent = true })]])
-    child.cmd('doautocmd BufEnter test.md')
+    child.cmd('doautocmd FileType')
 
     local matches = child.lua_get('vim.fn.getmatches()')
     -- Markdown inline link patterns contain ([^(] for the URL part
@@ -86,7 +86,7 @@ end
 
 T['patterns']['both wiki and markdown patterns present without treesitter'] = function()
     child.lua([[require('mkdnflow').setup({ links = { conceal = true }, silent = true })]])
-    child.cmd('doautocmd BufEnter test.md')
+    child.cmd('doautocmd FileType')
 
     local matches = child.lua_get('vim.fn.getmatches()')
 
@@ -105,7 +105,7 @@ T['patterns']['patterns independent of links.style setting'] = function()
         links = { conceal = true, style = 'wiki' },
         silent = true
     })]])
-    child.cmd('doautocmd BufEnter test.md')
+    child.cmd('doautocmd FileType')
 
     local matches = child.lua_get('vim.fn.getmatches()')
 
@@ -133,7 +133,7 @@ T['settings'] = new_set({
 
 T['settings']['sets conceallevel to 2'] = function()
     child.lua([[require('mkdnflow').setup({ links = { conceal = true }, silent = true })]])
-    child.cmd('doautocmd BufEnter test.md')
+    child.cmd('doautocmd FileType')
 
     local conceallevel = child.lua_get('vim.wo.conceallevel')
     eq(conceallevel, 2)
@@ -161,7 +161,7 @@ T['screenshot'] = new_set({
 local function setup_conceal_test(lines)
     child.lua([[require('mkdnflow').setup({ links = { conceal = true }, silent = true })]])
     child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
-    child.cmd('doautocmd BufEnter test.md')
+    child.cmd('doautocmd FileType')
     -- Move cursor to last line so other lines are concealed
     child.api.nvim_win_set_cursor(0, { #lines, 0 })
 end
@@ -240,7 +240,7 @@ T['treesitter']['skips markdown patterns when ts active'] = function()
     ]])
 
     -- Trigger the autocmd again with mocked treesitter
-    child.cmd('doautocmd BufEnter test.md')
+    child.cmd('doautocmd FileType')
 
     local matches = child.lua_get('vim.fn.getmatches()')
 

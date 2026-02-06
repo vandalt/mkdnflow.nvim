@@ -104,19 +104,8 @@ end
 -- Set up autocommands to trigger the link concealing setup in Markdown files
 local conceal_augroup = vim.api.nvim_create_augroup('MkdnflowLinkConcealing', { clear = true })
 
-local ft_patterns = function()
-    -- Create ft pattern
-    local filetypes = require('mkdnflow').config.filetypes
-    local ft_pattern = ''
-
-    for ext, _ in pairs(filetypes) do
-        ft_pattern = ft_pattern .. '*.' .. ext .. ','
-    end
-    return ft_pattern
-end
-
-vim.api.nvim_create_autocmd({ 'FileType', 'BufRead', 'BufEnter' }, {
-    pattern = ft_patterns(),
+vim.api.nvim_create_autocmd('FileType', {
+    pattern = require('mkdnflow').config.resolved_filetypes,
     callback = function()
         start_link_concealing()
     end,

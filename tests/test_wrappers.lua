@@ -246,7 +246,7 @@ T['keymap_e2e'] = new_set({
                 })
 
                 -- Trigger the autocmd to set up mappings
-                vim.cmd('doautocmd BufEnter')
+                vim.cmd('doautocmd FileType')
             ]])
         end,
     },
@@ -329,7 +329,7 @@ T['keymap_e2e_tab'] = new_set({
                 })
 
                 -- Trigger the autocmd to set up mappings
-                vim.cmd('doautocmd BufEnter')
+                vim.cmd('doautocmd FileType')
             ]])
         end,
     },

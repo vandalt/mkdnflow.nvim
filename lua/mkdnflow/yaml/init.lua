@@ -16,14 +16,7 @@
 
 local core = require('mkdnflow.yaml.core')
 local bib = require('mkdnflow').bib
-local filetypes = require('mkdnflow').config.filetypes
-
-local patterns = {}
-for ext, value in pairs(filetypes) do
-    if value then
-        table.insert(patterns, '*.' .. ext)
-    end
-end
+local filetype_patterns = require('mkdnflow').config.resolved_filetypes
 
 local M = {}
 
@@ -31,8 +24,8 @@ local M = {}
 M.YAMLFrontmatter = core.YAMLFrontmatter
 
 -- Register autocmd to extract bibliography paths from YAML frontmatter
-vim.api.nvim_create_autocmd('BufWinEnter', {
-    pattern = patterns,
+vim.api.nvim_create_autocmd('FileType', {
+    pattern = filetype_patterns,
     callback = function()
         bib.bib_paths.yaml = {}
         local start, finish = M.hasYaml()

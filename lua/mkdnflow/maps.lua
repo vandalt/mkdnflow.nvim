@@ -18,7 +18,7 @@
 local config = require('mkdnflow').config
 local nvim_version = require('mkdnflow').nvim_version
 local command_deps = require('mkdnflow').command_deps
-local extension_patterns = {}
+local filetype_patterns = config.resolved_filetypes
 
 -- Command descriptions for which-key compatibility
 local descriptions = {
@@ -62,9 +62,6 @@ local descriptions = {
     MkdnCreateLink = 'Create link from word or selection',
     MkdnCreateLinkFromClipboard = 'Create link using clipboard URL',
 }
-for key, _ in pairs(config.filetypes) do
-    table.insert(extension_patterns, '*.' .. key)
-end
 
 -- Operator commands that need special handling (expression mappings for dot-repeat)
 local operator_commands = {
@@ -205,10 +202,10 @@ local function setup_mapping(mode, lhs, command)
 end
 
 -- Enable mappings in buffers in which Mkdnflow activates
-if nvim_version >= 7 then
+if nvim_version >= 9 and #filetype_patterns > 0 then
     vim.api.nvim_create_augroup('MkdnflowMappings', { clear = true })
-    vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWinEnter' }, {
-        pattern = extension_patterns,
+    vim.api.nvim_create_autocmd('FileType', {
+        pattern = filetype_patterns,
         callback = function()
             for command, mapping in pairs(config.mappings) do
                 local available = true

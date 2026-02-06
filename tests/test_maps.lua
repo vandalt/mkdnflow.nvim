@@ -117,7 +117,7 @@ T['descriptions'] = new_set()
 
 T['descriptions']['are set on keymaps'] = function()
     -- Trigger the autocmd that sets up keymaps
-    child.cmd('doautocmd BufEnter')
+    child.cmd('doautocmd FileType')
     -- Check that the Tab keymap has a description containing 'next link'
     child.lua(
         '_test_found = false; for _, km in ipairs(vim.api.nvim_buf_get_keymap(0, "n")) do if km.lhs == "<Tab>" and km.desc and km.desc:match("next link") then _test_found = true; break end end'
@@ -128,7 +128,7 @@ end
 
 T['descriptions']['MkdnEnter has description'] = function()
     -- Trigger the autocmd that sets up keymaps
-    child.cmd('doautocmd BufEnter')
+    child.cmd('doautocmd FileType')
     child.lua(
         '_test_found = false; for _, km in ipairs(vim.api.nvim_buf_get_keymap(0, "n")) do if km.lhs == "<CR>" and km.desc and km.desc:match("Follow link") then _test_found = true; break end end'
     )
@@ -138,7 +138,7 @@ end
 
 T['descriptions']['MkdnToggleToDo has description'] = function()
     -- Trigger the autocmd that sets up keymaps
-    child.cmd('doautocmd BufEnter')
+    child.cmd('doautocmd FileType')
     child.lua(
         '_test_found = false; for _, km in ipairs(vim.api.nvim_buf_get_keymap(0, "n")) do if km.lhs == "<C-Space>" and km.desc and km.desc:match("to%-do") then _test_found = true; break end end'
     )

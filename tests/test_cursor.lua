@@ -43,7 +43,7 @@ local T = new_set({
                     silent = true
                 })
                 -- Trigger autocmd to set up buffer-local mappings
-                vim.cmd('doautocmd BufEnter')
+                vim.cmd('doautocmd FileType')
             ]])
         end,
         post_once = child.stop,
@@ -808,7 +808,7 @@ T['heading_operator_e2e'] = new_set({
                 })
 
                 -- Trigger the autocmd to set up mappings
-                vim.cmd('doautocmd BufEnter')
+                vim.cmd('doautocmd FileType')
             ]])
         end,
     },
