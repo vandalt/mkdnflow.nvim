@@ -199,6 +199,7 @@ local default_config = {
         },
     },
     tables = {
+        type = 'pipe',
         trim_whitespace = true,
         format_on_move = true,
         auto_extend_rows = false,
@@ -520,7 +521,11 @@ init.setup = function(user_config)
     local current_file = vim.api.nvim_buf_get_name(0)
     if current_file ~= '' then
         local detected = vim.filetype.match({ filename = current_file })
-        if detected and vim.tbl_contains(filetype_patterns, detected) and vim.bo.filetype ~= detected then
+        if
+            detected
+            and vim.tbl_contains(filetype_patterns, detected)
+            and vim.bo.filetype ~= detected
+        then
             vim.bo.filetype = detected -- This triggers FileType autocmd
         end
     end

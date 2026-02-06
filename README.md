@@ -104,6 +104,7 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 - [x] Table creation
 - [x] Table extension (add rows and columns)
 - [x] Table formatting
+- [x] Pandoc grid table support
 - [ ] Paste delimited data as a table
 - [ ] Import delimited file into a new table
 
@@ -371,6 +372,7 @@ the help files.
         },
     },
     tables = {
+        type = 'pipe',
         trim_whitespace = true,
         format_on_move = true,
         auto_extend_rows = false,
@@ -838,6 +840,7 @@ The above recipe will produce foldtext like the following
 ```lua
 require('mkdnflow').setup({
     tables = {
+        type = 'pipe',
         trim_whitespace = true,
         format_on_move = true,
         auto_extend_rows = false,
@@ -858,6 +861,7 @@ require('mkdnflow').setup({
 
 | Option | Type | Description |
 | --- | --- | --- |
+| `tables.type` | `string` | **`'pipe'`** (default): New tables are created in pipe format (`\| cell \| cell \|` with `\| --- \| --- \|` separator).<br>`'grid'`: New tables are created in pandoc grid format with `+---+` border lines between rows and `+===+` header separators. Grid tables support native multiline cells.<br>Regardless of this setting, existing tables are auto-detected and handled in their native format when formatting, navigating, or editing. |
 | `tables.trim_whitespace` | `boolean` | **`true`** (default): Trim extra whitespace from the end of a table cell when a table is formatted.<br>`false`: Leave whitespace at the end of a table cell when formatting. |
 | `tables.format_on_move` | `boolean` | **`true`** (default): Format the table each time the cursor is moved to the next/previous cell/row using the plugin's API.<br>`false`: Don't format the table when the cursor is moved. |
 | `tables.auto_extend_rows` | `boolean` | `true`: Add another row when attempting to jump to the next row and the row doesn't exist.<br>**`false`** (default): Leave the table when attempting to jump to the next row and the row doesn't exist. |

@@ -114,6 +114,8 @@ sections:
                 done: true
               - text: Table formatting
                 done: true
+              - text: Pandoc grid table support
+                done: true
               - text: Paste delimited data as a table
                 done: false
               - text: Import delimited file into a new table
@@ -653,6 +655,7 @@ sections:
                     code: |
                       require('mkdnflow').setup({
                           tables = {
+                              type = 'pipe',
                               trim_whitespace = true,
                               format_on_move = true,
                               auto_extend_rows = false,

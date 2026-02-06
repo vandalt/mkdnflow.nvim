@@ -656,9 +656,58 @@ function MarkdownTable:new()
         col_count = 0,
         col_widths = {},
         valid = false,
+        table_type = 'pipe',
     }
     setmetatable(instance, self)
     return instance
+end
+
+--- Detect if a line is a grid table border line (+---+---+ or +===+===+)
+--- @param line string|nil The line text
+--- @return boolean
+function MarkdownTable.isGridBorder(line)
+    return line ~= nil
+        and line:match('^%s*%+[%-=+:]+%+%s*$') ~= nil
+        and (line:find('%-') ~= nil or line:find('=') ~= nil)
+end
+
+--- Detect if a line is a grid table header separator (+===+===+)
+--- @param line string|nil The line text
+--- @return boolean
+function MarkdownTable.isGridHeaderSeparator(line)
+    return line ~= nil and line:match('^%s*%+[=+:]+%+%s*$') ~= nil and line:find('=') ~= nil
+end
+
+--- Determine if cursor context is a grid table (vs pipe)
+--- Scans nearby lines for +---+ border patterns
+--- @param line_nr integer The buffer line number (1-indexed)
+--- @return boolean
+function MarkdownTable._isGridContext(line_nr)
+    local line_count = vim.api.nvim_buf_line_count(0)
+    -- Check the line itself first
+    local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
+    if MarkdownTable.isGridBorder(line) then
+        return true
+    end
+    -- Scan up to 50 lines up and down looking for grid borders
+    for _, dir in ipairs({ -1, 1 }) do
+        local check = line_nr + dir
+        while check >= 1 and check <= line_count and math.abs(check - line_nr) <= 50 do
+            local l = vim.api.nvim_buf_get_lines(0, check - 1, check, false)[1]
+            if MarkdownTable.isGridBorder(l) then
+                return true
+            end
+            -- Stop scanning if we hit an empty line or non-table line
+            if not l or l:match('^%s*$') then
+                break
+            end
+            if not l:match('|') and not MarkdownTable.isGridBorder(l) then
+                break
+            end
+            check = check + dir
+        end
+    end
+    return false
 end
 
 --- Check if a line is part of a table
@@ -666,6 +715,28 @@ end
 --- @param linenr? integer Optional line number for context checking
 --- @return boolean
 function MarkdownTable.isPartOfTable(text, linenr)
+    -- Grid table border lines are always part of a table
+    if MarkdownTable.isGridBorder(text) then
+        return true
+    end
+
+    -- Check if adjacent lines are grid borders (grid content lines)
+    if linenr then
+        local line_count = vim.api.nvim_buf_line_count(0)
+        if linenr > 1 then
+            local above = vim.api.nvim_buf_get_lines(0, linenr - 2, linenr - 1, false)
+            if above and MarkdownTable.isGridBorder(above[1]) then
+                return true
+            end
+        end
+        if linenr < line_count then
+            local below = vim.api.nvim_buf_get_lines(0, linenr, linenr + 1, false)
+            if below and MarkdownTable.isGridBorder(below[1]) then
+                return true
+            end
+        end
+    end
+
     local tableyness = 0
 
     -- Start by looking for a single pipe in the line
@@ -725,6 +796,9 @@ end
 --- @return MarkdownTable
 function MarkdownTable:read(line_nr)
     line_nr = line_nr or vim.api.nvim_win_get_cursor(0)[1]
+    if MarkdownTable._isGridContext(line_nr) then
+        return require('mkdnflow.tables.grid').read(line_nr)
+    end
     local tbl = MarkdownTable:new()
     local init_line_nr = line_nr
     local config = get_config()
@@ -831,12 +905,17 @@ function MarkdownTable:read(line_nr)
     -- but didn't collect its continuations
     if multiline_enabled then
         for line_num, row in pairs(rows_by_line) do
-            if not row.is_separator and row:_has_continuation() and #row.continuation_lines == 0 then
+            if
+                not row.is_separator
+                and row:_has_continuation()
+                and #row.continuation_lines == 0
+            then
                 -- This row has a continuation marker but no collected continuations
                 -- Look ahead for continuation lines
                 local cont_line_nr = line_num + 1
                 while cont_line_nr <= line_count do
-                    local cont_line = vim.api.nvim_buf_get_lines(0, cont_line_nr - 1, cont_line_nr, false)[1]
+                    local cont_line =
+                        vim.api.nvim_buf_get_lines(0, cont_line_nr - 1, cont_line_nr, false)[1]
                     -- Stop if we hit a new table row (starts with |) or empty/nil line
                     if not cont_line or cont_line:match('^%s*$') or is_new_table_row(cont_line) then
                         break
@@ -998,6 +1077,10 @@ function MarkdownTable:format()
         return
     end
 
+    if self.table_type == 'grid' then
+        return require('mkdnflow.tables.grid').format(self)
+    end
+
     -- Recalculate widths in case content changed
     self:_calculate_col_widths()
 
@@ -1032,10 +1115,15 @@ end
 --- @param header boolean Whether to include header row
 --- @return MarkdownTable
 function MarkdownTable:create(cols, rows, header)
+    local table_type = get_config().tables.type or 'pipe'
+    if table_type == 'grid' then
+        return require('mkdnflow.tables.grid').create(cols, rows, header)
+    end
     local style = get_config().tables.style
     local cell_padding = string.rep(' ', style.cell_padding or 1)
     local sep_padding = string.rep(' ', style.separator_padding or 1)
-    local min_width = math.max(#(sep_padding .. '---' .. sep_padding), #(cell_padding .. cell_padding))
+    local min_width =
+        math.max(#(sep_padding .. '---' .. sep_padding), #(cell_padding .. cell_padding))
 
     local cursor = vim.api.nvim_win_get_cursor(0)
 
@@ -1074,6 +1162,9 @@ end
 --- Add a new row to the table
 --- @param offset? integer Position offset (0 = below cursor, -1 = above cursor)
 function MarkdownTable:add_row(offset)
+    if self.table_type == 'grid' then
+        return require('mkdnflow.tables.grid').add_row(self, offset)
+    end
     offset = offset or 0
     local cursor = vim.api.nvim_win_get_cursor(0)
     local row_line = cursor[1] + offset
@@ -1109,6 +1200,9 @@ end
 --- Add a new column to the table
 --- @param offset? integer Position offset (0 = after current, -1 = before current)
 function MarkdownTable:add_col(offset)
+    if self.table_type == 'grid' then
+        return require('mkdnflow.tables.grid').add_col(self, offset)
+    end
     offset = offset or 0
     local cursor = vim.api.nvim_win_get_cursor(0)
     local line = vim.api.nvim_get_current_line()
@@ -1130,7 +1224,8 @@ function MarkdownTable:add_col(offset)
     local style = get_config().tables.style
     local cell_padding = string.rep(' ', style.cell_padding or 1)
     local sep_padding = string.rep(' ', style.separator_padding or 1)
-    local min_width = math.max(#(sep_padding .. '---' .. sep_padding), #(cell_padding .. cell_padding))
+    local min_width =
+        math.max(#(sep_padding .. '---' .. sep_padding), #(cell_padding .. cell_padding))
 
     local replacements = {}
     local escaped_pipe_placeholder = '##'
@@ -1158,7 +1253,9 @@ function MarkdownTable:add_col(offset)
         if row.is_separator then
             new_cell = sep_padding .. string.rep('-', min_width - 2 * #sep_padding) .. sep_padding
         else
-            new_cell = cell_padding .. string.rep(' ', min_width - 2 * #cell_padding) .. cell_padding
+            new_cell = cell_padding
+                .. string.rep(' ', min_width - 2 * #cell_padding)
+                .. cell_padding
         end
 
         if not (offset < 0 and current_col == 1 and style.outer_pipes == false) then
@@ -1174,7 +1271,8 @@ function MarkdownTable:add_col(offset)
 
         -- Restore escaped pipes and build replacement
         local match_restored = match and match:gsub(escaped_pipe_placeholder, '\\|') or ''
-        local suffix_restored = row_text_work:sub((finish or 0) + 1):gsub(escaped_pipe_placeholder, '\\|')
+        local suffix_restored =
+            row_text_work:sub((finish or 0) + 1):gsub(escaped_pipe_placeholder, '\\|')
         local replacement = match_restored .. new_cell .. suffix_restored
 
         table.insert(replacements, replacement)
@@ -1187,12 +1285,21 @@ function MarkdownTable:add_col(offset)
         end
     end
 
-    vim.api.nvim_buf_set_lines(0, tbl.line_range.start - 1, tbl.line_range.finish, true, replacements)
+    vim.api.nvim_buf_set_lines(
+        0,
+        tbl.line_range.start - 1,
+        tbl.line_range.finish,
+        true,
+        replacements
+    )
 end
 
 --- Delete the current row from the table
 --- Does nothing if cursor is on separator row
 function MarkdownTable:delete_row()
+    if self.table_type == 'grid' then
+        return require('mkdnflow.tables.grid').delete_row(self)
+    end
     local cursor = vim.api.nvim_win_get_cursor(0)
     local line = vim.api.nvim_get_current_line()
 
@@ -1236,7 +1343,13 @@ function MarkdownTable:delete_row()
     end
 
     -- Replace the table lines
-    vim.api.nvim_buf_set_lines(0, tbl.line_range.start - 1, tbl.line_range.finish, true, replacements)
+    vim.api.nvim_buf_set_lines(
+        0,
+        tbl.line_range.start - 1,
+        tbl.line_range.finish,
+        true,
+        replacements
+    )
 
     -- Position cursor sensibly
     -- If we deleted the last row, move cursor to the previous row
@@ -1253,6 +1366,9 @@ end
 
 --- Delete the current column from the table
 function MarkdownTable:delete_col()
+    if self.table_type == 'grid' then
+        return require('mkdnflow.tables.grid').delete_col(self)
+    end
     local cursor = vim.api.nvim_win_get_cursor(0)
     local line = vim.api.nvim_get_current_line()
 
@@ -1324,7 +1440,13 @@ function MarkdownTable:delete_col()
     end
 
     -- Replace the table lines
-    vim.api.nvim_buf_set_lines(0, tbl.line_range.start - 1, tbl.line_range.finish, true, replacements)
+    vim.api.nvim_buf_set_lines(
+        0,
+        tbl.line_range.start - 1,
+        tbl.line_range.finish,
+        true,
+        replacements
+    )
 
     -- Position cursor sensibly
     -- If we deleted the last column, move cursor to the new last column

@@ -30,20 +30,46 @@ local MarkdownTable = core.MarkdownTable
 -- =============================================================================
 
 --- Check if a line is a continuation line (follows a row ending with \)
+--- For grid tables, a content line is a continuation if the line above is also
+--- a content line (not a border).
 --- @param linenr integer The line number to check
 --- @return boolean, integer|nil is_continuation, primary_row_linenr
 local function is_continuation_line(linenr)
     if linenr < 2 then
         return false, nil
     end
+
+    local line = vim.api.nvim_buf_get_lines(0, linenr - 1, linenr, false)[1]
+
+    -- Grid table continuation: a content line whose previous line is also a content line
+    -- (both are | ... | lines, and previous is not a border)
+    if line and line:match('^%s*|') then
+        local prev_line = vim.api.nvim_buf_get_lines(0, linenr - 2, linenr - 1, false)[1]
+        if prev_line and prev_line:match('^%s*|') and not MarkdownTable.isGridBorder(prev_line) then
+            -- Both are content lines — check if we're in a grid table context
+            if MarkdownTable._isGridContext(linenr) then
+                -- Walk up to find the first content line after a border (the primary row)
+                local check = linenr - 1
+                while check >= 1 do
+                    local cl = vim.api.nvim_buf_get_lines(0, check - 1, check, false)[1]
+                    if not cl or MarkdownTable.isGridBorder(cl) then
+                        return true, check + 1
+                    end
+                    check = check - 1
+                end
+                return true, 1
+            end
+        end
+    end
+
+    -- Pipe table continuation logic
     local config = require('mkdnflow').config
     local line_breaks = config.tables.line_breaks or {}
     if not (line_breaks.pandoc or line_breaks.html) then
         return false, nil
     end
 
-    local line = vim.api.nvim_buf_get_lines(0, linenr - 1, linenr, false)[1]
-    -- If line starts with |, it's a primary row, not continuation
+    -- If line starts with |, it's a primary row for pipe tables, not continuation
     if line and line:match('^%s*|') then
         return false, nil
     end
@@ -86,13 +112,18 @@ local function find_next_primary_row(linenr, direction)
             return nil
         end
 
-        -- A primary row starts with |
-        if line:match('^%s*|') then
-            return check_linenr
-        end
-
-        -- If it's not a table line at all, we've left the table
-        if not MarkdownTable.isPartOfTable(line, check_linenr) then
+        if MarkdownTable.isGridBorder(line) then
+            -- Skip grid border lines
+        elseif line:match('^%s*|') then
+            -- Check if this is a continuation line in a grid table
+            local is_cont, _ = is_continuation_line(check_linenr)
+            if not is_cont then
+                -- A primary row starts with |
+                return check_linenr
+            end
+            -- It's a continuation line, keep scanning
+        elseif not MarkdownTable.isPartOfTable(line, check_linenr) then
+            -- Not a table line at all, we've left the table
             return nil
         end
 
@@ -163,12 +194,26 @@ function M.moveToCell(row_offset, cell_offset)
     local config = require('mkdnflow').config
     local position = vim.api.nvim_win_get_cursor(0)
 
+    -- Check if cursor is on a grid border line; if so, redirect to nearest content line
+    local current_line_raw = vim.api.nvim_buf_get_lines(0, position[1] - 1, position[1], false)[1]
+    if MarkdownTable.isGridBorder(current_line_raw) then
+        -- Find the nearest content line (prefer direction of movement, default down)
+        local dir = row_offset ~= 0 and (row_offset > 0 and 1 or -1)
+            or (cell_offset >= 0 and 1 or -1)
+        local content_line_nr = find_next_primary_row(position[1], dir)
+        if content_line_nr then
+            vim.api.nvim_win_set_cursor(0, { content_line_nr, position[2] })
+            position = vim.api.nvim_win_get_cursor(0)
+        end
+    end
+
     -- Check if cursor is on a continuation line, and if so, use the primary row
     local is_cont, primary_row_nr = is_continuation_line(position[1])
     local effective_position = is_cont and primary_row_nr or position[1]
 
     -- Check if this is a complete table (has separator row)
-    local current_line = vim.api.nvim_buf_get_lines(0, effective_position - 1, effective_position, false)[1]
+    local current_line =
+        vim.api.nvim_buf_get_lines(0, effective_position - 1, effective_position, false)[1]
     if MarkdownTable.isPartOfTable(current_line, effective_position) then
         local table_data = MarkdownTable:read(effective_position)
         if not table_data.valid then
@@ -235,15 +280,20 @@ function M.moveToCell(row_offset, cell_offset)
     local target_line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
     local target_row = target_line and TableRow:from_string(target_line, row) or nil
 
-    if target_row and target_row.is_separator then
-        -- Skip separator rows
+    if target_row and (target_row.is_separator or MarkdownTable.isGridBorder(target_line)) then
+        -- Skip separator rows and grid border lines
         local next_offset = row_offset + (row_offset < 0 and -1 or 1)
         local next_row = position[1] + next_offset
 
         if next_row >= 1 and next_row <= line_count then
             local next_line = vim.api.nvim_buf_get_lines(0, next_row - 1, next_row, false)[1]
             local next_row_obj = next_line and TableRow:from_string(next_line, next_row) or nil
-            if next_row_obj and MarkdownTable.isPartOfTable(next_line, next_row) and not next_row_obj.is_separator then
+            if
+                next_row_obj
+                and MarkdownTable.isPartOfTable(next_line, next_row)
+                and not next_row_obj.is_separator
+                and not MarkdownTable.isGridBorder(next_line)
+            then
                 M.moveToCell(next_offset, cell_offset)
                 return
             end

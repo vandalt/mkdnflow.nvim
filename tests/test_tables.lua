@@ -326,7 +326,7 @@ T['addCol']['preserves escaped pipes in cells (#244)'] = function()
         '| Val1 | Val1\\|Val3 |',
         '| Val2 | Val2       |',
     })
-    set_cursor(3, 10)  -- Cursor in column 2 (the one with escaped pipe)
+    set_cursor(3, 10) -- Cursor in column 2 (the one with escaped pipe)
     child.lua([[require('mkdnflow.tables').addCol()]])
     local lines = get_lines()
     -- The cell with escaped pipe should remain intact
@@ -379,14 +379,14 @@ T['edge_cases']['handles partial table without separator row'] = function()
     -- In insert mode, MkdnEnter calls newListItemOrNextTableRow which calls moveToCell(1, 0)
     -- Without a separator row, this should treat it as normal text and insert a newline
     -- (which splits the line at cursor position, like normal insert mode Enter)
-    child.type_keys('i')  -- Enter insert mode
-    child.cmd('MkdnEnter')  -- Run the command
-    child.type_keys('<Esc>')  -- Exit insert mode
+    child.type_keys('i') -- Enter insert mode
+    child.cmd('MkdnEnter') -- Run the command
+    child.type_keys('<Esc>') -- Exit insert mode
     -- Should create a new line (newline inserted, splitting the line at cursor)
     local cursor = get_cursor()
-    eq(cursor[1], 2)  -- Cursor should be on line 2
+    eq(cursor[1], 2) -- Cursor should be on line 2
     local lines = get_lines()
-    eq(#lines, 2)  -- Should now have 2 lines (line was split)
+    eq(#lines, 2) -- Should now have 2 lines (line was split)
 end
 
 T['edge_cases']['handles Enter at end of header-only row'] = function()
@@ -395,16 +395,16 @@ T['edge_cases']['handles Enter at end of header-only row'] = function()
         '| Col1 | Col2 | Col3 |',
     })
     -- Use append mode to go to end of line
-    child.type_keys('A')  -- Append mode - cursor at end
-    child.cmd('MkdnEnter')  -- Run the command
-    child.type_keys('<Esc>')  -- Exit insert mode
+    child.type_keys('A') -- Append mode - cursor at end
+    child.cmd('MkdnEnter') -- Run the command
+    child.type_keys('<Esc>') -- Exit insert mode
     -- Should create a new line below (not navigate within "table")
     local cursor = get_cursor()
-    eq(cursor[1], 2)  -- Cursor should be on line 2
+    eq(cursor[1], 2) -- Cursor should be on line 2
     local lines = get_lines()
-    eq(#lines, 2)  -- Should have 2 lines
-    eq(lines[1], '| Col1 | Col2 | Col3 |')  -- Original header intact
-    eq(lines[2], '')  -- New empty line
+    eq(#lines, 2) -- Should have 2 lines
+    eq(lines[1], '| Col1 | Col2 | Col3 |') -- Original header intact
+    eq(lines[2], '') -- New empty line
 end
 
 T['edge_cases']['handles table with only header and separator row'] = function()
@@ -413,13 +413,13 @@ T['edge_cases']['handles table with only header and separator row'] = function()
         '| Col1 | Col2 | Col3 |',
         '| - | - | - |',
     })
-    set_cursor(2, 5)  -- Cursor on separator row
+    set_cursor(2, 5) -- Cursor on separator row
     -- Enter insert mode and run MkdnEnter command
     -- moveToCell tries to skip separator row but there's no data row to land on
     -- Currently fails with: stack overflow (infinite recursion in moveToCell)
-    child.type_keys('i')  -- Enter insert mode
-    child.cmd('MkdnEnter')  -- Run the command
-    child.type_keys('<Esc>')  -- Exit insert mode
+    child.type_keys('i') -- Enter insert mode
+    child.cmd('MkdnEnter') -- Run the command
+    child.type_keys('<Esc>') -- Exit insert mode
     -- Should not crash - just verify we're still functional
     local cursor = get_cursor()
     eq(cursor[1] >= 1, true)
@@ -437,11 +437,11 @@ T['edge_cases']['handles cursor at end of table row'] = function()
     -- Line is: | cell1 | cell2 | cell3 |
     -- The last | is at position 26 (0-indexed) for a 27-char line
     local line_len = #'| cell1 | cell2 | cell3 |'
-    set_cursor(3, line_len - 1)  -- On the last pipe
+    set_cursor(3, line_len - 1) -- On the last pipe
     -- Enter insert mode at end of line and run MkdnEnter command
-    child.type_keys('A')  -- Append mode - cursor goes to end of line
-    child.cmd('MkdnEnter')  -- Run the command
-    child.type_keys('<Esc>')  -- Exit insert mode
+    child.type_keys('A') -- Append mode - cursor goes to end of line
+    child.cmd('MkdnEnter') -- Run the command
+    child.type_keys('<Esc>') -- Exit insert mode
     -- which_cell returns nil for cursor at/past last pipe, then moveToCell
     -- tries to do arithmetic on nil cursor_cell
     -- Currently fails with: attempt to perform arithmetic on local 'cursor_cell' (a nil value)
@@ -455,8 +455,8 @@ end
 -- detected as a table, causing format_table to crash on nil col_alignments
 T['edge_cases']['pipe in text does not cause table error (#263)'] = function()
     set_lines({ 'Conditional probability $p(x|y)$' })
-    set_cursor(1, 30)  -- Cursor at end of line
-    child.type_keys('A')  -- Enter insert mode at end
+    set_cursor(1, 30) -- Cursor at end of line
+    child.type_keys('A') -- Enter insert mode at end
     -- Press Enter which triggers MkdnEnter
     child.lua([[
         _G.test_ok, _G.test_err = pcall(function()
@@ -483,8 +483,8 @@ T['edge_cases']['S-Tab on list item does not cause stack overflow (#257)'] = fun
         '- [ ] This is a todo item',
         '- ',
     })
-    set_cursor(2, 2)  -- Cursor at end of second line "- "
-    child.type_keys('A')  -- Enter insert mode at end of line
+    set_cursor(2, 2) -- Cursor at end of second line "- "
+    child.type_keys('A') -- Enter insert mode at end of line
     -- Run MkdnSTab command which calls indentListItemOrJumpTableCell(-1)
     child.lua([[
         _G.test_ok, _G.test_err = pcall(function()
@@ -515,7 +515,8 @@ T['isPartOfTable_context']['validates with adjacent table rows'] = function()
         '| data   | more |',
     })
     -- With linenr context, should validate against adjacent lines
-    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('| header | col2 |', 1)]])
+    local result =
+        child.lua_get([[require('mkdnflow.tables').isPartOfTable('| header | col2 |', 1)]])
     eq(result, true)
 end
 
@@ -526,7 +527,8 @@ T['isPartOfTable_context']['accepts line with pipe even without strong table con
     })
     -- Current behavior: single pipe with context still returns true due to tableyness scoring
     -- This documents current behavior for regression testing
-    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('text | more text', 1)]])
+    local result =
+        child.lua_get([[require('mkdnflow.tables').isPartOfTable('text | more text', 1)]])
     eq(result, true)
 end
 
@@ -803,7 +805,7 @@ T['uneven_columns']['equalizes rows with missing columns'] = function()
     set_lines({
         '| a | b | c |',
         '| - | - | - |',
-        '| 1 | 2 |',  -- Missing third column
+        '| 1 | 2 |', -- Missing third column
     })
     set_cursor(1, 1)
     child.lua([[require('mkdnflow.tables').formatTable()]])
@@ -818,7 +820,7 @@ T['uneven_columns']['handles extra columns gracefully'] = function()
     set_lines({
         '| a | b |',
         '| - | - |',
-        '| 1 | 2 | 3 | 4 |',  -- Extra columns
+        '| 1 | 2 | 3 | 4 |', -- Extra columns
     })
     set_cursor(1, 1)
     child.lua([[require('mkdnflow.tables').formatTable()]])
@@ -888,7 +890,7 @@ end
 T['separator_row']['requires at least one hyphen'] = function()
     set_lines({
         '| a | b |',
-        '| : | : |',  -- Colons only, no hyphens - not a valid separator
+        '| : | : |', -- Colons only, no hyphens - not a valid separator
         '| c | d |',
     })
     set_cursor(1, 5)
@@ -1168,7 +1170,8 @@ T['multiline']['navigation skips continuation lines going up'] = function()
 
     -- Debug: First check isPartOfTable for each line
     local ipt_line4 = child.lua_get('require("mkdnflow.tables").isPartOfTable("line   |", 4)')
-    local ipt_line3 = child.lua_get('require("mkdnflow.tables").isPartOfTable("| 1 | multi \\\\", 3)')
+    local ipt_line3 =
+        child.lua_get('require("mkdnflow.tables").isPartOfTable("| 1 | multi \\\\", 3)')
 
     -- Line 4 should be recognized as continuation (part of table)
     eq(ipt_line4, true)
@@ -1660,9 +1663,9 @@ T['multiline_width']['column width based on longest part, not total'] = function
     set_lines({
         '| This      | is   | a        | lovely | table     |',
         '| --------- | ---- | -------- | ------ | --------- |',
-        '| I\'ve      | got  | so       | many   | cells     |',
+        "| I've      | got  | so       | many   | cells     |",
         '| to        | do   | anything | I      | want \\ a newline   |',
-        '| with      | here | .        | Isn\'t  | it        |',
+        "| with      | here | .        | Isn't  | it        |",
         '| great?    | Just | love     | the    | twiddling |',
         '| heck      | out  | of       | it,    | truly.    |',
     })
@@ -1707,10 +1710,10 @@ T['multiline_width']['continuation does not inflate other columns'] = function()
     set_lines({
         '| This   | is   | a        | lovely | table     |',
         '| ------ | ---- | -------- | ------ | --------- |',
-        '| I\'ve   | got  | so       | many   | cells     |',
+        "| I've   | got  | so       | many   | cells     |",
         '| to     | do   | anything | I      | want \\',
         '                                      a newline |',
-        '| with   | here | .        | Isn\'t  | it        |',
+        "| with   | here | .        | Isn't  | it        |",
         '| great? | Just | love     | the    | twiddling |',
         '| heck   | out  | of       | it,    | truly.    |',
     })
@@ -1747,10 +1750,10 @@ T['multiline_width']['preexisting multiline table formats correctly'] = function
     set_lines({
         '| This   | is   | a        | lovely | table     |',
         '| ------ | ---- | -------- | ------ | --------- |',
-        '| I\'ve   | got  | so       | many   | cells     |',
+        "| I've   | got  | so       | many   | cells     |",
         '| to     | do   | anything | I      | want \\',
         '                                      a newline |',
-        '| with   | here | .        | Isn\'t  | it        |',
+        "| with   | here | .        | Isn't  | it        |",
         '| great? | Just | love     | the    | twiddling |',
         '| heck   | out  | of       | it,    | truly.    |',
     })
@@ -1818,10 +1821,10 @@ T['continuation_enter']['enter on continuation line moves to next row'] = functi
     set_lines({
         '| This   | is   | a        | lovely | table     |',
         '| ------ | ---- | -------- | ------ | --------- |',
-        '| I\'ve   | got  | so       | many   | cells     |',
+        "| I've   | got  | so       | many   | cells     |",
         '| to     | do   | anything | I      | want \\',
         '                                      a newline |',
-        '| with   | here | .        | Isn\'t  | it        |',
+        "| with   | here | .        | Isn't  | it        |",
         '| great? | Just | love     | the    | twiddling |',
         '| heck   | out  | of       | it,    | truly.    |',
     })
@@ -2057,9 +2060,9 @@ T['multiline_complex']['large table with multiline cell formats correctly'] = fu
     set_lines({
         '| This      | is   | a        | lovely | table     |',
         '| --------- | ---- | -------- | ------ | --------- |',
-        '| I\'ve      | got  | so       | many   | cells     |',
+        "| I've      | got  | so       | many   | cells     |",
         '| to        | do   | anything | I      | want \\ a newline   |',
-        '| with      | here | .        | Isn\'t  | it        |',
+        "| with      | here | .        | Isn't  | it        |",
         '| great?    | Just | love     | the    | twiddling |',
         '| heck      | out  | of       | it,    | truly.    |',
     })
@@ -2178,7 +2181,10 @@ T['multiline_complex']['format then navigate preserves table'] = function()
 
     -- Content should be unchanged
     eq(after_nav_lines[3]:match('want \\') ~= nil, true)
-    eq(after_nav_lines[4]:match('a newline') ~= nil or after_nav_lines[4]:match('newline') ~= nil, true)
+    eq(
+        after_nav_lines[4]:match('a newline') ~= nil or after_nav_lines[4]:match('newline') ~= nil,
+        true
+    )
 end
 
 -- =============================================================================
@@ -2359,7 +2365,7 @@ T['real_unicode']['actual CJK characters align correctly'] = function()
     set_lines({
         '| Name | Value |',
         '| ---- | ----- |',
-        '| Test | \228\184\173\230\150\135 |',  -- "中文" in UTF-8 bytes
+        '| Test | \228\184\173\230\150\135 |', -- "中文" in UTF-8 bytes
     })
     set_cursor(1, 1)
     child.lua([[require('mkdnflow.tables').formatTable()]])
@@ -2375,7 +2381,7 @@ T['real_unicode']['mixed width characters'] = function()
     set_lines({
         '| English | Mix |',
         '| ------- | --- |',
-        '| Hello   | Hi\228\189\160\229\165\189 |',  -- "Hi你好"
+        '| Hello   | Hi\228\189\160\229\165\189 |', -- "Hi你好"
     })
     set_cursor(1, 1)
     child.lua([[require('mkdnflow.tables').formatTable()]])
@@ -2390,7 +2396,7 @@ T['real_unicode']['emoji handling'] = function()
     set_lines({
         '| Status | Icon |',
         '| ------ | ---- |',
-        '| Done   | \226\156\133 |',  -- checkmark
+        '| Done   | \226\156\133 |', -- checkmark
     })
     set_cursor(1, 1)
     child.lua([[require('mkdnflow.tables').formatTable()]])
@@ -2401,7 +2407,7 @@ end
 
 T['real_unicode']['navigation with wide characters'] = function()
     set_lines({
-        '| A | \228\184\173\230\150\135 |',  -- "中文"
+        '| A | \228\184\173\230\150\135 |', -- "中文"
         '| - | ---- |',
         '| x | y |',
     })
@@ -2677,7 +2683,9 @@ T['navigation_boundaries']['stab from first cell of header'] = function()
 end
 
 T['navigation_boundaries']['tab from last cell of last row no extend'] = function()
-    setup_with_config([[{ tables = { auto_extend_rows = false, auto_extend_cols = false, format_on_move = false } }]])
+    setup_with_config(
+        [[{ tables = { auto_extend_rows = false, auto_extend_cols = false, format_on_move = false } }]]
+    )
     set_lines({
         '| a | b |',
         '| - | - |',
@@ -2789,7 +2797,7 @@ T['continuation_edge_cases']['whitespace-only continuation line'] = function()
         '| A | B |',
         '| - | - |',
         '| x | want \\',
-        '      |',  -- Just whitespace and closing pipe
+        '      |', -- Just whitespace and closing pipe
     })
     set_cursor(1, 1)
     child.lua([[require('mkdnflow.tables').formatTable()]])
@@ -3099,6 +3107,2061 @@ T['deleteCol']['deletes column with continuation lines when last'] = function()
     local all_text = table.concat(lines, '\n')
     eq(all_text:match('multiline') == nil, true)
     eq(all_text:match('content') == nil, true)
+end
+
+-- =============================================================================
+-- Grid table detection
+-- =============================================================================
+T['grid_detection'] = new_set()
+
+T['grid_detection']['isGridBorder matches +---+---+'] = function()
+    local result =
+        child.lua_get([[require('mkdnflow.tables.core').MarkdownTable.isGridBorder('+---+---+')]])
+    eq(result, true)
+end
+
+T['grid_detection']['isGridBorder matches +===+===+'] = function()
+    local result =
+        child.lua_get([[require('mkdnflow.tables.core').MarkdownTable.isGridBorder('+===+===+')]])
+    eq(result, true)
+end
+
+T['grid_detection']['isGridBorder rejects +++'] = function()
+    local result =
+        child.lua_get([[require('mkdnflow.tables.core').MarkdownTable.isGridBorder('+++')]])
+    eq(result, false)
+end
+
+T['grid_detection']['isGridBorder rejects pipe table separator'] = function()
+    local result = child.lua_get(
+        [[require('mkdnflow.tables.core').MarkdownTable.isGridBorder('| --- | --- |')]]
+    )
+    eq(result, false)
+end
+
+T['grid_detection']['isGridBorder rejects plain text'] = function()
+    local result =
+        child.lua_get([[require('mkdnflow.tables.core').MarkdownTable.isGridBorder('hello world')]])
+    eq(result, false)
+end
+
+T['grid_detection']['isGridHeaderSeparator matches +===+'] = function()
+    local result = child.lua_get(
+        [[require('mkdnflow.tables.core').MarkdownTable.isGridHeaderSeparator('+===+===+')]]
+    )
+    eq(result, true)
+end
+
+T['grid_detection']['isGridHeaderSeparator rejects +---+'] = function()
+    local result = child.lua_get(
+        [[require('mkdnflow.tables.core').MarkdownTable.isGridHeaderSeparator('+---+---+')]]
+    )
+    eq(result, false)
+end
+
+T['grid_detection']['isPartOfTable recognizes grid border'] = function()
+    set_lines({ '+---+---+', '| a | b |', '+---+---+' })
+    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('+---+---+')]])
+    eq(result, true)
+end
+
+T['grid_detection']['isPartOfTable recognizes grid content line adjacent to border'] = function()
+    set_lines({ '+---+---+', '| a | b |', '+---+---+' })
+    local result = child.lua_get([[require('mkdnflow.tables').isPartOfTable('| a | b |', 2)]])
+    eq(result, true)
+end
+
+T['grid_detection']['_isGridContext detects grid table'] = function()
+    set_lines({ '+---+---+', '| a | b |', '+---+---+' })
+    local result =
+        child.lua_get([[require('mkdnflow.tables.core').MarkdownTable._isGridContext(2)]])
+    eq(result, true)
+end
+
+T['grid_detection']['_isGridContext returns false for pipe table'] = function()
+    set_lines({ '| a | b |', '| - | - |', '| c | d |' })
+    local result =
+        child.lua_get([[require('mkdnflow.tables.core').MarkdownTable._isGridContext(2)]])
+    eq(result, false)
+end
+
+T['grid_detection']['does not false-positive on + list item'] = function()
+    local result =
+        child.lua_get([[require('mkdnflow.tables.core').MarkdownTable.isGridBorder('+ list item')]])
+    eq(result, false)
+end
+
+-- =============================================================================
+-- Grid table creation
+-- =============================================================================
+T['grid_creation'] = new_set()
+
+T['grid_creation']['creates grid table with header'] = function()
+    setup_with_config([[{ tables = { type = 'grid' } }]])
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({3, 2})]])
+    local lines = get_lines()
+    -- Structure: empty line + top border + header content + header sep + 2*(content + border) = 8
+    eq(lines[2]:match('^%+%-+%+%-+%+%-+%+$') ~= nil, true) -- top border
+    eq(lines[3]:match('^|.*|$') ~= nil, true) -- header content
+    eq(lines[4]:match('^%+=+%+=+%+=+%+$') ~= nil, true) -- header separator
+    eq(lines[5]:match('^|.*|$') ~= nil, true) -- data row 1
+    eq(lines[6]:match('^%+%-+%+%-+%+%-+%+$') ~= nil, true) -- border
+    eq(lines[7]:match('^|.*|$') ~= nil, true) -- data row 2
+    eq(lines[8]:match('^%+%-+%+%-+%+%-+%+$') ~= nil, true) -- bottom border
+end
+
+T['grid_creation']['creates grid table without header'] = function()
+    setup_with_config([[{ tables = { type = 'grid' } }]])
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({2, 2, 'noh'})]])
+    local lines = get_lines()
+    -- No === line should be present
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:find('=') == nil, true)
+    -- Should have borders with ---
+    eq(all_text:find('%-%-%-') ~= nil, true)
+end
+
+T['grid_creation']['grid table has correct column count'] = function()
+    setup_with_config([[{ tables = { type = 'grid' } }]])
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({4, 1})]])
+    local lines = get_lines()
+    -- Count + in the first border to verify column count (4 cols = 5 + signs)
+    local _, plus_count = lines[2]:gsub('%+', '')
+    eq(plus_count, 5)
+end
+
+T['grid_creation']['pipe type creates pipe table'] = function()
+    setup_with_config([[{ tables = { type = 'pipe' } }]])
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({2, 1})]])
+    local lines = get_lines()
+    -- Should not have + borders
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:find('^%+%-') == nil, true)
+    -- Should have pipe-style separator
+    eq(all_text:find('%-%-%-') ~= nil, true)
+end
+
+-- =============================================================================
+-- Grid table formatting
+-- =============================================================================
+T['grid_formatting'] = new_set()
+
+T['grid_formatting']['aligns columns to max width'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| short | x |',
+        '+---+---+',
+        '| very long content | y |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- After formatting, all borders should have same length
+    eq(#lines[1], #lines[5])
+    -- Content lines should have same length
+    eq(#lines[2], #lines[4])
+end
+
+T['grid_formatting']['preserves multiline cell content'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should still have both content lines
+    local content_count = 0
+    for _, l in ipairs(lines) do
+        if l:match('^|') and not l:match('^%+') then
+            content_count = content_count + 1
+        end
+    end
+    eq(content_count, 2)
+end
+
+T['grid_formatting']['preserves alignment markers'] = function()
+    set_lines({
+        '+---+---+---+',
+        '| L | R | C |',
+        '+:==+==:+:==:+',
+        '| a | b | c |',
+        '+---+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Find the header separator line (with =)
+    local header_sep = nil
+    for _, l in ipairs(lines) do
+        if l:find('=') then
+            header_sep = l
+            break
+        end
+    end
+    eq(header_sep ~= nil, true)
+    -- Should have alignment colons
+    eq(header_sep:find(':') ~= nil, true)
+end
+
+T['grid_formatting']['handles empty cells'] = function()
+    set_lines({
+        '+---+---+',
+        '|   |   |',
+        '+===+===+',
+        '|   |   |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should not error and should produce valid grid table
+    eq(lines[1]:match('^%+') ~= nil, true)
+    eq(lines[#lines]:match('^%+') ~= nil, true)
+end
+
+T['grid_formatting']['handles unicode characters'] = function()
+    set_lines({
+        '+----+---+',
+        '| café | x |',
+        '+====+===+',
+        '| a | b |',
+        '+----+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Column should be wide enough for the unicode content
+    eq(#lines[1] > 10, true)
+end
+
+-- =============================================================================
+-- Grid table navigation
+-- =============================================================================
+T['grid_navigation'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({ tables = { format_on_move = false } })
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['grid_navigation']['moveToCell moves to next cell'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 3) -- on 'aaa'
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    eq(cursor[1], 2) -- same row
+    -- Should be on the second cell content
+    local line = get_line(2)
+    local col = cursor[2]
+    -- col should be in the second cell area (after the middle |)
+    eq(col > line:find('|', 2), true)
+end
+
+T['grid_navigation']['moveToCell moves to previous cell'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 10) -- on 'bbb'
+    child.lua([[require('mkdnflow.tables').moveToCell(0, -1)]])
+    local cursor = get_cursor()
+    eq(cursor[1], 2) -- same row
+    -- Should be on the first cell content
+    eq(cursor[2] < 6, true)
+end
+
+T['grid_navigation']['moveToCell moves to next row skipping border'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 3) -- on 'aaa' in header
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    eq(cursor[1], 4) -- should skip border and land on data row
+end
+
+T['grid_navigation']['moveToCell moves to previous row skipping border'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on 'ccc' in data row
+    child.lua([[require('mkdnflow.tables').moveToCell(-1, 0)]])
+    local cursor = get_cursor()
+    eq(cursor[1], 2) -- should land on header row
+end
+
+T['grid_navigation']['cursor on border line navigates to content'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(3, 3) -- on the === border
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    -- Should have been redirected to a content line
+    local line = get_line(cursor[1])
+    eq(line:match('^|') ~= nil, true)
+end
+
+T['grid_navigation']['navigation wraps to next row'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+        '| eee | fff |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 10) -- on 'ddd' (last cell of row)
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    -- Should wrap to next row's first cell
+    eq(cursor[1], 6)
+end
+
+-- =============================================================================
+-- Grid table row operations
+-- =============================================================================
+T['grid_row_operations'] = new_set()
+
+T['grid_row_operations']['addRow inserts row below'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(4, 3) -- on data row
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(4)
+        tbl:add_row(0)
+    ]])
+    local lines = get_lines()
+    -- Should now have 7 lines (original 5 + 1 content + 1 border)
+    eq(#lines, 7)
+end
+
+T['grid_row_operations']['addRow inserts row above'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(4, 3) -- on data row
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(4)
+        tbl:add_row(-1)
+    ]])
+    local lines = get_lines()
+    eq(#lines, 7)
+end
+
+T['grid_row_operations']['deleteRow removes row'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+        '| e | f |',
+        '+---+---+',
+    })
+    set_cursor(4, 3) -- on first data row
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(4)
+        tbl:delete_row()
+    ]])
+    local lines = get_lines()
+    -- Should now have 5 lines (7 - 2 for removed row + border)
+    eq(#lines, 5)
+end
+
+-- =============================================================================
+-- Grid table column operations
+-- =============================================================================
+T['grid_col_operations'] = new_set()
+
+T['grid_col_operations']['addCol extends all lines'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 3) -- on first cell
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        tbl:add_col(0)
+    ]])
+    local lines = get_lines()
+    -- All border lines should have 4 + signs now (3 columns)
+    local _, plus_count = lines[1]:gsub('%+', '')
+    eq(plus_count, 4)
+    -- Content lines should have 4 | signs
+    local _, pipe_count = lines[2]:gsub('|', '')
+    eq(pipe_count, 4)
+end
+
+T['grid_col_operations']['deleteCol removes from all lines'] = function()
+    set_lines({
+        '+---+---+---+',
+        '| a | b | c |',
+        '+===+===+===+',
+        '| d | e | f |',
+        '+---+---+---+',
+    })
+    set_cursor(2, 3) -- on first cell
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        tbl:delete_col()
+    ]])
+    local lines = get_lines()
+    -- Should now have 3 + signs per border (2 columns)
+    local _, plus_count = lines[1]:gsub('%+', '')
+    eq(plus_count, 3)
+end
+
+T['grid_col_operations']['cannot delete only column'] = function()
+    set_lines({
+        '+---+',
+        '| a |',
+        '+===+',
+        '| b |',
+        '+---+',
+    })
+    set_cursor(2, 3)
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        tbl:delete_col()
+    ]])
+    local lines = get_lines()
+    -- Should still have the single column
+    local _, plus_count = lines[1]:gsub('%+', '')
+    eq(plus_count, 2)
+end
+
+-- =============================================================================
+-- Grid table multiline
+-- =============================================================================
+T['grid_multiline'] = new_set()
+
+T['grid_multiline']['multiline cells parsed correctly'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| a     | b     |',
+        '+-------+-------+',
+    })
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return { valid = tbl.valid, row_count = #tbl.rows, table_type = tbl.table_type }
+    end)()]])
+    eq(result.valid, true)
+    eq(result.table_type, 'grid')
+    eq(result.row_count, 2) -- header row (multiline) + data row
+end
+
+T['grid_multiline']['width calculation considers all content lines'] = function()
+    set_lines({
+        '+----------------+---+',
+        '| a              | b |',
+        '| very long text | x |',
+        '+================+===+',
+        '| c              | d |',
+        '+----------------+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- First column should be wide enough for "very long text"
+    eq(#lines[1] > 20, true)
+end
+
+T['grid_multiline']['formatting pads shorter cells'] = function()
+    set_lines({
+        '+-----+---+',
+        '| a   | b |',
+        '| c   |   |',
+        '+=====+===+',
+        '| d   | e |',
+        '+-----+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Both content lines should have same length
+    eq(#lines[2], #lines[3])
+end
+
+-- =============================================================================
+-- Grid multiline: navigation
+-- =============================================================================
+T['grid_multiline_nav'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({ tables = { format_on_move = false } })
+            ]])
+        end,
+    },
+})
+
+T['grid_multiline_nav']['moveToCell(1,0) from primary skips continuation and border'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(2, 3) -- on 'hello' (primary line of multiline header)
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should land on row 5, skipping continuation (row 3) and border (row 4)
+    eq(cursor[1], 5)
+end
+
+T['grid_multiline_nav']['moveToCell(-1,0) skips continuation going up'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(5, 3) -- on 'aaa'
+    child.lua([[require('mkdnflow.tables').moveToCell(-1, 0)]])
+    local cursor = get_cursor()
+    -- Should land on primary row 2 (not continuation row 3)
+    eq(cursor[1], 2)
+end
+
+T['grid_multiline_nav']['moveToCell(1,0) from continuation line'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(3, 3) -- on 'foo' (continuation of header)
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should move to next logical row
+    eq(cursor[1], 5)
+end
+
+T['grid_multiline_nav']['moveToCell(0,1) on primary navigates within row'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(2, 3) -- on 'hello' (first cell)
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    -- Should stay on row 2 and move to second cell
+    eq(cursor[1], 2)
+    local line = get_line(2)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true) -- in second cell
+end
+
+T['grid_multiline_nav']['Tab wraps past multiline row'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '| ccc   | ddd   |',
+        '+-------+-------+',
+        '| eee   | fff   |',
+        '+-------+-------+',
+    })
+    -- On last cell of second logical row (multiline data row)
+    set_cursor(5, 12) -- on 'bbb'
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    -- Should wrap to next logical row's first cell (row 8, 'eee')
+    eq(cursor[1], 8)
+    eq(cursor[2] < 8, true) -- in first cell
+end
+
+T['grid_multiline_nav']['S-Tab wraps backwards past multiline row'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '| ccc   | ddd   |',
+        '+-------+-------+',
+        '| eee   | fff   |',
+        '+-------+-------+',
+    })
+    -- On first cell of third logical row
+    set_cursor(7, 3) -- on 'eee'
+    child.lua([[require('mkdnflow.tables').moveToCell(0, -1)]])
+    local cursor = get_cursor()
+    -- Should wrap to previous row's last cell (row 4, 'bbb')
+    eq(cursor[1], 4)
+    local line = get_line(4)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true) -- in second cell
+end
+
+T['grid_multiline_nav']['cursor on continuation line detects correct cell'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(3, 3) -- on continuation line 'foo'
+    -- Tab should navigate to next cell in same logical row or wrap
+    child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
+    local cursor = get_cursor()
+    -- On continuation, cursor is in last cell, so Tab wraps to next row
+    eq(cursor[1], 5)
+end
+
+T['grid_multiline_nav']['multiple multiline rows navigate correctly'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| h1  | h2  |',
+        '+=====+=====+',
+        '| a   | b   |',
+        '| a2  | b2  |',
+        '+-----+-----+',
+        '| c   | d   |',
+        '| c2  | d2  |',
+        '+-----+-----+',
+        '| e   | f   |',
+        '+-----+-----+',
+    })
+    -- Navigate down from first data row
+    set_cursor(4, 3) -- on 'a'
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    eq(cursor[1], 7) -- should skip to 'c' row, not 'a2' continuation
+
+    -- Navigate down again
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    cursor = get_cursor()
+    eq(cursor[1], 10) -- should skip to 'e' row
+
+    -- Navigate back up
+    child.lua([[require('mkdnflow.tables').moveToCell(-1, 0)]])
+    cursor = get_cursor()
+    eq(cursor[1], 7) -- back to 'c' row
+end
+
+-- =============================================================================
+-- Grid multiline: E2E with keymaps
+-- =============================================================================
+T['grid_multiline_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({ tables = { format_on_move = false } })
+            ]])
+        end,
+    },
+})
+
+T['grid_multiline_e2e']['MkdnTableNextRow skips multiline continuation'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '| ccc   | ddd   |',
+        '+-------+-------+',
+        '| eee   | fff   |',
+        '+-------+-------+',
+    })
+    set_cursor(5, 3) -- on 'aaa' (primary line of multiline data row)
+    child.cmd('MkdnTableNextRow')
+    local cursor = get_cursor()
+    eq(cursor[1], 8) -- should skip continuation + border to 'eee'
+end
+
+T['grid_multiline_e2e']['MkdnTablePrevRow skips multiline continuation'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(5, 3) -- on 'aaa'
+    child.cmd('MkdnTablePrevRow')
+    local cursor = get_cursor()
+    eq(cursor[1], 2) -- should land on 'hello' (primary), not 'foo' (continuation)
+end
+
+T['grid_multiline_e2e']['Tab from continuation line wraps correctly'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(3, 3) -- on continuation line 'foo'
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- From continuation (last cell), should wrap to next row
+    eq(cursor[1], 5)
+end
+
+T['grid_multiline_e2e']['Enter on continuation line moves to next row'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '| ccc   | ddd   |',
+        '+-------+-------+',
+        '| eee   | fff   |',
+        '+-------+-------+',
+    })
+    set_cursor(6, 3) -- on continuation line 'ccc' of data row
+    child.type_keys('i')
+    child.cmd('MkdnEnter')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should move to next logical row
+    eq(cursor[1], 8) -- 'eee' row
+end
+
+T['grid_multiline_e2e']['Enter does not insert blank lines in multiline grid'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    local original_count = #get_lines()
+    set_cursor(3, 3) -- on continuation line
+    child.type_keys('i')
+    child.cmd('MkdnEnter')
+    child.type_keys('<Esc>')
+    local lines = get_lines()
+    -- Should NOT have extra blank lines inserted
+    eq(#lines, original_count)
+end
+
+T['grid_multiline_e2e']['Tab navigates between cells in multiline row'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(2, 3) -- on 'hello' (primary line, first cell)
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should stay on primary line, move to second cell
+    eq(cursor[1], 2)
+    local line = get_line(2)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true)
+end
+
+T['grid_multiline_e2e']['format_on_move with multiline grid'] = function()
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '| cc | dd |',
+        '+===+===+',
+        '| longer text | f |',
+        '+---+---+',
+    })
+    set_cursor(2, 3)
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local lines = get_lines()
+    -- After format_on_move, all lines should have consistent width
+    eq(#lines[1], #lines[2])
+    eq(#lines[1], #lines[3])
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+end
+
+-- =============================================================================
+-- Grid multiline: formatting details
+-- =============================================================================
+T['grid_multiline_format'] = new_set()
+
+T['grid_multiline_format']['format preserves all content lines'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aa  | bb  |',
+        '| cc  | dd  |',
+        '| ee  | ff  |',
+        '+=====+=====+',
+        '| gg  | hh  |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should still have 3 content lines in header row
+    eq(#lines, 7)
+    -- Content should be preserved
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('aa') ~= nil, true)
+    eq(all_text:match('cc') ~= nil, true)
+    eq(all_text:match('ee') ~= nil, true)
+    eq(all_text:match('gg') ~= nil, true)
+end
+
+T['grid_multiline_format']['uneven content lines get padded'] = function()
+    -- Column 1 has 2 content lines, column 2 has 1
+    set_lines({
+        '+-----+-----+',
+        '| aa  | bb  |',
+        '| cc  |     |',
+        '+=====+=====+',
+        '| dd  | ee  |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Row should still have 2 content lines
+    eq(#lines, 6)
+    -- Both content lines should have same width
+    eq(#lines[2], #lines[3])
+end
+
+T['grid_multiline_format']['width uses longest content line per column'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '| very long | x |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- First column width should accommodate "very long"
+    local border = lines[1]
+    -- Find column boundaries from border
+    local first_plus = border:find('%+')
+    local second_plus = border:find('%+', first_plus + 1)
+    local col1_width = second_plus - first_plus - 1
+    -- "very long" is 9 chars + 2 padding = 11
+    eq(col1_width >= 11, true)
+end
+
+T['grid_multiline_format']['multiline width does not inflate other columns'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '| very long text in col1 | x |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Second column should only be as wide as needed for 'x', 'b', 'd'
+    -- Not inflated by column 1's long text
+    local border = lines[1]
+    local plus_positions = {}
+    for i = 1, #border do
+        if border:sub(i, i) == '+' then
+            table.insert(plus_positions, i)
+        end
+    end
+    -- col2 width = plus_positions[3] - plus_positions[2] - 1
+    local col2_width = plus_positions[3] - plus_positions[2] - 1
+    -- Should be small (3 min + 2 padding = 5)
+    eq(col2_width <= 7, true)
+end
+
+T['grid_multiline_format']['format preserves alignment with multiline'] = function()
+    set_lines({
+        '+-------+--------+',
+        '| Left  | Right  |',
+        '| more  | text   |',
+        '+:======+======:=+',
+        '| a     |      b |',
+        '+-------+--------+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Find header separator
+    local header_sep = nil
+    for _, l in ipairs(lines) do
+        if l:find('=') then
+            header_sep = l
+            break
+        end
+    end
+    eq(header_sep ~= nil, true)
+    -- Should preserve alignment markers
+    eq(header_sep:match('%+:=') ~= nil, true) -- left alignment
+end
+
+T['grid_multiline_format']['reformat multiline table is idempotent'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines_first = get_lines()
+    -- Format again
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines_second = get_lines()
+    -- Should be identical
+    eq(#lines_first, #lines_second)
+    for i = 1, #lines_first do
+        eq(lines_first[i], lines_second[i])
+    end
+end
+
+-- =============================================================================
+-- Grid multiline: row/col operations
+-- =============================================================================
+T['grid_multiline_ops'] = new_set()
+
+T['grid_multiline_ops']['addRow below multiline row'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| h1  | h2  |',
+        '+=====+=====+',
+        '| a   | b   |',
+        '| a2  | b2  |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on primary line of multiline data row
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(4)
+        tbl:add_row(0)
+    ]])
+    local lines = get_lines()
+    -- Should have 8 lines (6 + 1 content + 1 border)
+    eq(#lines, 8)
+    -- Multiline content should still be present
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('a2') ~= nil, true)
+    eq(all_text:match('b2') ~= nil, true)
+end
+
+T['grid_multiline_ops']['addRow above multiline row'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| h1  | h2  |',
+        '+=====+=====+',
+        '| a   | b   |',
+        '| a2  | b2  |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on primary line of multiline data row
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(4)
+        tbl:add_row(-1)
+    ]])
+    local lines = get_lines()
+    eq(#lines, 8)
+    -- Multiline content should still be present
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('a2') ~= nil, true)
+end
+
+T['grid_multiline_ops']['deleteRow removes all content lines of multiline row'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| h1  | h2  |',
+        '+=====+=====+',
+        '| a   | b   |',
+        '| a2  | b2  |',
+        '+-----+-----+',
+        '| c   | d   |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on multiline data row
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(4)
+        tbl:delete_row()
+    ]])
+    local lines = get_lines()
+    -- Should have removed both content lines + adjacent border
+    -- 8 - 3 = 5 lines remaining
+    eq(#lines, 5)
+    -- Multiline content should be gone
+    local all_text = table.concat(lines, '\n')
+    eq(all_text:match('a2') == nil, true)
+    eq(all_text:match('b2') == nil, true)
+    -- Other rows should be intact
+    eq(all_text:match('h1') ~= nil, true)
+    eq(all_text:match('c') ~= nil, true)
+end
+
+T['grid_multiline_ops']['addCol extends multiline rows'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| a   | b   |',
+        '| a2  | b2  |',
+        '+=====+=====+',
+        '| c   | d   |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 3)
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        tbl:add_col(0)
+    ]])
+    local lines = get_lines()
+    -- All lines should have 3 columns now
+    -- Borders should have 4 + signs
+    local _, border_plus = lines[1]:gsub('%+', '')
+    eq(border_plus, 4)
+    -- Content lines (including multiline) should have 4 | signs
+    local _, content_pipes = lines[2]:gsub('|', '')
+    eq(content_pipes, 4)
+    local _, cont_pipes = lines[3]:gsub('|', '')
+    eq(cont_pipes, 4)
+end
+
+T['grid_multiline_ops']['deleteCol with multiline rows'] = function()
+    set_lines({
+        '+-----+-----+-----+',
+        '| a   | b   | c   |',
+        '| a2  | b2  | c2  |',
+        '+=====+=====+=====+',
+        '| d   | e   | f   |',
+        '+-----+-----+-----+',
+    })
+    set_cursor(2, 3) -- on first column
+    child.lua([[
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        tbl:delete_col()
+    ]])
+    local lines = get_lines()
+    -- Should now have 2 columns
+    local _, border_plus = lines[1]:gsub('%+', '')
+    eq(border_plus, 3)
+    -- Multiline rows should still be multiline
+    eq(#lines, 6)
+end
+
+-- =============================================================================
+-- Grid multiline: edge cases
+-- =============================================================================
+T['grid_multiline_edge'] = new_set()
+
+T['grid_multiline_edge']['single row multiline table'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| a   | b   |',
+        '| a2  | b2  |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 2)
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return { valid = tbl.valid, row_count = #tbl.rows, table_type = tbl.table_type }
+    end)()]])
+    eq(result.valid, true)
+    eq(result.table_type, 'grid')
+    eq(result.row_count, 1) -- one logical row with 2 content lines
+end
+
+T['grid_multiline_edge']['row with 3+ content lines'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| a   | b   |',
+        '| c   | d   |',
+        '| e   | f   |',
+        '+=====+=====+',
+        '| g   | h   |',
+        '+-----+-----+',
+    })
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return {
+            valid = tbl.valid,
+            row_count = #tbl.rows,
+            header_cont = #tbl.rows[1].continuation_lines,
+        }
+    end)()]])
+    eq(result.valid, true)
+    eq(result.row_count, 2)
+    eq(result.header_cont, 2) -- 2 continuation lines (lines 3 and 4)
+end
+
+T['grid_multiline_edge']['uneven content lines across columns'] = function()
+    -- Column 1 has content on all 3 lines, column 2 only on first line
+    set_lines({
+        '+-------+-----+',
+        '| line1 | b   |',
+        '| line2 |     |',
+        '| line3 |     |',
+        '+=======+=====+',
+        '| data  | d   |',
+        '+-------+-----+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should still have 3 content lines in header row
+    eq(#lines, 7)
+    -- All content lines in the row should have same width
+    eq(#lines[2], #lines[3])
+    eq(#lines[2], #lines[4])
+end
+
+T['grid_multiline_edge']['empty continuation lines preserved'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| a   | b   |',
+        '|     |     |',
+        '+=====+=====+',
+        '| c   | d   |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should still have 6 lines (empty content line preserved)
+    eq(#lines, 6)
+end
+
+T['grid_multiline_edge']['navigation from last content line of last row'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| h1  | h2  |',
+        '+=====+=====+',
+        '| a   | b   |',
+        '| a2  | b2  |',
+        '+-----+-----+',
+    })
+    -- Cursor on the last content line of the last data row
+    set_cursor(5, 3) -- on continuation 'a2'
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    -- Should not crash - there's no next row
+    local cursor = get_cursor()
+    -- Should stay in the table area or move to next line gracefully
+    eq(cursor[1] >= 1, true)
+end
+
+T['grid_multiline_edge']['navigation through headerless multiline'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| a   | b   |',
+        '| a2  | b2  |',
+        '+-----+-----+',
+        '| c   | d   |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 3) -- on 'a'
+    child.lua([[require('mkdnflow.tables').moveToCell(1, 0)]])
+    local cursor = get_cursor()
+    -- Should skip to 'c' row
+    eq(cursor[1], 5)
+end
+
+T['grid_multiline_edge']['format then navigate preserves table'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '| cc | dd |',
+        '+===+===+',
+        '| e | f |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    -- Verify table is still valid after format
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return { valid = tbl.valid, row_count = #tbl.rows }
+    end)()]])
+    eq(result.valid, true)
+    eq(result.row_count, 2)
+    -- Now navigate
+    set_cursor(2, 2)
+    child.lua([[
+        require('mkdnflow').config.tables.format_on_move = false
+        require('mkdnflow.tables').moveToCell(1, 0)
+    ]])
+    local cursor = get_cursor()
+    -- Should land on data row (after continuation + border)
+    local line = get_line(cursor[1])
+    eq(line:match('e') ~= nil, true)
+end
+
+T['grid_multiline_edge']['format cell shorter than border does not add extra pipe'] = function()
+    -- Bug: when content line is shorter than border (closing | doesn't align
+    -- with border's closing +), slice_cells includes the | as cell content,
+    -- causing format to produce an extra pipe like "| hey |  |"
+    set_lines({
+        '+-----+-----+--------+',
+        '|     |     |        |',
+        '+=====+=====+========+',
+        '|     |     | hey | ',
+        '+-----+-----+--------+',
+        '|     |     |        |',
+        '+-----+-----+--------+',
+    })
+    set_cursor(4, 16)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- After formatting, the line with "hey" should NOT have an extra pipe
+    local hey_line = nil
+    for _, l in ipairs(lines) do
+        if l:match('hey') then
+            hey_line = l
+            break
+        end
+    end
+    -- Count pipes in the line — should be exactly 4 (3 columns = 4 pipe delimiters)
+    local pipe_count = 0
+    for _ in hey_line:gmatch('|') do
+        pipe_count = pipe_count + 1
+    end
+    eq(pipe_count, 4)
+end
+
+-- =============================================================================
+-- Grid table alignment
+-- =============================================================================
+T['grid_alignment'] = new_set()
+
+T['grid_alignment']['left alignment parsed from :==='] = function()
+    set_lines({
+        '+------+------+',
+        '| Left | Col2 |',
+        '+:=====+======+',
+        '| text | more |',
+        '+------+------+',
+    })
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return tbl.metadata.col_alignments
+    end)()]])
+    eq(result[1], 'left')
+end
+
+T['grid_alignment']['right alignment parsed from ===:'] = function()
+    set_lines({
+        '+------+-------+',
+        '| Col1 | Right |',
+        '+======+======:+',
+        '| text | more  |',
+        '+------+-------+',
+    })
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return tbl.metadata.col_alignments
+    end)()]])
+    eq(result[2], 'right')
+end
+
+T['grid_alignment']['center alignment parsed from :===:'] = function()
+    set_lines({
+        '+--------+------+',
+        '| Center | Col2 |',
+        '+:======:+======+',
+        '| text   | more |',
+        '+--------+------+',
+    })
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return tbl.metadata.col_alignments
+    end)()]])
+    eq(result[1], 'center')
+end
+
+T['grid_alignment']['alignment preserved after format'] = function()
+    set_lines({
+        '+---+---+',
+        '| L | R |',
+        '+:==+==:+',
+        '| a | b |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Find the header separator
+    local header_sep = nil
+    for _, l in ipairs(lines) do
+        if l:find('=') then
+            header_sep = l
+            break
+        end
+    end
+    eq(header_sep ~= nil, true)
+    -- First column should have left alignment (:=...)
+    eq(header_sep:match('%+:=') ~= nil, true)
+    -- Second column should have right alignment (...=:+)
+    eq(header_sep:match('=:%+') ~= nil, true)
+end
+
+-- =============================================================================
+-- Grid table config
+-- =============================================================================
+T['grid_config'] = new_set()
+
+T['grid_config']['type grid creates grid tables'] = function()
+    setup_with_config([[{ tables = { type = 'grid' } }]])
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({2, 1})]])
+    local lines = get_lines()
+    -- Should have grid borders
+    eq(lines[2]:match('^%+') ~= nil, true)
+end
+
+T['grid_config']['type pipe creates pipe tables'] = function()
+    setup_with_config([[{ tables = { type = 'pipe' } }]])
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.tables').newTable({2, 1})]])
+    local lines = get_lines()
+    -- Should have pipe table (no + borders)
+    eq(lines[2]:match('^|') ~= nil, true)
+    eq(lines[2]:match('^%+') == nil, true)
+end
+
+T['grid_config']['auto-detection formats grid as grid even when config says pipe'] = function()
+    setup_with_config([[{ tables = { type = 'pipe' } }]])
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- Should still be a grid table
+    eq(lines[1]:match('^%+') ~= nil, true)
+    eq(lines[#lines]:match('^%+') ~= nil, true)
+end
+
+-- =============================================================================
+-- Grid table edge cases
+-- =============================================================================
+T['grid_edge_cases'] = new_set()
+
+T['grid_edge_cases']['grid table at start of buffer'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return { valid = tbl.valid, table_type = tbl.table_type }
+    end)()]])
+    eq(result.valid, true)
+    eq(result.table_type, 'grid')
+end
+
+T['grid_edge_cases']['grid table at end of buffer'] = function()
+    set_lines({
+        'Some text above.',
+        '',
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(4, 2)
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(4)
+        return { valid = tbl.valid, table_type = tbl.table_type }
+    end)()]])
+    eq(result.valid, true)
+    eq(result.table_type, 'grid')
+end
+
+T['grid_edge_cases']['single column grid table'] = function()
+    set_lines({
+        '+-----+',
+        '| hdr |',
+        '+=====+',
+        '| dat |',
+        '+-----+',
+    })
+    set_cursor(2, 3)
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return { valid = tbl.valid, col_count = tbl.col_count }
+    end)()]])
+    eq(result.valid, true)
+    eq(result.col_count, 1)
+end
+
+T['grid_edge_cases']['headerless grid table'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+---+---+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    local result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(2)
+        return { valid = tbl.valid, table_type = tbl.table_type }
+    end)()]])
+    eq(result.valid, true)
+    eq(result.table_type, 'grid')
+end
+
+T['grid_edge_cases']['headerless grid table format preserves all --- borders'] = function()
+    -- Bug: formatting a headerless grid table converts the last border to +=====+
+    -- because all rows are incorrectly marked is_header=true when no === separator exists
+    set_lines({
+        '+-----+-----+',
+        '|     |     |',
+        '+-----+-----+',
+        '|     |     |',
+        '+-----+-----+',
+        '|     |     |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 2)
+    child.lua([[require('mkdnflow.tables').formatTable()]])
+    local lines = get_lines()
+    -- All borders should use --- not ===
+    for i, l in ipairs(lines) do
+        if l:match('^%+') then
+            eq(l:find('=') == nil, true, 'border at line ' .. i .. ' should not contain =')
+        end
+    end
+    -- Line count should stay the same
+    eq(#lines, 7)
+end
+
+T['grid_edge_cases']['grid and pipe tables in same buffer'] = function()
+    set_lines({
+        '| pipe1 | pipe2 |',
+        '| ----- | ----- |',
+        '| data1 | data2 |',
+        '',
+        '+------+------+',
+        '| grid | grid |',
+        '+======+======+',
+        '| gd1  | gd2  |',
+        '+------+------+',
+    })
+    -- Read pipe table
+    local pipe_result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(1)
+        return { valid = tbl.valid, table_type = tbl.table_type }
+    end)()]])
+    eq(pipe_result.valid, true)
+    eq(pipe_result.table_type, 'pipe')
+    -- Read grid table
+    local grid_result = child.lua_get([[(function()
+        local tbl = require('mkdnflow.tables.core').MarkdownTable:read(6)
+        return { valid = tbl.valid, table_type = tbl.table_type }
+    end)()]])
+    eq(grid_result.valid, true)
+    eq(grid_result.table_type, 'grid')
+end
+
+-- =============================================================================
+-- Grid table E2E tests (using actual commands and keymaps)
+-- =============================================================================
+T['grid_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    tables = { format_on_move = false },
+                })
+            ]])
+        end,
+    },
+})
+
+-- Tab navigation tests (insert mode <Tab> -> MkdnTableNextCell)
+T['grid_e2e']['Tab moves to next cell'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on 'ccc'
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    eq(cursor[1], 4) -- same row
+    -- Should be in second cell (past the middle |)
+    -- Note: cursor[2] is 0-indexed, find() is 1-indexed, and Esc shifts cursor back 1
+    local line = get_line(4)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true)
+end
+
+T['grid_e2e']['S-Tab moves to previous cell'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 10) -- on 'ddd'
+    child.type_keys('i')
+    child.type_keys('<S-Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    eq(cursor[1], 4) -- same row
+    eq(cursor[2] < 6, true) -- should be in first cell
+end
+
+T['grid_e2e']['Tab wraps to next row first cell'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+        '| eee | fff |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 10) -- on 'ddd' (last cell of first data row)
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should wrap to next row's first cell
+    eq(cursor[1], 6)
+    eq(cursor[2] < 6, true) -- in first cell
+end
+
+T['grid_e2e']['S-Tab wraps to previous row last cell'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+        '| eee | fff |',
+        '+-----+-----+',
+    })
+    set_cursor(6, 3) -- on 'eee' (first cell of second data row)
+    child.type_keys('i')
+    child.type_keys('<S-Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should wrap to previous row's last cell
+    eq(cursor[1], 4)
+    local line = get_line(4)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true) -- in second cell
+end
+
+T['grid_e2e']['Tab skips border line between rows'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    -- Start on header row, last cell
+    set_cursor(2, 10) -- on 'bbb'
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should skip the === border and land on data row
+    eq(cursor[1], 4)
+    eq(cursor[2] < 6, true) -- first cell
+end
+
+-- Enter key navigation (insert mode <CR> -> MkdnEnter -> moveToCell(1, 0))
+T['grid_e2e']['Enter moves to next row same column'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+        '| eee | fff |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on 'ccc'
+    child.type_keys('i')
+    -- MkdnEnter is mapped to <CR> in insert mode
+    child.cmd('MkdnEnter')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should move to next row, same column
+    eq(cursor[1], 6)
+end
+
+-- Normal mode command tests
+T['grid_e2e']['MkdnTableNextCell command works'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on 'ccc'
+    child.cmd('MkdnTableNextCell')
+    local cursor = get_cursor()
+    eq(cursor[1], 4)
+    local line = get_line(4)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true)
+end
+
+T['grid_e2e']['MkdnTablePrevCell command works'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 10) -- on 'ddd'
+    child.cmd('MkdnTablePrevCell')
+    local cursor = get_cursor()
+    eq(cursor[1], 4)
+    eq(cursor[2] < 6, true) -- first cell
+end
+
+T['grid_e2e']['MkdnTableNextRow command works'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+        '| eee | fff |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on 'ccc'
+    child.cmd('MkdnTableNextRow')
+    local cursor = get_cursor()
+    eq(cursor[1], 6) -- next data row, skipping border
+end
+
+T['grid_e2e']['MkdnTablePrevRow command works'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+        '| eee | fff |',
+        '+-----+-----+',
+    })
+    set_cursor(6, 3) -- on 'eee'
+    child.cmd('MkdnTablePrevRow')
+    local cursor = get_cursor()
+    eq(cursor[1], 4) -- previous data row, skipping border
+end
+
+-- Format command
+T['grid_e2e']['MkdnTableFormat command formats grid table'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| longer text | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 2)
+    child.cmd('MkdnTableFormat')
+    local lines = get_lines()
+    -- After formatting, borders should match content widths
+    eq(#lines[1], #lines[4]) -- content line and border should be same length
+    eq(lines[1]:match('^%+'), '+')
+    eq(lines[#lines]:match('^%+'), '+')
+end
+
+-- Row operations via commands
+T['grid_e2e']['MkdnTableNewRowBelow adds row below in grid'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(4, 3) -- on data row
+    child.cmd('MkdnTableNewRowBelow')
+    local lines = get_lines()
+    eq(#lines, 7) -- original 5 + 1 content + 1 border
+end
+
+T['grid_e2e']['MkdnTableNewRowAbove adds row above in grid'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(4, 3) -- on data row
+    child.cmd('MkdnTableNewRowAbove')
+    local lines = get_lines()
+    eq(#lines, 7)
+end
+
+T['grid_e2e']['MkdnTableDeleteRow removes row from grid'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+        '| e | f |',
+        '+---+---+',
+    })
+    set_cursor(4, 3)
+    child.cmd('MkdnTableDeleteRow')
+    local lines = get_lines()
+    eq(#lines, 5) -- 7 - 2 removed
+end
+
+-- Column operations via commands
+T['grid_e2e']['MkdnTableNewColAfter adds column in grid'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 3)
+    child.cmd('MkdnTableNewColAfter')
+    local lines = get_lines()
+    -- Borders should now have 4 + signs (3 columns)
+    local _, plus_count = lines[1]:gsub('%+', '')
+    eq(plus_count, 4)
+end
+
+T['grid_e2e']['MkdnTableNewColBefore adds column before in grid'] = function()
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| c | d |',
+        '+---+---+',
+    })
+    set_cursor(2, 3)
+    child.cmd('MkdnTableNewColBefore')
+    local lines = get_lines()
+    local _, plus_count = lines[1]:gsub('%+', '')
+    eq(plus_count, 4)
+end
+
+T['grid_e2e']['MkdnTableDeleteCol removes column from grid'] = function()
+    set_lines({
+        '+---+---+---+',
+        '| a | b | c |',
+        '+===+===+===+',
+        '| d | e | f |',
+        '+---+---+---+',
+    })
+    set_cursor(2, 3)
+    child.cmd('MkdnTableDeleteCol')
+    local lines = get_lines()
+    local _, plus_count = lines[1]:gsub('%+', '')
+    eq(plus_count, 3) -- 2 columns now
+end
+
+-- Table creation via command
+T['grid_e2e']['MkdnTable command creates grid table'] = function()
+    setup_with_config([[{ tables = { type = 'grid' } }]])
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.cmd('MkdnTable 3 2')
+    local lines = get_lines()
+    -- Should have grid border lines
+    local has_grid_border = false
+    for _, l in ipairs(lines) do
+        if l:match('^%+%-') then
+            has_grid_border = true
+            break
+        end
+    end
+    eq(has_grid_border, true)
+end
+
+-- Multiline grid table navigation
+T['grid_e2e']['Tab navigates in multiline grid table'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| more  | text  |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(2, 3) -- on 'hello' in first content line of header
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should navigate to the next cell in the same row
+    eq(cursor[1], 2) -- same row
+    local line = get_line(2)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true) -- in second cell
+end
+
+T['grid_e2e']['Tab from last cell in multiline row wraps to next row'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| more  | text  |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(2, 12) -- on 'world' (last cell of header)
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should wrap to data row's first cell
+    eq(cursor[1], 5)
+    eq(cursor[2] < 8, true) -- in first cell
+end
+
+-- Cursor on border line
+T['grid_e2e']['Tab on border line navigates to content'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(3, 3) -- on the === border line
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should have been redirected to a content line
+    local line = get_line(cursor[1])
+    eq(line:match('^|') ~= nil, true)
+end
+
+-- Enter in insert mode at last row (edge case: extending table or leaving)
+T['grid_e2e']['Enter at last data row does not crash'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+=====+=====+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(4, 3) -- on 'ccc', last data row
+    child.type_keys('i')
+    local ok = child.lua_get([[(function()
+        local success, err = pcall(function() vim.cmd('MkdnEnter') end)
+        return success
+    end)()]])
+    child.type_keys('<Esc>')
+    eq(ok, true)
+end
+
+-- Navigation with format_on_move enabled
+T['grid_e2e']['Tab with format_on_move formats grid table'] = function()
+    child.lua([[require('mkdnflow').config.tables.format_on_move = true]])
+    set_lines({
+        '+---+---+',
+        '| a | b |',
+        '+===+===+',
+        '| longer text | d |',
+        '+---+---+',
+    })
+    set_cursor(4, 3)
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local lines = get_lines()
+    -- After formatting, all lines should have same length
+    eq(#lines[1], #lines[2])
+    eq(#lines[1], #lines[4])
+    child.lua([[require('mkdnflow').config.tables.format_on_move = false]])
+end
+
+-- Headerless grid table
+T['grid_e2e']['Tab navigates in headerless grid table'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+-----+-----+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 3) -- on 'aaa'
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    eq(cursor[1], 2) -- same row
+    local line = get_line(2)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true) -- in second cell
+end
+
+T['grid_e2e']['Enter navigates in headerless grid table'] = function()
+    set_lines({
+        '+-----+-----+',
+        '| aaa | bbb |',
+        '+-----+-----+',
+        '| ccc | ddd |',
+        '+-----+-----+',
+    })
+    set_cursor(2, 3) -- on 'aaa'
+    child.type_keys('i')
+    child.cmd('MkdnEnter')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should move to next row
+    eq(cursor[1], 4)
+end
+
+-- Three-column grid table
+T['grid_e2e']['Tab navigates through three-column grid table'] = function()
+    set_lines({
+        '+-----+-----+-----+',
+        '| aaa | bbb | ccc |',
+        '+=====+=====+=====+',
+        '| ddd | eee | fff |',
+        '+-----+-----+-----+',
+    })
+    set_cursor(4, 3) -- on 'ddd', first cell
+    -- Tab twice to get to third cell
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    eq(cursor[1], 4) -- same row
+    -- Should be in third cell
+    local line = get_line(4)
+    local pipes = {}
+    local pos = 0
+    while true do
+        pos = line:find('|', pos + 1)
+        if not pos then
+            break
+        end
+        table.insert(pipes, pos)
+    end
+    -- Cursor should be past the third pipe (second internal divider)
+    eq(cursor[2] >= pipes[3], true)
 end
 
 return T

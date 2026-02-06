@@ -446,6 +446,13 @@ foldtext:
       The character used to fill empty space in the foldtext line. Default: `'⣿'`
 
 tables:
+  - name: tables.type
+    type: string
+    description: |
+      **`'pipe'`** (default): New tables are created in pipe format (`| cell | cell |` with `| --- | --- |` separator).
+      `'grid'`: New tables are created in pandoc grid format with `+---+` border lines between rows and `+===+` header separators. Grid tables support native multiline cells.
+      Regardless of this setting, existing tables are auto-detected and handled in their native format when formatting, navigating, or editing.
+
   - name: tables.trim_whitespace
     type: boolean
     description: |

@@ -120,6 +120,7 @@ Table support                                         *Mkdnflow-table-support*
 [x] Table creation
 [x] Table extension (add rows and columns)
 [x] Table formatting
+[x] Pandoc grid table support
 [ ] Paste delimited data as a table
 [ ] Import delimited file into a new table
 
@@ -403,6 +404,7 @@ the documentation for the configuration options below or in the help files.
             },
         },
         tables = {
+            type = 'pipe',
             trim_whitespace = true,
             format_on_move = true,
             auto_extend_rows = false,
@@ -1312,6 +1314,7 @@ tables ~
 >
     require('mkdnflow').setup({
         tables = {
+            type = 'pipe',
             trim_whitespace = true,
             format_on_move = true,
             auto_extend_rows = false,
@@ -1329,6 +1332,16 @@ tables ~
         },
     })
 <
+
+tables.type                                      *Mkdnflow-config-tables-type*
+    Type: string
+
+    `'pipe'`: (default): New tables are created in pipe format (`| cell | cell
+    |` with `| --- | --- |` separator). `'grid'`: New tables are created in
+    pandoc grid format with `+---+` border lines between rows and `+===+`
+    header separators. Grid tables support native multiline cells. Regardless
+    of this setting, existing tables are auto-detected and handled in their
+    native format when formatting, navigating, or editing.
 
 tables.trim_whitespace                *Mkdnflow-config-tables-trim-whitespace*
     Type: boolean

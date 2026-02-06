@@ -143,6 +143,7 @@
         },
     },
     tables = {
+        type = 'pipe',
         trim_whitespace = true,
         format_on_move = true,
         auto_extend_rows = false,
