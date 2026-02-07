@@ -204,10 +204,6 @@ local default_config = {
         format_on_move = true,
         auto_extend_rows = false,
         auto_extend_cols = false,
-        line_breaks = {
-            pandoc = true, -- Handle \ as line break in cells
-            html = false, -- Handle <br> as line break in cells
-        },
         style = {
             cell_padding = 1,
             separator_padding = 1,

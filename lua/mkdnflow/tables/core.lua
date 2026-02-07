@@ -25,92 +25,6 @@ local function get_utils()
     return require('mkdnflow').utils
 end
 
---- Split cell content at line break markers (\ or <br>)
---- Returns an array of content parts. The marker stays with the preceding part.
---- @param content string The cell content to split
---- @param line_breaks table Config: { pandoc = bool, html = bool }
---- @return string[] parts Array of content parts (first is primary, rest are continuations)
-local function split_at_line_breaks(content, line_breaks)
-    if not content or content == '' then
-        return { content }
-    end
-
-    local parts = {}
-    local remaining = content
-
-    while remaining and remaining ~= '' do
-        local split_pos = nil
-        local marker_end = nil
-        local marker_type = nil
-
-        -- Look for pandoc-style line break: \ followed by space (but not \|)
-        if line_breaks.pandoc then
-            -- Find \ that is:
-            -- 1. NOT followed by | (that's escaped pipe)
-            -- 2. NOT preceded by \ (that's escaped backslash)
-            -- 3. Followed by space or end of content
-            local pos = 1
-            while pos <= #remaining do
-                local found = remaining:find('\\', pos, true)
-                if not found then
-                    break
-                end
-                -- Check if this is escaped backslash (preceded by \)
-                local is_escaped = found > 1 and remaining:sub(found - 1, found - 1) == '\\'
-                -- Check what follows
-                local next_char = remaining:sub(found + 1, found + 1)
-                if not is_escaped and next_char ~= '|' and next_char ~= '\\' then
-                    -- This is a valid line break marker
-                    -- Check if there's content after (space + something)
-                    local after = remaining:sub(found + 1)
-                    if after:match('^%s+%S') then
-                        -- There's content after the break
-                        split_pos = found
-                        -- Find where the content starts (skip the \ and whitespace)
-                        local _, ws_end = after:find('^%s+')
-                        marker_end = found + ws_end
-                        marker_type = 'pandoc'
-                        break
-                    end
-                end
-                pos = found + 1
-            end
-        end
-
-        -- Look for HTML line break: <br> (only if no pandoc break found first)
-        if line_breaks.html and not split_pos then
-            local br_pos = remaining:find('<br>', 1, true)
-            if br_pos then
-                -- Check if there's content after
-                local after = remaining:sub(br_pos + 4)
-                if after:match('%S') then
-                    split_pos = br_pos + 3 -- Position at end of <br>
-                    -- Find where content starts (skip whitespace after <br>)
-                    local _, ws_end = after:find('^%s*')
-                    marker_end = br_pos + 3 + (ws_end or 0)
-                    marker_type = 'html'
-                end
-            end
-        end
-
-        if split_pos and marker_end then
-            -- Split at the marker
-            local first_part = remaining:sub(1, split_pos)
-            if marker_type == 'pandoc' then
-                first_part = first_part .. ' ' -- Keep the \ and add space for readability
-            end
-            table.insert(parts, first_part)
-            remaining = remaining:sub(marker_end + 1)
-        else
-            -- No more breaks, add the rest
-            table.insert(parts, remaining)
-            remaining = nil
-        end
-    end
-
-    return parts
-end
-
 table.unpack = table.unpack or unpack -- 5.1 compatibility
 
 -- Display width helper (handles multi-byte characters)
@@ -250,7 +164,7 @@ end
 --- @field is_header boolean Is this the header row?
 --- @field has_outer_pipes boolean Does this row have outer pipes?
 --- @field outer_pipe_side string|nil 'both'|'left'|'right'|nil
---- @field continuation_lines string[] For future multiline row support
+--- @field continuation_lines string[] Additional content lines (grid tables only)
 local TableRow = {}
 TableRow.__index = TableRow
 TableRow.__className = 'TableRow'
@@ -359,21 +273,6 @@ function TableRow:_detect_separator()
     return has_hyphen
 end
 
---- Detect if this row has a continuation marker (backslash before final pipe)
---- @param line? string Optional line to check (defaults to raw_content)
---- @return boolean
-function TableRow:_has_continuation(line)
-    line = line or self.raw_content
-    -- Match backslash followed by optional whitespace and optional final pipe
-    -- But NOT double backslash (escaped backslash)
-    -- Pattern: single \ (not preceded by \) followed by whitespace and optional |
-    if line:match('\\\\%s*|?%s*$') then
-        -- Double backslash at end - this is an escaped backslash, not continuation
-        return false
-    end
-    return line:match('\\%s*|?%s*$') ~= nil
-end
-
 --- Get the number of cells in this row
 --- @return integer
 function TableRow:cell_count()
@@ -456,27 +355,13 @@ end
 --- @param col_widths integer[] Array of column widths
 --- @param col_alignments string[] Array of column alignments
 --- @param style table Style configuration
---- @return string|string[] The formatted row string, or table of strings for multiline rows
+--- @return string The formatted row string
 function TableRow:format(col_widths, col_alignments, style)
     local cell_padding = string.rep(' ', style.cell_padding or 1)
     local sep_padding = string.rep(' ', style.separator_padding or 1)
     local outer_pipes = style.outer_pipes
-    local config = get_config()
-    local line_breaks = config.tables.line_breaks or {}
-
-    -- Collect all continuation parts (from inline splits + pre-existing continuations)
-    local continuation_parts = {}
-
-    -- Check if last cell needs inline splitting (only for non-separator rows)
-    local last_cell = self.cells[#self.cells]
-    local inline_split_parts = {}
-    if last_cell and not self.is_separator then
-        inline_split_parts = split_at_line_breaks(last_cell.content, line_breaks)
-    end
 
     local parts = {}
-    local last_cell_start = 0 -- Track position where last cell content starts
-    local last_cell_alignment = 'default'
 
     for idx, cell in ipairs(self.cells) do
         local target_width = col_widths[idx] or 3
@@ -493,131 +378,12 @@ function TableRow:format(col_widths, col_alignments, style)
             local diff = #cell_padding - #sep_padding
             formatted = sep_cell:format_separator(target_width + 2 * diff, sep_padding)
         else
-            -- Check if this is the last cell and we have inline splits
-            local cell_content = cell.content
-            if idx == #self.cells and #inline_split_parts > 1 then
-                -- Use only the first part for the primary line
-                cell_content = inline_split_parts[1]
-                -- Store the rest as continuation parts
-                for i = 2, #inline_split_parts do
-                    table.insert(continuation_parts, inline_split_parts[i])
-                end
-            end
-
-            -- Create a temporary cell with the (possibly modified) content
-            local format_cell = TableCell:new({
-                content = cell_content,
-                raw_content = cell.raw_content,
-                alignment = cell.alignment,
-                display_width = width(cell_content),
-                col_index = cell.col_index,
-            })
-            formatted = format_cell:format(target_width, cell_padding, alignment)
-        end
-
-        -- Calculate where the last cell's content starts (for continuation indent)
-        if idx == #self.cells then
-            -- Position = outer pipe (if any) + all previous cells + separators + padding
-            last_cell_start = (outer_pipes and 1 or 0)
-            for i = 1, idx - 1 do
-                last_cell_start = last_cell_start + #parts[i] + 1 -- +1 for separator pipe
-            end
-            last_cell_start = last_cell_start + #cell_padding -- Add padding before content
-            last_cell_alignment = alignment
+            formatted = cell:format(target_width, cell_padding, alignment)
         end
 
         table.insert(parts, formatted)
     end
 
-    -- Add pre-existing continuation lines (from already-split tables)
-    for _, cont_line in ipairs(self.continuation_lines) do
-        -- Strip leading whitespace
-        local content = cont_line:gsub('^%s*', '')
-        -- Strip trailing | and padding from already-formatted continuation lines
-        -- (we'll add the closing | back when formatting the final line)
-        content = content:gsub('%s*|%s*$', '')
-        -- Check if this continuation also needs splitting
-        local cont_parts = split_at_line_breaks(content, line_breaks)
-        for _, part in ipairs(cont_parts) do
-            table.insert(continuation_parts, part)
-        end
-    end
-
-    -- Handle multiline rows differently per Pandoc spec:
-    -- The \ must be immediately followed by newline (no padding, no closing pipe on that line)
-    -- Only the final continuation line gets the closing pipe
-    if #continuation_parts > 0 then
-        local lines = {}
-        local indent = string.rep(' ', last_cell_start)
-        local col_width = col_widths[#self.cells] or 3
-
-        -- Build the primary line WITHOUT the last cell's normal formatting
-        -- We need to rebuild it with just the content (ending in \ or <br>), no padding
-        local primary_parts = {}
-        for i = 1, #parts - 1 do
-            table.insert(primary_parts, parts[i])
-        end
-
-        -- Format the first part of the split cell (ends with \ or <br>)
-        local first_content = inline_split_parts[1] or last_cell.content
-        local primary_line
-        if #primary_parts > 0 then
-            primary_line = table.concat(primary_parts, '|') .. '|' .. cell_padding .. first_content
-        else
-            primary_line = cell_padding .. first_content
-        end
-        if outer_pipes then
-            primary_line = '|' .. primary_line
-            -- Note: NO closing | here - that goes on the last continuation line
-        end
-        table.insert(lines, primary_line)
-
-        -- Format continuation lines
-        for idx, cont_content in ipairs(continuation_parts) do
-            local is_last = (idx == #continuation_parts)
-            local padded_content
-            local content_width = width(cont_content)
-
-            if is_last then
-                -- Last continuation line gets full formatting with padding and closing pipe
-                if last_cell_alignment == 'right' then
-                    local pad_needed = col_width - content_width
-                    if pad_needed > 0 then
-                        padded_content = string.rep(' ', pad_needed) .. cont_content
-                    else
-                        padded_content = cont_content
-                    end
-                elseif last_cell_alignment == 'center' then
-                    local pad_needed = col_width - content_width
-                    local left_pad = math.floor(pad_needed / 2)
-                    local right_pad = pad_needed - left_pad
-                    padded_content = string.rep(' ', math.max(0, left_pad))
-                        .. cont_content
-                        .. string.rep(' ', math.max(0, right_pad))
-                else
-                    local pad_needed = col_width - content_width
-                    if pad_needed > 0 then
-                        padded_content = cont_content .. string.rep(' ', pad_needed)
-                    else
-                        padded_content = cont_content
-                    end
-                end
-
-                local cont_line_formatted = indent .. padded_content
-                if outer_pipes then
-                    cont_line_formatted = cont_line_formatted .. cell_padding .. '|'
-                end
-                table.insert(lines, cont_line_formatted)
-            else
-                -- Intermediate continuation lines: just content (ends with \ or <br>), no closing pipe
-                table.insert(lines, indent .. cont_content)
-            end
-        end
-
-        return lines
-    end
-
-    -- No continuation - build normal line
     local line = table.concat(parts, '|')
 
     if outer_pipes then
@@ -760,35 +526,9 @@ function MarkdownTable.isPartOfTable(text, linenr)
             tableyness = tableyness + (text:match('^%s*|.+|%s*$') and 1 or 0)
             tableyness = tableyness + (text:match('^|.+|$') and 1 or 0)
         end
-    elseif linenr and linenr > 1 then
-        -- Check if this might be a continuation line (previous line ends with \)
-        local config = get_config()
-        local line_breaks = config.tables.line_breaks or {}
-        if line_breaks.pandoc or line_breaks.html then
-            local prev_line = vim.api.nvim_buf_get_lines(0, linenr - 2, linenr - 1, false)
-            prev_line = prev_line and prev_line[1] or ''
-            -- If previous line is a table row ending with backslash continuation
-            if prev_line:match('^%s*|') and prev_line:match('\\%s*|?%s*$') then
-                -- And this line doesn't start with | (continuation, not new row)
-                if text and not text:match('^%s*|') then
-                    return true
-                end
-            end
-        end
     end
 
     return tableyness >= 2
-end
-
---- Check if a line looks like a new table row (starts with pipe or has table structure)
---- @param line string
---- @return boolean
-local function is_new_table_row(line)
-    if not line then
-        return false
-    end
-    -- A new table row starts with optional whitespace then a pipe
-    return line:match('^%s*|') ~= nil
 end
 
 --- Read a table from the buffer starting at a line number
@@ -801,9 +541,6 @@ function MarkdownTable:read(line_nr)
     end
     local tbl = MarkdownTable:new()
     local init_line_nr = line_nr
-    local config = get_config()
-    local line_breaks = config.tables.line_breaks or {}
-    local multiline_enabled = line_breaks.pandoc or line_breaks.html
 
     local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
 
@@ -818,130 +555,49 @@ function MarkdownTable:read(line_nr)
     local line_count = vim.api.nvim_buf_line_count(0)
 
     while line and MarkdownTable.isPartOfTable(line, line_nr) do
-        -- Check if this is a continuation line (not a proper table row)
-        -- A continuation line: doesn't start with |, but isPartOfTable returns true
-        -- because the previous line ends with \
-        -- Distinguish from tables without outer pipes by checking for internal | structure
-        local is_continuation = false
-        if multiline_enabled and not is_new_table_row(line) then
-            -- Doesn't start with |. Check if it's a continuation or a no-outer-pipes row
-            -- A continuation line has pipe only at the END (like "  content |")
-            -- A table row without outer pipes has pipe(s) in the MIDDLE (like "a | b")
-            local trimmed = line:gsub('^%s*', ''):gsub('%s*$', '')
-            -- Check if the only pipe is at the end
-            local content_before_pipe = trimmed:match('^(.+)|$')
-            if content_before_pipe and not content_before_pipe:find('|') then
-                -- Only has a trailing pipe, no internal pipes - this is a continuation line
-                is_continuation = true
-            elseif not trimmed:find('|') then
-                -- No pipes at all - also a continuation line (or not a table line)
-                is_continuation = true
+        local row = TableRow:from_string(line, line_nr)
+        rows_by_line[line_nr] = row
+
+        if row.is_separator and not tbl.metadata.separator_row_idx then
+            tbl.metadata.separator_row_idx = line_nr
+        end
+
+        -- Move to next line
+        line_nr = line_nr + direction
+
+        -- Check boundaries before reading
+        if line_nr < 1 or line_nr > line_count then
+            line = nil
+        else
+            line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
+        end
+
+        -- If we've reached the end going down, switch to going up
+        if direction == 1 and (not line or not MarkdownTable.isPartOfTable(line, line_nr)) then
+            line_nr = init_line_nr - 1
+            direction = -1
+            if line_nr < 1 then
+                line = nil
+            else
+                line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
             end
         end
 
-        if is_continuation then
-            -- Skip continuation lines - they'll be collected by their primary row
-            line_nr = line_nr + direction
-            if line_nr < 1 or line_nr > line_count then
-                line = nil
-            else
-                line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
-            end
-            -- Handle direction switching
-            if direction == 1 and (not line or not MarkdownTable.isPartOfTable(line, line_nr)) then
-                line_nr = init_line_nr - 1
-                direction = -1
-                if line_nr >= 1 then
-                    line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
-                else
-                    line = nil
-                end
-            end
-            if direction == -1 and (not line or not MarkdownTable.isPartOfTable(line, line_nr)) then
-                tbl.metadata.header_row_idx = line_nr + 1
-                break
-            end
-            -- Continue to next iteration
-        else
-            -- This is a proper table row (starts with |)
-            local row = TableRow:from_string(line, line_nr)
-            rows_by_line[line_nr] = row
-
-            if row.is_separator and not tbl.metadata.separator_row_idx then
-                tbl.metadata.separator_row_idx = line_nr
-            end
-
-            -- Move to next line (within else block for proper rows)
-            line_nr = line_nr + direction
-
-            -- Check boundaries before reading
-            if line_nr < 1 or line_nr > line_count then
-                line = nil
-            else
-                line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
-            end
-
-            -- If we've reached the end going down, switch to going up
-            if direction == 1 and (not line or not MarkdownTable.isPartOfTable(line, line_nr)) then
-                line_nr = init_line_nr - 1
-                direction = -1
-                if line_nr < 1 then
-                    line = nil
-                else
-                    line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
-                end
-            end
-
-            -- If we've reached the end going up, we're done
-            if direction == -1 and (not line or not MarkdownTable.isPartOfTable(line, line_nr)) then
-                tbl.metadata.header_row_idx = line_nr + 1
-                break
-            end
-        end -- end of else block for proper table rows
-    end -- end of while loop
-
-    -- Post-process: collect continuation lines for rows that need them
-    -- This handles cases where we scanned upward and found the primary row
-    -- but didn't collect its continuations
-    if multiline_enabled then
-        for line_num, row in pairs(rows_by_line) do
-            if
-                not row.is_separator
-                and row:_has_continuation()
-                and #row.continuation_lines == 0
-            then
-                -- This row has a continuation marker but no collected continuations
-                -- Look ahead for continuation lines
-                local cont_line_nr = line_num + 1
-                while cont_line_nr <= line_count do
-                    local cont_line =
-                        vim.api.nvim_buf_get_lines(0, cont_line_nr - 1, cont_line_nr, false)[1]
-                    -- Stop if we hit a new table row (starts with |) or empty/nil line
-                    if not cont_line or cont_line:match('^%s*$') or is_new_table_row(cont_line) then
-                        break
-                    end
-                    -- This is a continuation line
-                    table.insert(row.continuation_lines, cont_line)
-                    cont_line_nr = cont_line_nr + 1
-                    -- Check if this continuation also continues
-                    if not cont_line:match('\\%s*|?%s*$') then
-                        break
-                    end
-                end
-            end
+        -- If we've reached the end going up, we're done
+        if direction == -1 and (not line or not MarkdownTable.isPartOfTable(line, line_nr)) then
+            tbl.metadata.header_row_idx = line_nr + 1
+            break
         end
     end
 
     -- Sort rows by line number and add to table
     for line_num, row in get_utils().spairs(rows_by_line) do
         table.insert(tbl.rows, row)
-        -- Track line range (include continuation lines)
         if tbl.line_range.start == 0 or line_num < tbl.line_range.start then
             tbl.line_range.start = line_num
         end
-        local row_end = line_num + #row.continuation_lines
-        if row_end > tbl.line_range.finish then
-            tbl.line_range.finish = row_end
+        if line_num > tbl.line_range.finish then
+            tbl.line_range.finish = line_num
         end
     end
 
@@ -992,11 +648,8 @@ function MarkdownTable:_equalize_rows()
 end
 
 --- Calculate maximum width for each column
---- For cells with line breaks (\ or <br>), use the max width of individual parts
 function MarkdownTable:_calculate_col_widths()
     self.col_widths = {}
-    local config = get_config()
-    local line_breaks = config.tables.line_breaks or {}
 
     -- Initialize with minimum width of 3
     for i = 1, self.col_count do
@@ -1007,40 +660,8 @@ function MarkdownTable:_calculate_col_widths()
     for _, row in ipairs(self.rows) do
         if not row.is_separator then
             for idx, cell in ipairs(row.cells) do
-                local effective_width = cell.display_width
-
-                -- For the LAST cell only, check if content will be split at line breaks
-                -- If so, use the max width of the parts, not the total width
-                -- Also consider continuation lines (which only apply to the last cell)
-                if idx == #row.cells then
-                    if line_breaks.pandoc or line_breaks.html then
-                        local parts = split_at_line_breaks(cell.content, line_breaks)
-                        if #parts > 1 then
-                            -- Find max width among all parts
-                            effective_width = 0
-                            for _, part in ipairs(parts) do
-                                local part_width = width(part)
-                                if part_width > effective_width then
-                                    effective_width = part_width
-                                end
-                            end
-                        end
-                    end
-
-                    -- Also consider continuation lines already collected (only for last cell)
-                    if #row.continuation_lines > 0 then
-                        for _, cont_line in ipairs(row.continuation_lines) do
-                            local content = cont_line:gsub('^%s*', ''):gsub('%s*|%s*$', '')
-                            local cont_width = width(content)
-                            if cont_width > effective_width then
-                                effective_width = cont_width
-                            end
-                        end
-                    end
-                end
-
-                if effective_width > self.col_widths[idx] then
-                    self.col_widths[idx] = effective_width
+                if cell.display_width > self.col_widths[idx] then
+                    self.col_widths[idx] = cell.display_width
                 end
             end
         end
@@ -1088,15 +709,10 @@ function MarkdownTable:format()
     local formatted_lines = {}
 
     for _, row in ipairs(self.rows) do
-        local formatted = row:format(self.col_widths, self.metadata.col_alignments, style)
-        -- Handle multiline rows (returns table) vs single-line rows (returns string)
-        if type(formatted) == 'table' then
-            for _, line in ipairs(formatted) do
-                table.insert(formatted_lines, line)
-            end
-        else
-            table.insert(formatted_lines, formatted)
-        end
+        table.insert(
+            formatted_lines,
+            row:format(self.col_widths, self.metadata.col_alignments, style)
+        )
     end
 
     -- Write back to buffer
@@ -1276,13 +892,6 @@ function MarkdownTable:add_col(offset)
         local replacement = match_restored .. new_cell .. suffix_restored
 
         table.insert(replacements, replacement)
-
-        -- Preserve continuation lines for multiline rows
-        if row.continuation_lines and #row.continuation_lines > 0 then
-            for _, cont_line in ipairs(row.continuation_lines) do
-                table.insert(replacements, cont_line)
-            end
-        end
     end
 
     vim.api.nvim_buf_set_lines(
@@ -1324,19 +933,13 @@ function MarkdownTable:delete_row()
         return
     end
 
-    -- Build replacements without the target row (and its continuation lines)
+    -- Build replacements without the target row
     local replacements = {}
     local deleted_row_idx = nil
 
     for idx, row in ipairs(tbl.rows) do
         if row.line_nr ~= cursor[1] then
             table.insert(replacements, row.raw_content)
-            -- Preserve continuation lines for multiline rows
-            if row.continuation_lines and #row.continuation_lines > 0 then
-                for _, cont_line in ipairs(row.continuation_lines) do
-                    table.insert(replacements, cont_line)
-                end
-            end
         else
             deleted_row_idx = idx
         end
@@ -1424,19 +1027,6 @@ function MarkdownTable:delete_col()
         end
 
         table.insert(replacements, new_row)
-
-        -- Handle continuation lines
-        -- Continuation lines belong to the last column
-        -- If we're deleting the last column, skip the continuations
-        -- Otherwise, preserve them
-        if row.continuation_lines and #row.continuation_lines > 0 then
-            local was_last_col = (target_col == #cells + 1) -- +1 because we already removed it
-            if not was_last_col then
-                for _, cont_line in ipairs(row.continuation_lines) do
-                    table.insert(replacements, cont_line)
-                end
-            end
-        end
     end
 
     -- Replace the table lines

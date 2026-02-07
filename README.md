@@ -384,10 +384,6 @@ the help files.
             outer_pipes = true,
             mimic_alignment = true,
         },
-        line_breaks = {
-            pandoc = true,
-            html = false,
-        },
     },
     yaml = {
         bib = { override = false },
@@ -852,10 +848,6 @@ require('mkdnflow').setup({
             outer_pipes = true,
             mimic_alignment = true,
         },
-        line_breaks = {
-            pandoc = true,
-            html = false,
-        },
     },
 })
 ```
@@ -871,8 +863,6 @@ require('mkdnflow').setup({
 | `tables.style.separator_padding` | `integer` | **`1`** (default): Use one space as padding in the separator row.<br>`<n>`: Use `<n>` spaces as padding in the separator row. |
 | `tables.style.outer_pipes` | `boolean` | **`true`** (default): Include outer pipes when formatting a table.<br>`false`: Do not use outer pipes when formatting a table. |
 | `tables.style.mimic_alignment` | `boolean` | **`true`** (default): Mimic the cell alignment indicated in the separator row when formatting the table.<br>`false`: Always visually left-align cell contents when formatting a table. |
-| `tables.line_breaks.pandoc` | `boolean` | **`true`** (default): Enable Pandoc-style multiline cells using a trailing backslash (`\`) to continue content on the next line. Content on continuation lines belongs to the last cell and will be preserved during formatting.<br>`false`: Treat backslash at end of line as literal content. |
-| `tables.line_breaks.html` | `boolean` | `true`: Enable HTML-style line breaks within cells using `<br>`. During formatting, content after `<br>` will be split onto continuation lines.<br>**`false`** (default): Treat `<br>` as literal content within cells. |
 
 ##### yaml
 

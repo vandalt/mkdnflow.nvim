@@ -154,10 +154,6 @@
             outer_pipes = true,
             mimic_alignment = true,
         },
-        line_breaks = {
-            pandoc = true,
-            html = false,
-        },
     },
     yaml = {
         bib = { override = false },

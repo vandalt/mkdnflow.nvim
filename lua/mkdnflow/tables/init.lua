@@ -62,39 +62,6 @@ local function is_continuation_line(linenr)
         end
     end
 
-    -- Pipe table continuation logic
-    local config = require('mkdnflow').config
-    local line_breaks = config.tables.line_breaks or {}
-    if not (line_breaks.pandoc or line_breaks.html) then
-        return false, nil
-    end
-
-    -- If line starts with |, it's a primary row for pipe tables, not continuation
-    if line and line:match('^%s*|') then
-        return false, nil
-    end
-
-    -- Check previous line(s) for continuation marker
-    local check_linenr = linenr - 1
-    while check_linenr >= 1 do
-        local prev_line = vim.api.nvim_buf_get_lines(0, check_linenr - 1, check_linenr, false)[1]
-        if not prev_line then
-            return false, nil
-        end
-
-        -- If prev line starts with |, check if it ends with \
-        if prev_line:match('^%s*|') then
-            if prev_line:match('\\%s*|?%s*$') and not prev_line:match('\\\\%s*|?%s*$') then
-                return true, check_linenr
-            else
-                return false, nil
-            end
-        end
-
-        -- prev line is also a continuation - keep going up
-        check_linenr = check_linenr - 1
-    end
-
     return false, nil
 end
 

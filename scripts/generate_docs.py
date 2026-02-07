@@ -1025,18 +1025,6 @@ TABLES_OPTIONS = [
         description="""**`true`** (default): Mimic the cell alignment indicated in the separator row when formatting the table.
 `false`: Always visually left-align cell contents when formatting a table.""",
     ),
-    ConfigOption(
-        name='`tables.line_breaks.pandoc`',
-        type='`boolean`',
-        description="""**`true`** (default): Enable Pandoc-style multiline cells using a trailing backslash (`\\`) to continue content on the next line. Content on continuation lines belongs to the last cell and will be preserved during formatting.
-`false`: Treat backslash at end of line as literal content.""",
-    ),
-    ConfigOption(
-        name='`tables.line_breaks.html`',
-        type='`boolean`',
-        description="""`true`: Enable HTML-style line breaks within cells using `<br>`. During formatting, content after `<br>` will be split onto continuation lines.
-**`false`** (default): Treat `<br>` as literal content within cells.""",
-    ),
 ]
 
 YAML_OPTIONS = [
@@ -2248,10 +2236,6 @@ DEFAULT_CONFIG = """\
             outer_pipes = true,
             mimic_alignment = true,
         },
-        line_breaks = {
-            pandoc = true,
-            html = false,
-        },
     },
     yaml = {
         bib = { override = false },
@@ -3033,10 +3017,6 @@ def build_documentation() -> List[Section]:
                                                         separator_padding = 1,
                                                         outer_pipes = true,
                                                         mimic_alignment = true,
-                                                    },
-                                                    line_breaks = {
-                                                        pandoc = true,
-                                                        html = false,
                                                     },
                                                 },
                                             })"""
