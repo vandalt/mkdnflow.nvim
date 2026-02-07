@@ -310,6 +310,12 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             tables.alignCol('center')
         end
     end, {})
+    user_command('MkdnTableAlignDefault', function(opts)
+        local tables = require_module('tables')
+        if tables then
+            tables.alignCol('default')
+        end
+    end, {})
     user_command('MkdnFoldSection', function(opts)
         local folds = require_module('folds')
         if folds then

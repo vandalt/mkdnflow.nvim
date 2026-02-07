@@ -735,6 +735,7 @@ sections:
                               MkdnTableAlignLeft = { 'n', '<leader>al' },
                               MkdnTableAlignRight = { 'n', '<leader>ar' },
                               MkdnTableAlignCenter = { 'n', '<leader>ac' },
+                              MkdnTableAlignDefault = { 'n', '<leader>ax' },
                               MkdnFoldSection = { 'n', '<leader>f' },
                               MkdnUnfoldSection = { 'n', '<leader>F' },
                               MkdnTab = false,

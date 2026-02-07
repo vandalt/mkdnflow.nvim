@@ -440,7 +440,7 @@ function M.cellNewLine()
 end
 
 --- Set the alignment of the column under the cursor
---- @param alignment string One of 'left', 'right', 'center'
+--- @param alignment string One of 'left', 'right', 'center', 'default'
 function M.alignCol(alignment)
     local position = vim.api.nvim_win_get_cursor(0)
     local is_cont, primary_row_nr = is_continuation_line(position[1])

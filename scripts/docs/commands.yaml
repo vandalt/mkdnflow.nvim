@@ -215,6 +215,11 @@ commands:
     description: |
       Set the alignment of the current table column to center. Updates the separator row and reformats the table.
 
+  - name: MkdnTableAlignDefault
+    default_mapping: "{ 'n', '<leader>ax' }"
+    description: |
+      Remove alignment from the current table column, returning it to the default. Updates the separator row and reformats the table.
+
   - name: MkdnTab
     default_mapping: null
     description: |

@@ -929,6 +929,7 @@ require('mkdnflow').setup({
         MkdnTableAlignLeft = { 'n', '<leader>al' },
         MkdnTableAlignRight = { 'n', '<leader>ar' },
         MkdnTableAlignCenter = { 'n', '<leader>ac' },
+        MkdnTableAlignDefault = { 'n', '<leader>ax' },
         MkdnFoldSection = { 'n', '<leader>f' },
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
@@ -1034,6 +1035,7 @@ Configuration options.
 | `MkdnTableAlignLeft` | `{ 'n', '<leader>al' }` | Set the alignment of the current table column to left. Updates the separator row and reformats the table. |
 | `MkdnTableAlignRight` | `{ 'n', '<leader>ar' }` | Set the alignment of the current table column to right. Updates the separator row and reformats the table. |
 | `MkdnTableAlignCenter` | `{ 'n', '<leader>ac' }` | Set the alignment of the current table column to center. Updates the separator row and reformats the table. |
+| `MkdnTableAlignDefault` | `{ 'n', '<leader>ax' }` | Remove alignment from the current table column, returning it to the default. Updates the separator row and reformats the table. |
 | `MkdnTab` | -- | Wrapper function which will jump to the next cell in a table (if cursor is in a table) or indent an (empty) list item (if cursor is in a list item). |
 | `MkdnSTab` | -- | Wrapper function which will jump to the previous cell in a table (if cursor is in a table) or de-indent an (empty) list item (if cursor is in a list item). |
 | `MkdnFoldSection` | `{ 'n', '<leader>f' }` | Fold the section the cursor is currently on/in. |
@@ -1378,7 +1380,7 @@ Creates a new table with the specified options.
 Sets the alignment of the table column under the cursor and reformats the table. Works with both pipe tables and Pandoc grid tables.
 
 - **Parameters:**
-    - `alignment`: (string) The alignment to set for the column. One of `'left'`, `'right'`, or `'center'`.
+    - `alignment`: (string) The alignment to set for the column. One of `'left'`, `'right'`, `'center'`, or `'default'`.
 
 `require('mkdnflow').tables.isPartOfTable(text, linenr)`
 

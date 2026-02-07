@@ -59,6 +59,7 @@ local descriptions = {
     MkdnTableAlignLeft = 'Set current table column to left alignment',
     MkdnTableAlignRight = 'Set current table column to right alignment',
     MkdnTableAlignCenter = 'Set current table column to center alignment',
+    MkdnTableAlignDefault = 'Remove alignment from current table column',
     MkdnFoldSection = 'Fold current section',
     MkdnUnfoldSection = 'Unfold current section',
     MkdnTab = 'Indent list item or jump to next table cell',

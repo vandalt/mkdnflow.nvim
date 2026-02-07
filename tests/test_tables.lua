@@ -5681,6 +5681,24 @@ T['alignCol']['overwrites existing alignment'] = function()
     eq(first_cell:match('^[^:].*:$') ~= nil, true)
 end
 
+T['alignCol']['resets to default alignment'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| :--: | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.tables').alignCol('default')]])
+    local sep = get_line(2)
+    -- Default alignment: no colons, just dashes
+    local cells = {}
+    for cell in sep:gmatch('[^|]+') do
+        table.insert(cells, cell)
+    end
+    local first_cell = vim.trim(cells[1])
+    eq(first_cell:match(':') == nil, true)
+end
+
 T['alignCol']['does nothing on non-table text'] = function()
     set_lines({
         'just some text',
@@ -5746,6 +5764,23 @@ T['alignCol_e2e']['<leader>ac sets center alignment'] = function()
     child.type_keys('\\ac')
     local sep = get_line(2)
     eq(sep:match(':%-%-%-*:') ~= nil, true)
+end
+
+T['alignCol_e2e']['<leader>ax removes alignment'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| :--: | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.type_keys('\\ax')
+    local sep = get_line(2)
+    local cells = {}
+    for cell in sep:gmatch('[^|]+') do
+        table.insert(cells, cell)
+    end
+    local first_cell = vim.trim(cells[1])
+    eq(first_cell:match(':') == nil, true)
 end
 
 return T

@@ -256,6 +256,7 @@ local default_config = {
         MkdnTableAlignLeft = { 'n', '<leader>al' },
         MkdnTableAlignRight = { 'n', '<leader>ar' },
         MkdnTableAlignCenter = { 'n', '<leader>ac' },
+        MkdnTableAlignDefault = { 'n', '<leader>ax' },
         MkdnFoldSection = { 'n', '<leader>f' },
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
@@ -489,6 +490,7 @@ init.command_deps = {
     MkdnTableAlignLeft = { 'tables' },
     MkdnTableAlignRight = { 'tables' },
     MkdnTableAlignCenter = { 'tables' },
+    MkdnTableAlignDefault = { 'tables' },
     MkdnFoldSection = { 'folds' },
     MkdnUnfoldSection = { 'folds' },
     -- The following three depend on multiple modules; they will be defined but will

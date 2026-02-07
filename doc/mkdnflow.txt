@@ -1476,6 +1476,7 @@ mappings ~
             MkdnTableAlignLeft = { 'n', '<leader>al' },
             MkdnTableAlignRight = { 'n', '<leader>ar' },
             MkdnTableAlignCenter = { 'n', '<leader>ac' },
+            MkdnTableAlignDefault = { 'n', '<leader>ax' },
             MkdnFoldSection = { 'n', '<leader>f' },
             MkdnUnfoldSection = { 'n', '<leader>F' },
             MkdnTab = false,
@@ -1800,6 +1801,12 @@ Configuration options.
 
     Set the alignment of the current table column to center. Updates the
     separator row and reformats the table.
+
+:MkdnTableAlignDefault                    *Mkdnflow-cmd-MkdnTableAlignDefault*
+    Default mapping: { 'n', '<leader>ax' }
+
+    Remove alignment from the current table column, returning it to the
+    default. Updates the separator row and reformats the table.
 
 :MkdnTab                                                *Mkdnflow-cmd-MkdnTab*
 
@@ -2241,7 +2248,7 @@ Sets the alignment of the table column under the cursor and reformats the
 table. Works with both pipe tables and Pandoc grid tables.
 
 - **Parameters:**
-    - `alignment`: (string) The alignment to set for the column. One of `'left'`, `'right'`, or `'center'`.
+    - `alignment`: (string) The alignment to set for the column. One of `'left'`, `'right'`, `'center'`, or `'default'`.
 
 `require('mkdnflow').tables.isPartOfTable(text, linenr)`^
 
