@@ -8,3 +8,6 @@ DEVELOPMENT.md
 
 # Test dependencies
 deps/
+
+# Python
+__pycache__/
