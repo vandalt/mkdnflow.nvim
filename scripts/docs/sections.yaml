@@ -116,6 +116,8 @@ sections:
                 done: true
               - text: Pandoc grid table support
                 done: true
+              - text: Column alignment (left, right, center)
+                done: true
               - text: Paste delimited data as a table
                 done: false
               - text: Import delimited file into a new table
@@ -730,6 +732,9 @@ sections:
                               MkdnTableNewColBefore = { 'n', '<leader>iC' },
                               MkdnTableDeleteRow = { 'n', '<leader>dr' },
                               MkdnTableDeleteCol = { 'n', '<leader>dc' },
+                              MkdnTableAlignLeft = { 'n', '<leader>al' },
+                              MkdnTableAlignRight = { 'n', '<leader>ar' },
+                              MkdnTableAlignCenter = { 'n', '<leader>ac' },
                               MkdnFoldSection = { 'n', '<leader>f' },
                               MkdnUnfoldSection = { 'n', '<leader>F' },
                               MkdnTab = false,

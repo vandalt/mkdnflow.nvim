@@ -292,6 +292,24 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             tables.cellNewLine()
         end
     end, {})
+    user_command('MkdnTableAlignLeft', function(opts)
+        local tables = require_module('tables')
+        if tables then
+            tables.alignCol('left')
+        end
+    end, {})
+    user_command('MkdnTableAlignRight', function(opts)
+        local tables = require_module('tables')
+        if tables then
+            tables.alignCol('right')
+        end
+    end, {})
+    user_command('MkdnTableAlignCenter', function(opts)
+        local tables = require_module('tables')
+        if tables then
+            tables.alignCol('center')
+        end
+    end, {})
     user_command('MkdnFoldSection', function(opts)
         local folds = require_module('folds')
         if folds then

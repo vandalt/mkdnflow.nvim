@@ -5573,4 +5573,179 @@ T['cellNewLine_e2e']['grid table: single-column table'] = function()
     eq(new_line:match('^|.*|$') ~= nil, true)
 end
 
+-- =============================================================================
+-- Column alignment
+-- =============================================================================
+T['alignCol'] = new_set()
+
+T['alignCol']['sets left alignment on column 1'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.tables').alignCol('left')]])
+    local sep = get_line(2)
+    -- Left alignment: starts with :
+    eq(sep:match(':%-') ~= nil, true)
+end
+
+T['alignCol']['sets right alignment on column 1'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.tables').alignCol('right')]])
+    local sep = get_line(2)
+    -- Right alignment on col1: first separator cell ends with :
+    -- Pattern: | ---: | ---- |
+    eq(sep:match('%-:') ~= nil, true)
+end
+
+T['alignCol']['sets center alignment on column 1'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.tables').alignCol('center')]])
+    local sep = get_line(2)
+    -- Center alignment: :---:
+    eq(sep:match(':%-%-%-*:') ~= nil, true)
+end
+
+T['alignCol']['sets alignment on column 2'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 10)
+    child.lua([[require('mkdnflow.tables').alignCol('right')]])
+    local sep = get_line(2)
+    -- Second separator cell should end with :
+    -- Split by | and check the third segment (second data cell in separator)
+    local cells = {}
+    for cell in sep:gmatch('[^|]+') do
+        table.insert(cells, cell)
+    end
+    -- cells[2] is the second column separator
+    local second_cell = vim.trim(cells[2])
+    eq(second_cell:match('%-:$') ~= nil, true)
+end
+
+T['alignCol']['cursor on separator row works'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(2, 3)
+    child.lua([[require('mkdnflow.tables').alignCol('center')]])
+    local sep = get_line(2)
+    eq(sep:match(':%-%-%-*:') ~= nil, true)
+end
+
+T['alignCol']['cursor on data row works'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(3, 3)
+    child.lua([[require('mkdnflow.tables').alignCol('left')]])
+    local sep = get_line(2)
+    eq(sep:match(':%-') ~= nil, true)
+end
+
+T['alignCol']['overwrites existing alignment'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| :--: | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.tables').alignCol('right')]])
+    local sep = get_line(2)
+    -- First cell should now be right-aligned (not center)
+    local cells = {}
+    for cell in sep:gmatch('[^|]+') do
+        table.insert(cells, cell)
+    end
+    local first_cell = vim.trim(cells[1])
+    -- Right: ends with : but doesn't start with :
+    eq(first_cell:match('^[^:].*:$') ~= nil, true)
+end
+
+T['alignCol']['does nothing on non-table text'] = function()
+    set_lines({
+        'just some text',
+        'another line',
+    })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.tables').alignCol('left')]])
+    -- Lines should be unchanged
+    local lines = get_lines()
+    eq(lines[1], 'just some text')
+    eq(lines[2], 'another line')
+end
+
+-- =============================================================================
+-- Column alignment E2E (keymap tests)
+-- =============================================================================
+T['alignCol_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({})
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['alignCol_e2e']['<leader>al sets left alignment'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.type_keys('\\al')
+    local sep = get_line(2)
+    eq(sep:match(':%-') ~= nil, true)
+end
+
+T['alignCol_e2e']['<leader>ar sets right alignment'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.type_keys('\\ar')
+    local sep = get_line(2)
+    eq(sep:match('%-:') ~= nil, true)
+end
+
+T['alignCol_e2e']['<leader>ac sets center alignment'] = function()
+    set_lines({
+        '| col1 | col2 |',
+        '| ---- | ---- |',
+        '| foo  | bar  |',
+    })
+    set_cursor(1, 3)
+    child.type_keys('\\ac')
+    local sep = get_line(2)
+    eq(sep:match(':%-%-%-*:') ~= nil, true)
+end
+
 return T

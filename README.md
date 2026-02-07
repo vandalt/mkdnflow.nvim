@@ -105,6 +105,7 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 - [x] Table extension (add rows and columns)
 - [x] Table formatting
 - [x] Pandoc grid table support
+- [x] Column alignment (left, right, center)
 - [ ] Paste delimited data as a table
 - [ ] Import delimited file into a new table
 
@@ -925,6 +926,9 @@ require('mkdnflow').setup({
         MkdnTableNewColBefore = { 'n', '<leader>iC' },
         MkdnTableDeleteRow = { 'n', '<leader>dr' },
         MkdnTableDeleteCol = { 'n', '<leader>dc' },
+        MkdnTableAlignLeft = { 'n', '<leader>al' },
+        MkdnTableAlignRight = { 'n', '<leader>ar' },
+        MkdnTableAlignCenter = { 'n', '<leader>ac' },
         MkdnFoldSection = { 'n', '<leader>f' },
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
@@ -1027,6 +1031,9 @@ Configuration options.
 | `MkdnTableNewColBefore` | `{ 'n', '<leader>iC' }` | Add a new column before the column the cursor is currently in. |
 | `MkdnTableDeleteRow` | `{ 'n', '<leader>dr' }` | Delete the row the cursor is currently in. Does nothing if cursor is on the separator row. |
 | `MkdnTableDeleteCol` | `{ 'n', '<leader>dc' }` | Delete the column the cursor is currently in. Does nothing if the table has only one column. |
+| `MkdnTableAlignLeft` | `{ 'n', '<leader>al' }` | Set the alignment of the current table column to left. Updates the separator row and reformats the table. |
+| `MkdnTableAlignRight` | `{ 'n', '<leader>ar' }` | Set the alignment of the current table column to right. Updates the separator row and reformats the table. |
+| `MkdnTableAlignCenter` | `{ 'n', '<leader>ac' }` | Set the alignment of the current table column to center. Updates the separator row and reformats the table. |
 | `MkdnTab` | -- | Wrapper function which will jump to the next cell in a table (if cursor is in a table) or indent an (empty) list item (if cursor is in a list item). |
 | `MkdnSTab` | -- | Wrapper function which will jump to the previous cell in a table (if cursor is in a table) or de-indent an (empty) list item (if cursor is in a list item). |
 | `MkdnFoldSection` | `{ 'n', '<leader>f' }` | Fold the section the cursor is currently on/in. |
@@ -1365,6 +1372,13 @@ Creates a new table with the specified options.
         - `opts[1]`: (integer) The number of columns the table should have
         - `opts[2]`: (integer) The number of rows the table should have (excluding the header row)
         - `opts[3]`: (string) Whether to include a header for the table or not (`'noh'` or `'noheader'`: Don't include a header row; `nil`: Include a header)
+
+`require('mkdnflow').tables.alignCol(alignment)`
+
+Sets the alignment of the table column under the cursor and reformats the table. Works with both pipe tables and Pandoc grid tables.
+
+- **Parameters:**
+    - `alignment`: (string) The alignment to set for the column. One of `'left'`, `'right'`, or `'center'`.
 
 `require('mkdnflow').tables.isPartOfTable(text, linenr)`
 

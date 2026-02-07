@@ -348,6 +348,13 @@ tablemanagement:
             type: string
             description: "Whether to include a header for the table or not (`'noh'` or `'noheader'`: Don't include a header row; `nil`: Include a header)"
 
+  - signature: "require('mkdnflow').tables.alignCol(alignment)"
+    description: Sets the alignment of the table column under the cursor and reformats the table. Works with both pipe tables and Pandoc grid tables.
+    params:
+      - name: alignment
+        type: string
+        description: "The alignment to set for the column. One of `'left'`, `'right'`, or `'center'`."
+
   - signature: "require('mkdnflow').tables.isPartOfTable(text, linenr)"
     description: Guesses as to whether the specified text is part of a table.
     params:

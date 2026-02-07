@@ -439,6 +439,43 @@ function M.cellNewLine()
     return nil
 end
 
+--- Set the alignment of the column under the cursor
+--- @param alignment string One of 'left', 'right', 'center'
+function M.alignCol(alignment)
+    local position = vim.api.nvim_win_get_cursor(0)
+    local is_cont, primary_row_nr = is_continuation_line(position[1])
+    local effective_line = is_cont and primary_row_nr or position[1]
+
+    local tbl = MarkdownTable:read(effective_line)
+    if not tbl.valid or #tbl.rows == 0 then
+        return
+    end
+
+    -- Find cursor's column
+    local current_row = tbl:get_row(position[1])
+    if not current_row then
+        -- Cursor on grid border/continuation - find first content row
+        for _, row in ipairs(tbl.rows) do
+            if not row.is_separator then
+                current_row = row
+                break
+            end
+        end
+    end
+    if not current_row then
+        return
+    end
+
+    local col_idx = current_row:which_cell(position[2])
+    if not col_idx or col_idx < 1 or col_idx > tbl.col_count then
+        return
+    end
+
+    -- Update alignment and reformat
+    tbl.metadata.col_alignments[col_idx] = alignment
+    tbl:format()
+end
+
 -- =============================================================================
 -- Export classes for advanced usage
 -- =============================================================================
