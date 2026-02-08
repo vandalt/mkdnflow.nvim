@@ -39,7 +39,7 @@ local T = new_set({
                 vim.api.nvim_buf_set_name(0, 'test.md')
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({
-                    links = { transform_explicit = false },
+                    links = { transform_on_create = false },
                     silent = true
                 })
                 -- Trigger autocmd to set up buffer-local mappings
@@ -367,7 +367,7 @@ T['yank_register'] = new_set()
 T['yank_register']['uses configured register'] = function()
     -- Configure to use register 'a'
     child.lua(
-        [[require('mkdnflow').setup({ cursor = { yank_register = 'a' }, links = { transform_explicit = false }, silent = true })]]
+        [[require('mkdnflow').setup({ cursor = { yank_register = 'a' }, links = { transform_on_create = false }, silent = true })]]
     )
     -- Clear the registers
     child.lua([[vim.fn.setreg('a', '')]])
@@ -385,7 +385,7 @@ end
 
 T['yank_register']['defaults to unnamed register'] = function()
     child.lua(
-        [[require('mkdnflow').setup({ links = { transform_explicit = false }, silent = true })]]
+        [[require('mkdnflow').setup({ links = { transform_on_create = false }, silent = true })]]
     )
     child.lua([[vim.fn.setreg('"', '')]])
     set_lines({ '# Test Heading' })
@@ -413,7 +413,7 @@ T['yank_register']['works with system clipboard register'] = function()
         }
     ]])
     child.lua(
-        [[require('mkdnflow').setup({ cursor = { yank_register = '+' }, links = { transform_explicit = false }, silent = true })]]
+        [[require('mkdnflow').setup({ cursor = { yank_register = '+' }, links = { transform_on_create = false }, silent = true })]]
     )
     child.lua([[vim.fn.setreg('+', '')]])
     set_lines({ '# Clipboard Test' })
@@ -426,7 +426,7 @@ end
 
 T['yank_register']['works with full path'] = function()
     child.lua(
-        [[require('mkdnflow').setup({ cursor = { yank_register = 'b' }, links = { transform_explicit = false }, silent = true })]]
+        [[require('mkdnflow').setup({ cursor = { yank_register = 'b' }, links = { transform_on_create = false }, silent = true })]]
     )
     child.lua([[vim.fn.setreg('b', '')]])
     set_lines({ '# Heading' })
@@ -803,7 +803,7 @@ T['heading_operator_e2e'] = new_set({
                 vim.api.nvim_buf_set_name(0, 'test.md')
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({
-                    links = { transform_explicit = false },
+                    links = { transform_on_create = false },
                     silent = true
                 })
 

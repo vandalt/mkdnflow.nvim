@@ -558,10 +558,10 @@ user-supplied explicit transformation function.
 M.transformPath = function(text)
     local config = require('mkdnflow').config
     local links = config.links
-    if type(links.transform_explicit) ~= 'function' or not links.transform_explicit then
+    if type(links.transform_on_create) ~= 'function' or not links.transform_on_create then
         return text
     else
-        return (links.transform_explicit(text))
+        return (links.transform_on_create(text))
     end
 end
 
@@ -621,7 +621,7 @@ M.formatLink = function(text, source, part)
     end
     -- Format the replacement depending on the user's link style preference
     if links.style == 'wiki' then
-        replacement = (links.name_is_source and { '[[' .. text .. ']]' })
+        replacement = (links.compact and { '[[' .. text .. ']]' })
             or { '[[' .. path_text .. '|' .. text .. ']]' }
     else
         replacement = { '[' .. text .. ']' .. '(' .. path_text .. ')' }
@@ -846,7 +846,7 @@ M.followLink = function(args)
             true,
             {}
         )
-    elseif links.create_on_follow_failure then
+    elseif links.auto_create then
         M.createLink({ range = range })
     end
 end

@@ -117,9 +117,9 @@ function TableCell:format(target_width, padding, alignment)
     end
 
     local formatted
-    if alignment == 'right' and get_config().tables.style.mimic_alignment then
+    if alignment == 'right' and get_config().tables.style.apply_alignment then
         formatted = string.rep(' ', diff) .. content
-    elseif alignment == 'center' and get_config().tables.style.mimic_alignment then
+    elseif alignment == 'center' and get_config().tables.style.apply_alignment then
         local left_fill = string.rep(' ', math.floor(diff / 2))
         local right_fill = string.rep(' ', diff - #left_fill)
         formatted = left_fill .. content .. right_fill

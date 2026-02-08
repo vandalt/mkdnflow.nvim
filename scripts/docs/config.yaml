@@ -87,38 +87,42 @@ create_dirs:
       **`true`** (default): Directories referenced in a link will be (recursively) created if they do not exist.
       `false`: No action will be taken when directories referenced in a link do not exist. Neovim will open a new file, but you will get an error when you attempt to write the file.
 
-perspective:
-  - name: perspective.priority
+path_resolution:
+  - name: path_resolution.primary
     type: string
     description: |
       **`'first'`** (default): Links will be interpreted relative to the first-opened file (when the current instance of Neovim was started).
       `'current'`: Links will always be interpreted relative to the current file.
-      `'root'`: Links will be always interpreted relative to the root directory of the current notebook (requires `perspective.root_tell` to be specified).
+      `'root'`: Links will be always interpreted relative to the root directory of the current notebook (requires `path_resolution.root_marker` to be specified).
+      Previously named `perspective.priority`.
 
-  - name: perspective.fallback
+  - name: path_resolution.fallback
     type: string
     description: |
       `'first'`: (see above)
       **`'current'`** (default): (see above)
       `'root'`: (see above)
 
-  - name: perspective.root_tell
+  - name: path_resolution.root_marker
     type: string | boolean
     description: |
       **`false`** (default): The plugin does not look for the notebook root.
       `string`: The name of a file (not a full path) by which a notebook's root directory can be identified. For instance, `'.root'` or `'index.md'`.
+      Previously named `perspective.root_tell`.
 
-  - name: perspective.nvim_wd_heel
+  - name: path_resolution.sync_cwd
     type: boolean
     description: |
-      `true`: Changes in perspective will be reflected in the nvim working directory. (In other words, the working directory will "heel" to the plugin's perspective.) This helps ensure (at least) that path completions (if using a completion plugin with support for paths) will be accurate and usable.
+      `true`: Changes in path resolution will be reflected in the nvim working directory. (In other words, the working directory will sync with the plugin's path resolution.) This helps ensure (at least) that path completions (if using a completion plugin with support for paths) will be accurate and usable.
       **`false`** (default): Neovim's working directory will not be affected by Mkdnflow.
+      Previously named `perspective.nvim_wd_heel`.
 
-  - name: perspective.update
+  - name: path_resolution.update_on_navigate
     type: boolean
     description: |
-      `true`: Perspective will be updated when following a link to a file in a separate notebook/wiki (or navigating backwards to a file in another notebook/wiki).
-      **`false`** (default): Perspective will be not updated when following a link to a file in a separate notebook/wiki. (Links in the file in the separate notebook/wiki will be interpreted relative to the original notebook/wiki.)
+      `true`: Path resolution will be updated when following a link to a file in a separate notebook/wiki (or navigating backwards to a file in another notebook/wiki).
+      **`false`** (default): Path resolution will be not updated when following a link to a file in a separate notebook/wiki. (Links in the file in the separate notebook/wiki will be interpreted relative to the original notebook/wiki.)
+      Previously named `perspective.update`.
 
 filetypes:
   - name: filetypes.markdown
@@ -171,7 +175,7 @@ bib:
   - name: bib.find_in_root
     type: boolean
     description: |
-      **`true`** (default): When `perspective.priority` is also set to `root` (and a root directory was found), the plugin will search for bib files to reference in the notebook's top-level directory. If `bib.default_path` is also specified, the default path will be added to the list of bib files found in the top-level directory so that it will also be searched.
+      **`true`** (default): When `path_resolution.primary` is also set to `root` (and a root directory was found), the plugin will search for bib files to reference in the notebook's top-level directory. If `bib.default_path` is also specified, the default path will be added to the list of bib files found in the top-level directory so that it will also be searched.
       `false`: The notebook's root directory will not be searched for bib files.
 
 silent:
@@ -203,11 +207,12 @@ links:
       **`'markdown'`** (default): Links will be expected in the standard markdown format: `[<title>](<source>)`
       `'wiki'`: Links will be expected in the unofficial wiki-link style, specifically the title-after-pipe format: `[[<source>|<title>]]`.
 
-  - name: links.name_is_source
+  - name: links.compact
     type: boolean
     description: |
       `true`: Wiki-style links will be created with the source and name being the same (e.g. `[[Link]]` will display as "Link" and go to a file named "Link.md").
       **`false`** (default): Wiki-style links will be created with separate name and source (e.g. `[[link-to-source|Link]]` will display as "Link" and go to a file named "link-to-source.md").
+      Previously named `links.name_is_source`.
 
   - name: links.conceal
     type: boolean
@@ -215,10 +220,11 @@ links:
       `true`: Link sources and delimiters will be concealed (depending on which link style is selected).
       **`false`** (default): Link sources and delimiters will not be concealed by mkdnflow.
 
-  - name: links.context
+  - name: links.search_range
     type: integer
     description: |
       When following or jumping to links, consider `n` lines before and after a given line (useful if you ever permit links to be interrupted by a hard line break). Default: **`0`**.
+      Previously named `links.context`.
 
   - name: links.implicit_extension
     type: string
@@ -228,30 +234,34 @@ links:
       **`nil`** (default): Extensions will be explicit when a link is created and must be explicit in any notebook link.
       `'<any extension>'` (e.g. `'md'`): Links without an extension (e.g. `[Homepage](index)`) will be interpreted with the implicit extension (e.g. `index.md`), and new links will be created without an extension.
 
-  - name: links.transform_explicit
+  - name: links.transform_on_create
     type: "fun(string): string | boolean"
     description: |
       `false`: No transformations are applied to the text to be turned into the name of the link source/path.
       **`fun(string): string`** (default): A function that transforms the text to be inserted as the source/path of a link when a link is created. Anchor links are not currently customizable. For an example, see the sample recipes beneath this table.
+      Previously named `links.transform_explicit`.
 
-  - name: links.transform_implicit
+  - name: links.transform_on_follow
     type: "fun(string): string | boolean"
     description: |
-      **`false`** (default): Do not perform any implicit transformations on the link's source.
+      **`false`** (default): Do not perform any transformations on the link's source when following.
       `fun(string): string`: A function that transforms the path of a link immediately before interpretation. It does not transform the actual text in the buffer but can be used to modify link interpretation. For an example, see the sample recipe below.
+      Previously named `links.transform_implicit`.
 
-  - name: links.create_on_follow_failure
+  - name: links.auto_create
     type: boolean
     description: |
       **`true`** (default): Try to create a link from the word under the cursor if there is no link under the cursor to follow.
       `false`: Do nothing if trying to follow a link and a link can't be found under the cursor.
+      Previously named `links.create_on_follow_failure`.
 
 new_file_template:
-  - name: new_file_template.use_template
+  - name: new_file_template.enabled
     type: boolean
     description: |
       `true`: Use the new-file template when opening a new file by following a link.
       **`false`** (default): Don't use the new-file template when opening a new file by following a link.
+      Previously named `new_file_template.use_template`.
 
   - name: new_file_template.placeholders.before
     type: "table<string, string|fun(): string>"
@@ -336,12 +346,13 @@ to_do:
     description: |
       A table of highlight definitions to apply to the to-do item content (everything following the status marker). See the `{val}` parameter of `:h nvim_set_hl` for possible options.
 
-  - name: to_do.statuses[*].exclude_from_rotation
+  - name: to_do.statuses[*].skip_on_toggle
     type: boolean
     description: |
-      `true`: When toggling/rotating a to-do item's status, exclude the current symbol from the list of symbols used.
-      `false`: Leave the symbol in the rotation.
+      `true`: When toggling/rotating a to-do item's status, skip this status in the rotation.
+      `false`: Leave the status in the rotation.
       Note: This setting is useful if there is a status marker that you never want to manually set and only want to apply when automatically updating ancestors or descendants.
+      Previously named `to_do.statuses[*].exclude_from_rotation`.
 
   - name: to_do.statuses[*].sort.section
     type: integer
@@ -495,11 +506,12 @@ tables:
       **`true`** (default): Include outer pipes when formatting a table.
       `false`: Do not use outer pipes when formatting a table.
 
-  - name: tables.style.mimic_alignment
+  - name: tables.style.apply_alignment
     type: boolean
     description: |
-      **`true`** (default): Mimic the cell alignment indicated in the separator row when formatting the table.
+      **`true`** (default): Apply the cell alignment indicated in the separator row when formatting the table.
       `false`: Always visually left-align cell contents when formatting a table.
+      Previously named `tables.style.mimic_alignment`.
 
 yaml:
   - name: yaml.bib.override

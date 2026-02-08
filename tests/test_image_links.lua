@@ -41,7 +41,7 @@ local T = new_set({
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({
                     modules = { links = true },
-                    links = { transform_explicit = false },
+                    links = { transform_on_create = false },
                     silent = true
                 })
             ]])

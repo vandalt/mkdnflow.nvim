@@ -150,7 +150,7 @@ local function build_content_line(cell_texts, col_widths, padding, alignments)
     local pad = string.rep(' ', padding)
     local parts = { '|' }
     local config = get_config()
-    local mimic = config.tables.style.mimic_alignment
+    local mimic = config.tables.style.apply_alignment
     for i, w in ipairs(col_widths) do
         local content = cell_texts[i] or ''
         local content_width = width(content)

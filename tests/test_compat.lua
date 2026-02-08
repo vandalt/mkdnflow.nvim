@@ -376,4 +376,252 @@ T['filetypes']['all disabled does not cause errors'] = function()
     eq(loaded == nil or loaded == vim.NIL, true)
 end
 
+-- =============================================================================
+-- v2.10 silent migrations: perspective → path_resolution
+-- =============================================================================
+T['v2.10'] = new_set()
+
+T['v2.10']['migrates perspective to path_resolution'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            perspective = {
+                priority = 'current',
+                fallback = 'first',
+                root_tell = '.root',
+                nvim_wd_heel = true,
+                update = true,
+            },
+            silent = true
+        })
+    ]])
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.primary"), 'current')
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.fallback"), 'first')
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.root_marker"), '.root')
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.sync_cwd"), true)
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.update_on_navigate"), true)
+end
+
+T['v2.10']['new path_resolution config works directly'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            path_resolution = {
+                primary = 'current',
+                fallback = 'first',
+                root_marker = 'index.md',
+                sync_cwd = true,
+                update_on_navigate = false,
+            },
+            silent = true
+        })
+    ]])
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.primary"), 'current')
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.root_marker"), 'index.md')
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.sync_cwd"), true)
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.update_on_navigate"), false)
+end
+
+T['v2.10']['perspective sub-keys migrate individually'] = function()
+    -- Only some old sub-keys provided (others use defaults)
+    child.lua([[
+        require('mkdnflow').setup({
+            perspective = {
+                priority = 'root',
+                root_tell = '.notebook',
+            },
+            silent = true
+        })
+    ]])
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.primary"), 'root')
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.root_marker"), '.notebook')
+    -- fallback should come from default
+    eq(child.lua_get("require('mkdnflow').config.path_resolution.fallback"), 'current')
+end
+
+-- =============================================================================
+-- v2.10 silent migrations: links key renames
+-- =============================================================================
+T['v2.10']['migrates links.name_is_source to compact'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { style = 'wiki', name_is_source = true },
+            silent = true
+        })
+    ]])
+    local compact = child.lua_get("require('mkdnflow').config.links.compact")
+    eq(compact, true)
+end
+
+T['v2.10']['migrates links.context to search_range'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { context = 3 },
+            silent = true
+        })
+    ]])
+    local sr = child.lua_get("require('mkdnflow').config.links.search_range")
+    eq(sr, 3)
+end
+
+T['v2.10']['migrates links.transform_explicit to transform_on_create'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_explicit = false },
+            silent = true
+        })
+    ]])
+    local toc = child.lua_get("require('mkdnflow').config.links.transform_on_create")
+    eq(toc, false)
+end
+
+T['v2.10']['migrates links.transform_implicit to transform_on_follow'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_implicit = false },
+            silent = true
+        })
+    ]])
+    local tof = child.lua_get("require('mkdnflow').config.links.transform_on_follow")
+    eq(tof, false)
+end
+
+T['v2.10']['migrates links.create_on_follow_failure to auto_create'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { create_on_follow_failure = false },
+            silent = true
+        })
+    ]])
+    local ac = child.lua_get("require('mkdnflow').config.links.auto_create")
+    eq(ac, false)
+end
+
+T['v2.10']['new links keys work directly'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                compact = true,
+                search_range = 5,
+                transform_on_create = false,
+                transform_on_follow = false,
+                auto_create = false,
+            },
+            silent = true
+        })
+    ]])
+    eq(child.lua_get("require('mkdnflow').config.links.compact"), true)
+    eq(child.lua_get("require('mkdnflow').config.links.search_range"), 5)
+    eq(child.lua_get("require('mkdnflow').config.links.transform_on_create"), false)
+    eq(child.lua_get("require('mkdnflow').config.links.transform_on_follow"), false)
+    eq(child.lua_get("require('mkdnflow').config.links.auto_create"), false)
+end
+
+T['v2.10']['does not overwrite new links keys with old'] = function()
+    -- If both old and new are provided, new should win
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { name_is_source = true, compact = false },
+            silent = true
+        })
+    ]])
+    local compact = child.lua_get("require('mkdnflow').config.links.compact")
+    eq(compact, false)
+end
+
+-- =============================================================================
+-- v2.10 silent migrations: to_do, tables, new_file_template
+-- =============================================================================
+T['v2.10']['migrates exclude_from_rotation to skip_on_toggle'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    { name = 'not_started', marker = ' ', exclude_from_rotation = false },
+                    { name = 'in_progress', marker = '-', exclude_from_rotation = true },
+                    { name = 'complete', marker = 'x', exclude_from_rotation = false },
+                }
+            },
+            silent = true
+        })
+    ]])
+    local s1 = child.lua_get("require('mkdnflow').config.to_do.statuses[1].skip_on_toggle")
+    local s2 = child.lua_get("require('mkdnflow').config.to_do.statuses[2].skip_on_toggle")
+    local s3 = child.lua_get("require('mkdnflow').config.to_do.statuses[3].skip_on_toggle")
+    eq(s1, false)
+    eq(s2, true)
+    eq(s3, false)
+end
+
+T['v2.10']['migrates tables.style.mimic_alignment to apply_alignment'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            tables = { style = { mimic_alignment = false } },
+            silent = true
+        })
+    ]])
+    local aa = child.lua_get("require('mkdnflow').config.tables.style.apply_alignment")
+    eq(aa, false)
+end
+
+T['v2.10']['migrates new_file_template.use_template to enabled'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            new_file_template = { use_template = true },
+            silent = true
+        })
+    ]])
+    local enabled = child.lua_get("require('mkdnflow').config.new_file_template.enabled")
+    eq(enabled, true)
+end
+
+T['v2.10']['does not overwrite new tables key with old'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            tables = { style = { mimic_alignment = false, apply_alignment = true } },
+            silent = true
+        })
+    ]])
+    local aa = child.lua_get("require('mkdnflow').config.tables.style.apply_alignment")
+    eq(aa, true)
+end
+
+T['v2.10']['does not overwrite new_file_template.enabled with old'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            new_file_template = { use_template = true, enabled = false },
+            silent = true
+        })
+    ]])
+    local enabled = child.lua_get("require('mkdnflow').config.new_file_template.enabled")
+    eq(enabled, false)
+end
+
+T['v2.10']['exclude_from_rotation migration skips when skip_on_toggle present'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    { name = 'test', marker = ' ', exclude_from_rotation = true, skip_on_toggle = false },
+                }
+            },
+            silent = true
+        })
+    ]])
+    local sot = child.lua_get("require('mkdnflow').config.to_do.statuses[1].skip_on_toggle")
+    eq(sot, false)
+end
+
+-- =============================================================================
+-- v2.10: full legacy chain (links_relative_to → perspective → path_resolution)
+-- =============================================================================
+T['v2.10']['full legacy chain: vimwd_heel migrates through to sync_cwd'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            perspective = { vimwd_heel = true },
+            silent = true
+        })
+    ]])
+    local sync = child.lua_get("require('mkdnflow').config.path_resolution.sync_cwd")
+    eq(sync, true)
+end
+
 return T

@@ -18,7 +18,7 @@
 local links = require('mkdnflow').links
 local wrap = require('mkdnflow').config.wrap
 local silent = require('mkdnflow').config.silent
-local context = require('mkdnflow').config.links.context
+local search_range = require('mkdnflow').config.links.search_range
 local jump_patterns = require('mkdnflow').config.cursor.jump_patterns
 local utils = require('mkdnflow').utils
 
@@ -72,8 +72,8 @@ M.goTo = function(pattern, reverse)
     -- Get the line's contents
     line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
     line_len = #line
-    if context > 0 and line_len > 0 then
-        for i = 1, context, 1 do
+    if search_range > 0 and line_len > 0 then
+        for i = 1, search_range, 1 do
             local following_line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
             line = (following_line and line .. following_line) or line
         end
@@ -100,14 +100,14 @@ M.goTo = function(pattern, reverse)
         else -- If there's not a match on the current line, keep checking line-by-line
             -- Update row to search next line
             row = (reverse and row - 1) or row + 1
-            -- Get the content of the next line (if any), appending contextual lines if context > 0
+            -- Get the content of the next line (if any), appending contextual lines if search_range > 0
             line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
             line_len = line and #line
             -- Since we're on the next line, cursor position no longer matters and we want to make
             -- sure that `col` is always < left (or > if reverse == true)
             col = reverse and line_len or -1
-            if line and context > 0 and line_len > 0 then
-                for i = 1, context, 1 do
+            if line and search_range > 0 and line_len > 0 then
+                for i = 1, search_range, 1 do
                     local following_line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
                     line = (following_line and line .. following_line) or line
                 end

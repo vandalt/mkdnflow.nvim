@@ -25,7 +25,7 @@ local sep = this_os:match('Windows') and '\\' or '/'
 -- Get config setting for whether to make missing directories or not
 local create_dirs = require('mkdnflow').config.create_dirs
 -- Get config setting for where links should be relative to
-local perspective = require('mkdnflow').config.perspective
+local path_resolution = require('mkdnflow').config.path_resolution
 -- Get directory of first-opened file
 local initial_dir = require('mkdnflow').initial_dir
 local root_dir = require('mkdnflow').root_dir
@@ -33,7 +33,7 @@ local silent = require('mkdnflow').config.silent
 local links_config = require('mkdnflow').config.links
 local new_file_config = require('mkdnflow').config.new_file_template
 local implicit_extension = links_config.implicit_extension
-local link_transform = links_config.transform_implicit
+local link_transform = links_config.transform_on_follow
 
 -- Load modules
 local utils = require('mkdnflow.utils')
@@ -102,13 +102,13 @@ local resolve_notebook_path = function(path, sub_home_var)
     -- Decide what to pass to vim_open function
     if derived_path:match('^~/') or derived_path:match('^/') or derived_path:match('^%u:\\') then
         derived_path = sub_home_var and string.gsub(derived_path, '^~/', '$HOME/') or derived_path
-    elseif perspective.priority == 'root' and root_dir then
+    elseif path_resolution.primary == 'root' and root_dir then
         -- Paste root directory and the directory in link
         derived_path = root_dir .. sep .. derived_path
     -- See if the path exists
     elseif
-        perspective.priority == 'first'
-        or (perspective.priority == 'root' and perspective.fallback == 'first')
+        path_resolution.primary == 'first'
+        or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
     then
         -- Paste together the dir of first-opened file & dir in link path
         derived_path = initial_dir .. sep .. derived_path
@@ -194,7 +194,7 @@ local vim_open = function(path, anchor)
         buffers.push(buffers.main, vim.api.nvim_win_get_buf(0))
         -- Prepare to inject the filled-out template at the top of the new file
         local template
-        if new_file_config.use_template then
+        if new_file_config.enabled then
             if not exists(path_w_ext, 'f') then
                 template = M.formatTemplate('before')
             end
@@ -291,12 +291,12 @@ local handle_external_file = function(path)
                 real_path = string.gsub(real_path, '^~/', '$HOME/')
             end
         end
-    elseif perspective.priority == 'root' and root_dir then
+    elseif path_resolution.primary == 'root' and root_dir then
         -- Paste together root directory path and path in link and escape
         real_path = root_dir .. sep .. real_path
     elseif
-        perspective.priority == 'first'
-        or (perspective.priority == 'root' and perspective.fallback == 'first')
+        path_resolution.primary == 'first'
+        or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
     then
         -- Otherwise, links are relative to the first-opened file, so
         -- paste together the directory of the first-opened file and the
@@ -324,15 +324,15 @@ folders if nvim_wd_heel is true.
 M.updateDirs = function()
     local wd
     -- See if the new file is in a different root directory
-    if perspective.update or perspective.nvim_wd_heel then
-        if perspective.priority == 'root' then
+    if path_resolution.update_on_navigate or path_resolution.sync_cwd then
+        if path_resolution.primary == 'root' then
             local cur_file = vim.api.nvim_buf_get_name(0)
             if not root_dir or not cur_file:match(root_dir) then
                 -- Get the new root dir, if there is one
                 local dir = cur_file:match('(.*)' .. sep .. '.-')
-                if perspective.update then
+                if path_resolution.update_on_navigate then
                     root_dir =
-                        require('mkdnflow').utils.getRootDir(dir, perspective.root_tell, this_os)
+                        require('mkdnflow').utils.getRootDir(dir, path_resolution.root_marker, this_os)
                     if root_dir then
                         local name = root_dir:match('.*' .. sep .. '(.*)') or root_dir
                         if not silent then
@@ -344,26 +344,26 @@ M.updateDirs = function()
                             vim.api.nvim_echo({
                                 {
                                     '⬇️  No notebook found. Fallback perspective: '
-                                        .. perspective.fallback,
+                                        .. path_resolution.fallback,
                                     'WarningMsg',
                                 },
                             }, true, {})
-                            if perspective.fallback == 'first' and perspective.nvim_wd_heel then
+                            if path_resolution.fallback == 'first' and path_resolution.sync_cwd then
                                 wd = initial_dir
-                            elseif perspective.nvim_wd_heel then -- Otherwise, set wd to directory the current buffer is in
+                            elseif path_resolution.sync_cwd then -- Otherwise, set wd to directory the current buffer is in
                                 wd = dir
                             end
                         end
                     end
                 end
             end
-        elseif perspective.priority == 'first' and perspective.nvim_wd_heel then
+        elseif path_resolution.primary == 'first' and path_resolution.sync_cwd then
             wd = initial_dir
-        elseif perspective.nvim_wd_heel then
+        elseif path_resolution.sync_cwd then
             local cur_file = vim.api.nvim_buf_get_name(0)
             wd = cur_file:match('(.*)' .. sep .. '.-$')
         end
-        if perspective.nvim_wd_heel and wd then
+        if path_resolution.sync_cwd and wd then
             vim.api.nvim_set_current_dir(wd)
         end
     end

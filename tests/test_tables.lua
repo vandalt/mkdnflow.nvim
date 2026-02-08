@@ -672,8 +672,8 @@ T['config']['auto_extend_cols adds column when moving past end'] = function()
     eq(pipe_count, 4) -- 3 columns = 4 pipes with outer pipes
 end
 
-T['config']['mimic_alignment right-aligns content'] = function()
-    setup_with_config([[{ tables = { style = { mimic_alignment = true } } }]])
+T['config']['apply_alignment right-aligns content'] = function()
+    setup_with_config([[{ tables = { style = { apply_alignment = true } } }]])
     set_lines({
         '| Name  | Value |',
         '| ----- | ----: |',
@@ -687,8 +687,8 @@ T['config']['mimic_alignment right-aligns content'] = function()
     eq(lines[3]:match('|%s+123%s*|$') ~= nil, true)
 end
 
-T['config']['mimic_alignment center-aligns content'] = function()
-    setup_with_config([[{ tables = { style = { mimic_alignment = true } } }]])
+T['config']['apply_alignment center-aligns content'] = function()
+    setup_with_config([[{ tables = { style = { apply_alignment = true } } }]])
     set_lines({
         '| Header     | Col2 |',
         '| :--------: | ---- |',

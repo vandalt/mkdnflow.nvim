@@ -354,23 +354,23 @@ sections:
                   - type: config_table
                     ref: create_dirs
 
-              - title: perspective
-                tag: config-perspective
+              - title: path_resolution
+                tag: config-path-resolution
                 content:
                   - type: code
                     language: lua
                     code: |
                       require('mkdnflow').setup({
-                          perspective = {
-                              priority = 'first',
+                          path_resolution = {
+                              primary = 'first',
                               fallback = 'current',
-                              root_tell = false,
-                              nvim_wd_heel = false,
-                              update = false,
+                              root_marker = false,
+                              sync_cwd = false,
+                              update_on_navigate = false,
                           },
                       })
                   - type: config_table
-                    ref: perspective
+                    ref: path_resolution
 
               - title: filetypes
                 tag: config-filetypes
@@ -460,18 +460,18 @@ sections:
                       require('mkdnflow').setup({
                           links = {
                               style = 'markdown',
-                              name_is_source = false,
+                              compact = false,
                               conceal = false,
-                              context = 0,
+                              search_range = 0,
                               implicit_extension = nil,
-                              transform_implicit = false,
-                              transform_explicit = function(text)
+                              transform_on_follow = false,
+                              transform_on_create = function(text)
                                   text = text:gsub(" ", "-")
                                   text = text:lower()
                                   text = os.date('%Y-%m-%d_') .. text
                                   return(text)
                               end,
-                              create_on_follow_failure = true,
+                              auto_create = true,
                           },
                       })
                   - type: config_table
@@ -486,13 +486,13 @@ sections:
                               links = {
                                   -- If you want all link paths to be explicitly prefixed with the year
                                   -- and for the path to be converted to uppercase:
-                                  transform_explicit = function(input)
+                                  transform_on_create = function(input)
                                       return(string.upper(os.date('%Y-')..input))
                                   end,
                                   -- Link paths that match a date pattern can be opened in a `journals`
                                   -- subdirectory of your notebook, and all others can be opened in a
                                   -- `pages` subdirectory:
-                                  transform_implicit = function(input)
+                                  transform_on_follow = function(input)
                                       if input:match('%d%d%d%d%-%d%d%-%d%d') then
                                           return('journals/'..input)
                                       else
@@ -510,7 +510,7 @@ sections:
                     code: |
                       require('mkdnflow').setup({
                           new_file_template = {
-                              use_template = false,
+                              enabled = false,
                               placeholders = {
                                   before = { title = 'link_title', date = 'os_date' },
                                   after = {},
@@ -666,7 +666,7 @@ sections:
                                   cell_padding = 1,
                                   separator_padding = 1,
                                   outer_pipes = true,
-                                  mimic_alignment = true,
+                                  apply_alignment = true,
                               },
                           },
                       })
@@ -781,9 +781,9 @@ sections:
                 kind: warning
                 content: |
                   There may be some compatibility issues with the completion module and
-                  `links.transform_explicit`/`links.transform_implicit` functions.
+                  `links.transform_on_create`/`links.transform_on_follow` functions.
 
-                  If you have some `transform_explicit` option for links to organizing in folders
+                  If you have some `transform_on_create` option for links to organizing in folders
                   then the folder name will be inserted accordingly. Some transformations may not
                   work as expected in completions.
 

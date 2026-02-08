@@ -47,7 +47,7 @@ local T = new_set({
                         tables = true
                     },
                     links = {
-                        transform_explicit = false
+                        transform_on_create = false
                     },
                     silent = true
                 })
@@ -240,7 +240,7 @@ T['keymap_e2e'] = new_set({
                         tables = true
                     },
                     links = {
-                        transform_explicit = false
+                        transform_on_create = false
                     },
                     silent = true
                 })

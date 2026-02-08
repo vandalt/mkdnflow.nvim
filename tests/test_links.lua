@@ -41,7 +41,7 @@ local T = new_set({
                 require('mkdnflow').setup({
                     links = {
                         -- Disable path transformation for predictable test output
-                        transform_explicit = false
+                        transform_on_create = false
                     }
                 })
             ]])
@@ -243,8 +243,8 @@ T['formatLink']['creates wiki link when configured'] = function()
     eq(result[1], '[[my page.md|my page]]')
 end
 
-T['formatLink']['creates wiki link with name_is_source'] = function()
-    child.lua([[require('mkdnflow').setup({ links = { style = 'wiki', name_is_source = true } })]])
+T['formatLink']['creates wiki link with compact'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'wiki', compact = true } })]])
     local result = child.lua_get([[require('mkdnflow.links').formatLink('my page')]])
     eq(result[1], '[[my page]]')
 end
@@ -491,7 +491,7 @@ T['pandoc_citation_bib'] = new_set({
                     .. [[',
                         find_in_root = false
                     },
-                    links = { transform_explicit = false },
+                    links = { transform_on_create = false },
                     silent = true
                 })
             ]]
@@ -1478,8 +1478,8 @@ T['config']['links.style=markdown creates markdown links'] = function()
     eq(result[1], '[my page](my page.md)')
 end
 
-T['config']['links.name_is_source omits bar in wiki link'] = function()
-    child.lua([[require('mkdnflow').setup({ links = { style = 'wiki', name_is_source = true } })]])
+T['config']['links.compact omits bar in wiki link'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'wiki', compact = true } })]])
     local result = child.lua_get([[require('mkdnflow.links').formatLink('my page')]])
     eq(result[1], '[[my page]]')
 end
@@ -1490,11 +1490,11 @@ T['config']['links.implicit_extension omits .md'] = function()
     eq(result[1], '[my page](my page)')
 end
 
-T['config']['links.transform_explicit applies custom function'] = function()
+T['config']['links.transform_on_create applies custom function'] = function()
     child.lua([[
         require('mkdnflow').setup({
             links = {
-                transform_explicit = function(text)
+                transform_on_create = function(text)
                     return string.lower(text):gsub(' ', '_')
                 end
             }
@@ -1504,14 +1504,14 @@ T['config']['links.transform_explicit applies custom function'] = function()
     eq(result[1], '[My Page](my_page.md)')
 end
 
-T['config']['links.transform_explicit=false returns text unchanged'] = function()
-    child.lua([[require('mkdnflow').setup({ links = { transform_explicit = false } })]])
+T['config']['links.transform_on_create=false returns text unchanged'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { transform_on_create = false } })]])
     local result = child.lua_get([[require('mkdnflow.links').formatLink('My Page')]])
     eq(result[1], '[My Page](My Page.md)')
 end
 
-T['config']['links.create_on_follow_failure creates link from word'] = function()
-    child.lua([[require('mkdnflow').setup({ links = { create_on_follow_failure = true } })]])
+T['config']['links.auto_create creates link from word'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { auto_create = true } })]])
     set_lines({ 'word here' })
     set_cursor(1, 2)
     -- followLink with no link under cursor should create one
@@ -1520,8 +1520,8 @@ T['config']['links.create_on_follow_failure creates link from word'] = function(
     eq(result, '[word](word.md) here')
 end
 
-T['config']['links.create_on_follow_failure=false does not create link'] = function()
-    child.lua([[require('mkdnflow').setup({ links = { create_on_follow_failure = false } })]])
+T['config']['links.auto_create=false does not create link'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { auto_create = false } })]])
     set_lines({ 'word here' })
     set_cursor(1, 2)
     child.lua([[require('mkdnflow.links').followLink()]])

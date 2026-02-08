@@ -248,12 +248,12 @@ the help files.
     create_dirs = true,
     silent = false,
     wrap = false,
-    perspective = {
-        priority = 'first',
+    path_resolution = {
+        primary = 'first',
         fallback = 'current',
-        root_tell = false,
-        nvim_wd_heel = false,
-        update = true,
+        root_marker = false,
+        sync_cwd = false,
+        update_on_navigate = true,
     },
     filetypes = {
         markdown = true,
@@ -290,21 +290,21 @@ the help files.
     },
     links = {
         style = 'markdown',
-        name_is_source = false,
+        compact = false,
         conceal = false,
-        context = 0,
+        search_range = 0,
         implicit_extension = nil,
-        transform_implicit = false,
-        transform_explicit = function(text)
+        transform_on_follow = false,
+        transform_on_create = function(text)
             text = text:gsub('[ /]', '-')
             text = text:lower()
             text = os.date('%Y-%m-%d_') .. text
             return text
         end,
-        create_on_follow_failure = true,
+        auto_create = true,
     },
     new_file_template = {
-        use_template = false,
+        enabled = false,
         placeholders = {
             before = {
                 title = 'link_title',
@@ -325,7 +325,7 @@ the help files.
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 2, position = 'top' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) ... end,
@@ -339,7 +339,7 @@ the help files.
                     content = { bold = true },
                 },
                 sort = { section = 1, position = 'bottom' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) end,
@@ -353,7 +353,7 @@ the help files.
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 3, position = 'top' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) ... end,
@@ -382,7 +382,7 @@ the help files.
             cell_padding = 1,
             separator_padding = 1,
             outer_pipes = true,
-            mimic_alignment = true,
+            apply_alignment = true,
         },
     },
     yaml = {
@@ -487,27 +487,27 @@ require('mkdnflow').setup({
 | --- | --- | --- |
 | `create_dirs` | `boolean` | **`true`** (default): Directories referenced in a link will be (recursively) created if they do not exist.<br>`false`: No action will be taken when directories referenced in a link do not exist. Neovim will open a new file, but you will get an error when you attempt to write the file. |
 
-##### perspective
+##### path_resolution
 
 ```lua
 require('mkdnflow').setup({
-    perspective = {
-        priority = 'first',
+    path_resolution = {
+        primary = 'first',
         fallback = 'current',
-        root_tell = false,
-        nvim_wd_heel = false,
-        update = false,
+        root_marker = false,
+        sync_cwd = false,
+        update_on_navigate = false,
     },
 })
 ```
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `perspective.priority` | `string` | **`'first'`** (default): Links will be interpreted relative to the first-opened file (when the current instance of Neovim was started).<br>`'current'`: Links will always be interpreted relative to the current file.<br>`'root'`: Links will be always interpreted relative to the root directory of the current notebook (requires `perspective.root_tell` to be specified). |
-| `perspective.fallback` | `string` | `'first'`: (see above)<br>**`'current'`** (default): (see above)<br>`'root'`: (see above) |
-| `perspective.root_tell` | `string` \| `boolean` | **`false`** (default): The plugin does not look for the notebook root.<br>`string`: The name of a file (not a full path) by which a notebook's root directory can be identified. For instance, `'.root'` or `'index.md'`. |
-| `perspective.nvim_wd_heel` | `boolean` | `true`: Changes in perspective will be reflected in the nvim working directory. (In other words, the working directory will "heel" to the plugin's perspective.) This helps ensure (at least) that path completions (if using a completion plugin with support for paths) will be accurate and usable.<br>**`false`** (default): Neovim's working directory will not be affected by Mkdnflow. |
-| `perspective.update` | `boolean` | `true`: Perspective will be updated when following a link to a file in a separate notebook/wiki (or navigating backwards to a file in another notebook/wiki).<br>**`false`** (default): Perspective will be not updated when following a link to a file in a separate notebook/wiki. (Links in the file in the separate notebook/wiki will be interpreted relative to the original notebook/wiki.) |
+| `path_resolution.primary` | `string` | **`'first'`** (default): Links will be interpreted relative to the first-opened file (when the current instance of Neovim was started).<br>`'current'`: Links will always be interpreted relative to the current file.<br>`'root'`: Links will be always interpreted relative to the root directory of the current notebook (requires `path_resolution.root_marker` to be specified).<br>Previously named `perspective.priority`. |
+| `path_resolution.fallback` | `string` | `'first'`: (see above)<br>**`'current'`** (default): (see above)<br>`'root'`: (see above) |
+| `path_resolution.root_marker` | `string` \| `boolean` | **`false`** (default): The plugin does not look for the notebook root.<br>`string`: The name of a file (not a full path) by which a notebook's root directory can be identified. For instance, `'.root'` or `'index.md'`.<br>Previously named `perspective.root_tell`. |
+| `path_resolution.sync_cwd` | `boolean` | `true`: Changes in path resolution will be reflected in the nvim working directory. (In other words, the working directory will sync with the plugin's path resolution.) This helps ensure (at least) that path completions (if using a completion plugin with support for paths) will be accurate and usable.<br>**`false`** (default): Neovim's working directory will not be affected by Mkdnflow.<br>Previously named `perspective.nvim_wd_heel`. |
+| `path_resolution.update_on_navigate` | `boolean` | `true`: Path resolution will be updated when following a link to a file in a separate notebook/wiki (or navigating backwards to a file in another notebook/wiki).<br>**`false`** (default): Path resolution will be not updated when following a link to a file in a separate notebook/wiki. (Links in the file in the separate notebook/wiki will be interpreted relative to the original notebook/wiki.)<br>Previously named `perspective.update`. |
 
 ##### filetypes
 
@@ -562,7 +562,7 @@ require('mkdnflow').setup({
 | Option | Type | Description |
 | --- | --- | --- |
 | `bib.default_path` | `string` \| `nil` | **`nil`** (default): No default/fallback bib file will be used to search for citation keys.<br>`string`: A path to a default .bib file to look for citation keys in when attempting to follow a reference. The path need not be in the root directory of the notebook. |
-| `bib.find_in_root` | `boolean` | **`true`** (default): When `perspective.priority` is also set to `root` (and a root directory was found), the plugin will search for bib files to reference in the notebook's top-level directory. If `bib.default_path` is also specified, the default path will be added to the list of bib files found in the top-level directory so that it will also be searched.<br>`false`: The notebook's root directory will not be searched for bib files. |
+| `bib.find_in_root` | `boolean` | **`true`** (default): When `path_resolution.primary` is also set to `root` (and a root directory was found), the plugin will search for bib files to reference in the notebook's top-level directory. If `bib.default_path` is also specified, the default path will be added to the list of bib files found in the top-level directory so that it will also be searched.<br>`false`: The notebook's root directory will not be searched for bib files. |
 
 ##### silent
 
@@ -597,18 +597,18 @@ require('mkdnflow').setup({
 require('mkdnflow').setup({
     links = {
         style = 'markdown',
-        name_is_source = false,
+        compact = false,
         conceal = false,
-        context = 0,
+        search_range = 0,
         implicit_extension = nil,
-        transform_implicit = false,
-        transform_explicit = function(text)
+        transform_on_follow = false,
+        transform_on_create = function(text)
             text = text:gsub(" ", "-")
             text = text:lower()
             text = os.date('%Y-%m-%d_') .. text
             return(text)
         end,
-        create_on_follow_failure = true,
+        auto_create = true,
     },
 })
 ```
@@ -616,13 +616,13 @@ require('mkdnflow').setup({
 | Option | Type | Description |
 | --- | --- | --- |
 | `links.style` | `string` | **`'markdown'`** (default): Links will be expected in the standard markdown format: `[<title>](<source>)`<br>`'wiki'`: Links will be expected in the unofficial wiki-link style, specifically the title-after-pipe format: `[[<source>\|<title>]]`. |
-| `links.name_is_source` | `boolean` | `true`: Wiki-style links will be created with the source and name being the same (e.g. `[[Link]]` will display as "Link" and go to a file named "Link.md").<br>**`false`** (default): Wiki-style links will be created with separate name and source (e.g. `[[link-to-source\|Link]]` will display as "Link" and go to a file named "link-to-source.md"). |
+| `links.compact` | `boolean` | `true`: Wiki-style links will be created with the source and name being the same (e.g. `[[Link]]` will display as "Link" and go to a file named "Link.md").<br>**`false`** (default): Wiki-style links will be created with separate name and source (e.g. `[[link-to-source\|Link]]` will display as "Link" and go to a file named "link-to-source.md").<br>Previously named `links.name_is_source`. |
 | `links.conceal` | `boolean` | `true`: Link sources and delimiters will be concealed (depending on which link style is selected).<br>**`false`** (default): Link sources and delimiters will not be concealed by mkdnflow. |
-| `links.context` | `integer` | When following or jumping to links, consider `n` lines before and after a given line (useful if you ever permit links to be interrupted by a hard line break). Default: **`0`**. |
+| `links.search_range` | `integer` | When following or jumping to links, consider `n` lines before and after a given line (useful if you ever permit links to be interrupted by a hard line break). Default: **`0`**.<br>Previously named `links.context`. |
 | `links.implicit_extension` | `string` | A string that instructs the plugin (a) how to interpret links to files that do not have an extension, and (b) how to create new links from the word under cursor or text selection.<br><br>**`nil`** (default): Extensions will be explicit when a link is created and must be explicit in any notebook link.<br>`'<any extension>'` (e.g. `'md'`): Links without an extension (e.g. `[Homepage](index)`) will be interpreted with the implicit extension (e.g. `index.md`), and new links will be created without an extension. |
-| `links.transform_explicit` | `fun(string): string` \| `boolean` | `false`: No transformations are applied to the text to be turned into the name of the link source/path.<br>**`fun(string): string`** (default): A function that transforms the text to be inserted as the source/path of a link when a link is created. Anchor links are not currently customizable. For an example, see the sample recipes beneath this table. |
-| `links.transform_implicit` | `fun(string): string` \| `boolean` | **`false`** (default): Do not perform any implicit transformations on the link's source.<br>`fun(string): string`: A function that transforms the path of a link immediately before interpretation. It does not transform the actual text in the buffer but can be used to modify link interpretation. For an example, see the sample recipe below. |
-| `links.create_on_follow_failure` | `boolean` | **`true`** (default): Try to create a link from the word under the cursor if there is no link under the cursor to follow.<br>`false`: Do nothing if trying to follow a link and a link can't be found under the cursor. |
+| `links.transform_on_create` | `fun(string): string` \| `boolean` | `false`: No transformations are applied to the text to be turned into the name of the link source/path.<br>**`fun(string): string`** (default): A function that transforms the text to be inserted as the source/path of a link when a link is created. Anchor links are not currently customizable. For an example, see the sample recipes beneath this table.<br>Previously named `links.transform_explicit`. |
+| `links.transform_on_follow` | `fun(string): string` \| `boolean` | **`false`** (default): Do not perform any transformations on the link's source when following.<br>`fun(string): string`: A function that transforms the path of a link immediately before interpretation. It does not transform the actual text in the buffer but can be used to modify link interpretation. For an example, see the sample recipe below.<br>Previously named `links.transform_implicit`. |
+| `links.auto_create` | `boolean` | **`true`** (default): Try to create a link from the word under the cursor if there is no link under the cursor to follow.<br>`false`: Do nothing if trying to follow a link and a link can't be found under the cursor.<br>Previously named `links.create_on_follow_failure`. |
 
 <details>
 <summary>Sample links recipes</summary>
@@ -632,13 +632,13 @@ require('mkdnflow').setup({
     links = {
         -- If you want all link paths to be explicitly prefixed with the year
         -- and for the path to be converted to uppercase:
-        transform_explicit = function(input)
+        transform_on_create = function(input)
             return(string.upper(os.date('%Y-')..input))
         end,
         -- Link paths that match a date pattern can be opened in a `journals`
         -- subdirectory of your notebook, and all others can be opened in a
         -- `pages` subdirectory:
-        transform_implicit = function(input)
+        transform_on_follow = function(input)
             if input:match('%d%d%d%d%-%d%d%-%d%d') then
                 return('journals/'..input)
             else
@@ -656,7 +656,7 @@ require('mkdnflow').setup({
 ```lua
 require('mkdnflow').setup({
     new_file_template = {
-        use_template = false,
+        enabled = false,
         placeholders = {
             before = { title = 'link_title', date = 'os_date' },
             after = {},
@@ -668,7 +668,7 @@ require('mkdnflow').setup({
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `new_file_template.use_template` | `boolean` | `true`: Use the new-file template when opening a new file by following a link.<br>**`false`** (default): Don't use the new-file template when opening a new file by following a link. |
+| `new_file_template.enabled` | `boolean` | `true`: Use the new-file template when opening a new file by following a link.<br>**`false`** (default): Don't use the new-file template when opening a new file by following a link.<br>Previously named `new_file_template.use_template`. |
 | `new_file_template.placeholders.before` | `table<string, string\|fun(): string>` | A table whose keys are placeholder names mapped either to a function (to be evaluated immediately before the buffer is opened in the current window) or to one of a limited set of recognized strings:<br><br>`'link_title'`: The title of the link that was followed to get to the just-opened file.<br>`'os_date'`: The current date, according to the OS.<br><br>Default: `{ title = 'link_title', date = 'os_date' }` |
 | `new_file_template.placeholders.after` | `table<string, string\|fun(): string>` | A table whose keys are placeholder names mapped either to a function (to be evaluated immediately after the buffer is opened in the current window) or to one of a limited set of recognized strings (see above). Default: `{}` |
 | `new_file_template.template` | `string` | A string, optionally containing placeholder names, that will be inserted into a new file. Default: `'# {{ title }}'` |
@@ -703,7 +703,7 @@ require('mkdnflow').setup({
 | `to_do.statuses[*].marker` | `string` \| `table` | The marker symbol to use for the status. The marker's string width must be 1. |
 | `to_do.statuses[*].highlight.marker` | `table` (highlight definition) | A table of highlight definitions to apply to a status marker, including brackets. See the `{val}` parameter of `:h nvim_set_hl` for possible options. |
 | `to_do.statuses[*].highlight.content` | `table` (highlight definition) | A table of highlight definitions to apply to the to-do item content (everything following the status marker). See the `{val}` parameter of `:h nvim_set_hl` for possible options. |
-| `to_do.statuses[*].exclude_from_rotation` | `boolean` | `true`: When toggling/rotating a to-do item's status, exclude the current symbol from the list of symbols used.<br>`false`: Leave the symbol in the rotation.<br>Note: This setting is useful if there is a status marker that you never want to manually set and only want to apply when automatically updating ancestors or descendants. |
+| `to_do.statuses[*].skip_on_toggle` | `boolean` | `true`: When toggling/rotating a to-do item's status, skip this status in the rotation.<br>`false`: Leave the status in the rotation.<br>Note: This setting is useful if there is a status marker that you never want to manually set and only want to apply when automatically updating ancestors or descendants.<br>Previously named `to_do.statuses[*].exclude_from_rotation`. |
 | `to_do.statuses[*].sort.section` | `integer` | The integer should represent the linear section of the list in which items of this status should be placed when sorted. A section refers to a segment of a to-do list. If you want items with the `'in_progress'` status to be first in the list, you would set this option to `1` for the status.<br>Note: Sections are not visually delineated in any way other than items with the same section number occurring on adjacent lines in the list. |
 | `to_do.statuses[*].sort.position` | `string` | Where in its assigned section a to-do item should be placed:<br>`'top'`: Place a sorted item at the top of its corresponding section.<br>`'bottom'`: Place a sorted item at the bottom of its corresponding section.<br>`'relative'`: Maintain the current relative order of the sorted item whose status was just changed (vs. other list items). |
 | `to_do.statuses[*].propagate.up` | `fun(to_do_list): string` \| `nil` | A function that accepts a to-do list instance and returns a valid to-do status name. The list passed in is the list that hosts the to-do item whose status was just changed. The return value should be the desired value of the parent. Return `nil` to leave the parent's status as is. |
@@ -846,7 +846,7 @@ require('mkdnflow').setup({
             cell_padding = 1,
             separator_padding = 1,
             outer_pipes = true,
-            mimic_alignment = true,
+            apply_alignment = true,
         },
     },
 })
@@ -862,7 +862,7 @@ require('mkdnflow').setup({
 | `tables.style.cell_padding` | `integer` | **`1`** (default): Use one space as padding at the beginning and end of each cell.<br>`<n>`: Use `<n>` spaces as cell padding. |
 | `tables.style.separator_padding` | `integer` | **`1`** (default): Use one space as padding in the separator row.<br>`<n>`: Use `<n>` spaces as padding in the separator row. |
 | `tables.style.outer_pipes` | `boolean` | **`true`** (default): Include outer pipes when formatting a table.<br>`false`: Do not use outer pipes when formatting a table. |
-| `tables.style.mimic_alignment` | `boolean` | **`true`** (default): Mimic the cell alignment indicated in the separator row when formatting the table.<br>`false`: Always visually left-align cell contents when formatting a table. |
+| `tables.style.apply_alignment` | `boolean` | **`true`** (default): Apply the cell alignment indicated in the separator row when formatting the table.<br>`false`: Always visually left-align cell contents when formatting a table.<br>Previously named `tables.style.mimic_alignment`. |
 
 ##### yaml
 
@@ -966,9 +966,9 @@ cmp.setup({
 
 > [!WARNING]
 > There may be some compatibility issues with the completion module and
-> `links.transform_explicit`/`links.transform_implicit` functions.
+> `links.transform_on_create`/`links.transform_on_follow` functions.
 >
-> If you have some `transform_explicit` option for links to organizing in folders
+> If you have some `transform_on_create` option for links to organizing in folders
 > then the folder name will be inserted accordingly. Some transformations may not
 > work as expected in completions.
 >

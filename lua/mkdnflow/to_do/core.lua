@@ -168,7 +168,7 @@ function to_do_statuses:next(status)
         if count > #self then
             return self[idx]
         end
-    until not self[next_idx].exclude_from_rotation
+    until not self[next_idx].skip_on_toggle
 
     return self[next_idx]
 end

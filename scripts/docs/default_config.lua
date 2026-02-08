@@ -18,12 +18,12 @@
     create_dirs = true,
     silent = false,
     wrap = false,
-    perspective = {
-        priority = 'first',
+    path_resolution = {
+        primary = 'first',
         fallback = 'current',
-        root_tell = false,
-        nvim_wd_heel = false,
-        update = true,
+        root_marker = false,
+        sync_cwd = false,
+        update_on_navigate = true,
     },
     filetypes = {
         markdown = true,
@@ -60,21 +60,21 @@
     },
     links = {
         style = 'markdown',
-        name_is_source = false,
+        compact = false,
         conceal = false,
-        context = 0,
+        search_range = 0,
         implicit_extension = nil,
-        transform_implicit = false,
-        transform_explicit = function(text)
+        transform_on_follow = false,
+        transform_on_create = function(text)
             text = text:gsub('[ /]', '-')
             text = text:lower()
             text = os.date('%Y-%m-%d_') .. text
             return text
         end,
-        create_on_follow_failure = true,
+        auto_create = true,
     },
     new_file_template = {
-        use_template = false,
+        enabled = false,
         placeholders = {
             before = {
                 title = 'link_title',
@@ -95,7 +95,7 @@
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 2, position = 'top' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) ... end,
@@ -109,7 +109,7 @@
                     content = { bold = true },
                 },
                 sort = { section = 1, position = 'bottom' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) end,
@@ -123,7 +123,7 @@
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 3, position = 'top' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) ... end,
@@ -152,7 +152,7 @@
             cell_padding = 1,
             separator_padding = 1,
             outer_pipes = true,
-            mimic_alignment = true,
+            apply_alignment = true,
         },
     },
     yaml = {

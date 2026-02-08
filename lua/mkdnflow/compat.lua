@@ -33,6 +33,7 @@ since been migrated to another setting or another format. It returns an equiva-
 lent user config that is upgraded to the new format.
 --]]
 M.userConfigCheck = function(user_config)
+    -- COMPAT(added=v2.8, remove=v3.0): extension-based filetypes → filetype-based
     -- Migrate old extension-based filetypes config to filetype-based
     -- Extensions like 'md' are migrated to their corresponding filetype ('markdown')
     local extension_to_filetype = {
@@ -76,6 +77,7 @@ M.userConfigCheck = function(user_config)
         user_config.filetypes = new_filetypes
     end
 
+    -- COMPAT(added=v1.x, remove=v3.0): to_do.symbols → to_do.statuses
     -- Check if to-do markers are being customized but no values were provided
     -- for not_started, in_progress, and complete
     if user_config.to_do then
@@ -102,8 +104,8 @@ M.userConfigCheck = function(user_config)
                 user_config.to_do.complete = user_config.to_do.symbols[2]
             end
         end
+        -- COMPAT(added=v2.x, remove=v3.0): to_do.not_started/in_progress/complete → to_do.statuses
         -- Update to June 2024 format
-        -- Removal will be breaking
         if
             not user_config.to_do.statuses
             and (
@@ -121,8 +123,7 @@ M.userConfigCheck = function(user_config)
                 "⬇️  The 'not_started', 'in_progress', and 'complete' keys in to_do are deprecated. Use 'statuses' instead. See :h mkdnflow-configuration."
             )
         end
-        -- Propagation (added July 2024)
-        -- Removal will be breaking
+        -- COMPAT(added=v2.x, remove=v3.0): to_do.update_parents → to_do.status_propagation.up
         if user_config.to_do.update_parents ~= nil then
             user_config.to_do['status_propagation'] = {
                 up = user_config.to_do.update_parents
@@ -131,8 +132,7 @@ M.userConfigCheck = function(user_config)
                 "⬇️  The 'update_parents' key in to_do is deprecated. Use 'status_propagation.up' instead. See :h mkdnflow-configuration."
             )
         end
-        -- Migration for symbol → marker and colors → highlight (added January 2025)
-        -- Removal will be breaking
+        -- COMPAT(added=v2.x, remove=v3.0): to_do.statuses[*].symbol → marker, colors → highlight
         if user_config.to_do.statuses then
             local warned_symbol = false
             local warned_colors = false
@@ -161,6 +161,7 @@ M.userConfigCheck = function(user_config)
         end
     end
 
+    -- COMPAT(added=v1.x, remove=v3.0): default_bib_path → bib.default_path
     -- Look for default bib path
     if user_config.default_bib_path then
         if user_config.default_bib_path == '' then
@@ -173,11 +174,13 @@ M.userConfigCheck = function(user_config)
         )
     end
 
+    -- COMPAT(added=v1.x, remove=v3.0): link_style → links.style
     -- Look for link style
     if user_config.link_style then
         user_config.links.style = user_config.link_style
     end
 
+    -- COMPAT(added=v1.x, remove=v3.0): links.implicit_extension period stripping
     -- Look for implicit extension and remove periods
     if user_config.links then
         if user_config.links.implicit_extension then
@@ -186,14 +189,16 @@ M.userConfigCheck = function(user_config)
         end
     end
 
+    -- COMPAT(added=v1.x, remove=v3.0): links_relative_to → perspective (now path_resolution)
     -- Look for links_relative_to
     if user_config.links_relative_to then
         user_config.perspective = user_config.links_relative_to
         warn(
-            '⬇️  The links_relative_to key is now called "perspective". Please update your config. See :h mkdnflow-changes, commit e42290...'
+            '⬇️  The links_relative_to key is now called "path_resolution". Please update your config. See :h mkdnflow-changes, commit e42290...'
         )
     end
 
+    -- COMPAT(added=v1.x, remove=v3.0): wrap_to_beginning/end → wrap
     -- Look for wrap preferences
     if user_config.wrap_to_beginning or user_config.wrap_to_end then
         user_config.wrap = true
@@ -202,6 +207,8 @@ M.userConfigCheck = function(user_config)
         )
     end
 
+    -- COMPAT(added=v1.x, remove=v3.0): perspective (string) → perspective (table)
+    -- COMPAT(added=v1.x, remove=v3.0): vimwd_heel → nvim_wd_heel (now sync_cwd)
     -- Inspect perspective setting, if specified
     if user_config.perspective then
         if type(user_config.perspective) ~= 'table' then
@@ -227,6 +234,81 @@ M.userConfigCheck = function(user_config)
         end
     end
 
+    -- COMPAT(added=v2.10, remove=v3.0): perspective → path_resolution (and sub-keys)
+    if user_config.perspective ~= nil and user_config.path_resolution == nil then
+        user_config.path_resolution = user_config.perspective
+        user_config.perspective = nil
+    end
+    if user_config.path_resolution and type(user_config.path_resolution) == 'table' then
+        local pr = user_config.path_resolution
+        if pr.priority ~= nil and pr.primary == nil then
+            pr.primary = pr.priority
+            pr.priority = nil
+        end
+        if pr.root_tell ~= nil and pr.root_marker == nil then
+            pr.root_marker = pr.root_tell
+            pr.root_tell = nil
+        end
+        if pr.nvim_wd_heel ~= nil and pr.sync_cwd == nil then
+            pr.sync_cwd = pr.nvim_wd_heel
+            pr.nvim_wd_heel = nil
+        end
+        if pr.update ~= nil and pr.update_on_navigate == nil then
+            pr.update_on_navigate = pr.update
+            pr.update = nil
+        end
+    end
+
+    -- COMPAT(added=v2.10, remove=v3.0): links key renames
+    if user_config.links then
+        local l = user_config.links
+        if l.name_is_source ~= nil and l.compact == nil then
+            l.compact = l.name_is_source
+            l.name_is_source = nil
+        end
+        if l.context ~= nil and l.search_range == nil then
+            l.search_range = l.context
+            l.context = nil
+        end
+        if l.transform_explicit ~= nil and l.transform_on_create == nil then
+            l.transform_on_create = l.transform_explicit
+            l.transform_explicit = nil
+        end
+        if l.transform_implicit ~= nil and l.transform_on_follow == nil then
+            l.transform_on_follow = l.transform_implicit
+            l.transform_implicit = nil
+        end
+        if l.create_on_follow_failure ~= nil and l.auto_create == nil then
+            l.auto_create = l.create_on_follow_failure
+            l.create_on_follow_failure = nil
+        end
+    end
+
+    -- COMPAT(added=v2.10, remove=v3.0): to_do, tables, new_file_template renames
+    if user_config.to_do and user_config.to_do.statuses then
+        for _, status in ipairs(user_config.to_do.statuses) do
+            if status.exclude_from_rotation ~= nil and status.skip_on_toggle == nil then
+                status.skip_on_toggle = status.exclude_from_rotation
+                status.exclude_from_rotation = nil
+            end
+        end
+    end
+    if user_config.tables and user_config.tables.style then
+        local s = user_config.tables.style
+        if s.mimic_alignment ~= nil and s.apply_alignment == nil then
+            s.apply_alignment = s.mimic_alignment
+            s.mimic_alignment = nil
+        end
+    end
+    if user_config.new_file_template then
+        local nft = user_config.new_file_template
+        if nft.use_template ~= nil and nft.enabled == nil then
+            nft.enabled = nft.use_template
+            nft.use_template = nil
+        end
+    end
+
+    -- COMPAT(added=v1.x, remove=v3.0): use_mappings_table → modules.maps
     -- Check for old use_mappings_table config option
     if user_config.use_mappings_table == false then
         if user_config.modules then
@@ -238,6 +320,8 @@ M.userConfigCheck = function(user_config)
         end
     end
 
+    -- COMPAT(added=v1.x, remove=v3.0): mappings string values → table values
+    -- COMPAT(added=v2.x, remove=v3.0): MkdnCR → MkdnEnter
     -- Inspect mappings
     if user_config.mappings then
         local string = false

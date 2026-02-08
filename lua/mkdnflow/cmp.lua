@@ -20,7 +20,7 @@ local bib_paths = require('mkdnflow').bib and require('mkdnflow').bib.bib_paths 
 local cmp = require('cmp')
 local extension = '.md' -- Keep the '.'
 
-local transform_explicit = require('mkdnflow').config.links.transform_explicit
+local transform_on_create = require('mkdnflow').config.links.transform_on_create
 
 local function get_files_items()
     -- Find all markdown files recursively in the root directory
@@ -37,7 +37,7 @@ local function get_files_items()
             -- Anything except / and \ (\\) followed by the extension so that folders will be excluded
             -- from the label
             item.label = path:match('([^/^\\]+)' .. extension .. '$')
-            local explicit_link = transform_explicit and transform_explicit(item.label) .. extension or item.label .. extension
+            local explicit_link = transform_on_create and transform_on_create(item.label) .. extension or item.label .. extension
             -- Text should be inserted in markdown format
             item.insertText = '[' .. item.label .. '](' .. explicit_link .. ')'
             -- For beautification

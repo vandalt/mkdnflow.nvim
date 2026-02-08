@@ -15,7 +15,7 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 local silent = require('mkdnflow').config.silent
-local perspective = require('mkdnflow').config.perspective
+local path_resolution = require('mkdnflow').config.path_resolution
 
 -- Table for global functions and variables
 local M = {}

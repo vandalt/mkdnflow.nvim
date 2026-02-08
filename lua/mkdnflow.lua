@@ -35,12 +35,12 @@ local default_config = {
         yaml = false,
         cmp = false,
     },
-    perspective = {
-        priority = 'first',
+    path_resolution = {
+        primary = 'first',
         fallback = 'current',
-        root_tell = false,
-        nvim_wd_heel = false,
-        update = true,
+        root_marker = false,
+        sync_cwd = false,
+        update_on_navigate = true,
     },
     filetypes = {
         markdown = true, -- Covers .md, .markdown, .mkd, .mkdn, .mdwn, .mdown
@@ -78,21 +78,21 @@ local default_config = {
     },
     links = {
         style = 'markdown',
-        name_is_source = false,
+        compact = false,
         conceal = false,
-        context = 0,
+        search_range = 0,
         implicit_extension = nil,
-        transform_implicit = false,
-        transform_explicit = function(text)
+        transform_on_follow = false,
+        transform_on_create = function(text)
             text = text:gsub('[ /]', '-')
             text = text:lower()
             text = os.date('%Y-%m-%d_') .. text
             return text
         end,
-        create_on_follow_failure = true,
+        auto_create = true,
     },
     new_file_template = {
-        use_template = false,
+        enabled = false,
         placeholders = {
             before = {
                 title = 'link_title',
@@ -113,7 +113,7 @@ local default_config = {
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 2, position = 'top' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list)
                         local no_items_started = true
@@ -145,7 +145,7 @@ local default_config = {
                     content = { bold = true },
                 },
                 sort = { section = 1, position = 'bottom' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list)
                         return 'in_progress'
@@ -161,7 +161,7 @@ local default_config = {
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 3, position = 'top' },
-                exclude_from_rotation = false,
+                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list)
                         local all_items_complete = true
@@ -208,7 +208,7 @@ local default_config = {
             cell_padding = 1,
             separator_padding = 1,
             outer_pipes = true,
-            mimic_alignment = true,
+            apply_alignment = true,
         },
     },
     yaml = {
@@ -337,7 +337,7 @@ init.user_config = {} -- For user config
 init.config = {} -- For merged configs
 init.loaded = nil -- For load status
 
--- Activate: loads modules and sets up perspective/root directory.
+-- Activate: loads modules and sets up path resolution/root directory.
 -- This is defined at module level so both setup() and forceStart() can call it.
 local function activate()
     if init.loaded then
@@ -346,14 +346,14 @@ local function activate()
 
     -- Get silence preference
     local silent = init.config.silent
-    -- Determine perspective
-    local perspective = init.config.perspective
-    if perspective.priority == 'root' then
-        -- Retrieve the root 'tell'
-        local root_tell = perspective.root_tell
-        -- If one was provided, try to find the root directory for the notebook/wiki using the tell
-        if root_tell then
-            init.root_dir = init.utils.getRootDir(init.initial_dir, root_tell, init.this_os)
+    -- Determine path resolution
+    local path_resolution = init.config.path_resolution
+    if path_resolution.primary == 'root' then
+        -- Retrieve the root marker
+        local root_marker = path_resolution.root_marker
+        -- If one was provided, try to find the root directory for the notebook/wiki using the marker
+        if root_marker then
+            init.root_dir = init.utils.getRootDir(init.initial_dir, root_marker, init.this_os)
             -- Get notebook name
             if init.root_dir then
                 vim.api.nvim_set_current_dir(init.root_dir)
@@ -362,7 +362,7 @@ local function activate()
                     vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
                 end
             else
-                local fallback = init.config.perspective.fallback
+                local fallback = init.config.path_resolution.fallback
                 if not silent then
                     vim.api.nvim_echo({
                         {
@@ -387,12 +387,12 @@ local function activate()
             if not silent then
                 vim.api.nvim_echo({
                     {
-                        "⬇️  No tell was provided for the notebook's root directory. See :h mkdnflow-configuration.",
+                        "⬇️  No root marker was provided for the notebook's root directory. See :h mkdnflow-configuration.",
                         'WarningMsg',
                     },
                 }, true, {})
             end
-            if init.config.perspective.fallback == 'first' then
+            if init.config.path_resolution.fallback == 'first' then
                 vim.api.nvim_set_current_dir(init.initial_dir)
             else
                 -- Set working directory

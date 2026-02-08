@@ -30,8 +30,8 @@ local T = new_set({
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({
                     links = {
-                        transform_explicit = false,
-                        transform_implicit = false
+                        transform_on_create = false,
+                        transform_on_follow = false
                     }
                 })
             ]])
@@ -133,7 +133,7 @@ end
 -- =============================================================================
 T['transformPath'] = new_set()
 
--- Note: transform_implicit is cached at module load time, so calling setup()
+-- Note: transform_on_follow is cached at module load time, so calling setup()
 -- after the module loads does NOT update the transform function. These tests
 -- verify the default behavior (no transform).
 
@@ -309,7 +309,7 @@ T['edge_cases']['pathType distinguishes URL from path with dot'] = function()
 end
 
 T['edge_cases']['transformPath returns nil for nil input'] = function()
-    -- When transform_implicit is false/nil, transformPath returns the input as-is
+    -- When transform_on_follow is false/nil, transformPath returns the input as-is
     -- For nil input, it returns nil
     local result = child.lua_get([[require('mkdnflow.paths').transformPath(nil)]])
     eq(result, vim.NIL)
