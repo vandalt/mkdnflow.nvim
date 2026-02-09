@@ -344,6 +344,16 @@ local function activate()
         return
     end
 
+    -- If initial_dir is nil (e.g., setup() ran with an unnamed buffer, as when
+    -- lazy.nvim loads the plugin via a key mapping), derive it from the current
+    -- buffer or fall back to cwd.
+    if not init.initial_dir then
+        init.initial_buf = vim.api.nvim_buf_get_name(0)
+        init.initial_dir = (init.this_os:match('Windows') and init.initial_buf:match('(.*)\\.-'))
+            or init.initial_buf:match('(.*)/.-')
+            or vim.fn.getcwd()
+    end
+
     -- Get silence preference
     local silent = init.config.silent
     -- Determine path resolution

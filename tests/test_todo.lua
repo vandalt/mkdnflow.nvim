@@ -299,18 +299,69 @@ T['edge_cases']['toggle_to_do does nothing on plain text'] = function()
     eq(get_line(1), 'just plain text') -- unchanged
 end
 
-T['edge_cases']['toggle_to_do does nothing on plain list item'] = function()
-    set_lines({ '- plain list item without checkbox' })
-    set_cursor(1, 0)
-    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
-    eq(get_line(1), '- plain list item without checkbox') -- unchanged
-end
-
 T['edge_cases']['toggle_to_do does nothing on empty buffer'] = function()
     set_lines({ '' })
     set_cursor(1, 0)
     child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
     eq(get_line(1), '') -- unchanged
+end
+
+-- =============================================================================
+-- List item to to-do conversion (#292)
+-- =============================================================================
+T['list_to_todo'] = new_set()
+
+T['list_to_todo']['converts unordered list item with dash'] = function()
+    set_lines({ '- plain list item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] plain list item')
+end
+
+T['list_to_todo']['converts unordered list item with asterisk'] = function()
+    set_lines({ '* plain list item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '* [ ] plain list item')
+end
+
+T['list_to_todo']['converts unordered list item with plus'] = function()
+    set_lines({ '+ plain list item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '+ [ ] plain list item')
+end
+
+T['list_to_todo']['converts ordered list item'] = function()
+    set_lines({ '1. plain list item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '1. [ ] plain list item')
+end
+
+T['list_to_todo']['converts indented list item'] = function()
+    set_lines({ '    - indented list item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '    - [ ] indented list item')
+end
+
+T['list_to_todo']['does not affect plain text'] = function()
+    set_lines({ 'just plain text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), 'just plain text') -- unchanged
+end
+
+T['list_to_todo']['subsequent toggle cycles status after conversion'] = function()
+    set_lines({ '- plain list item' })
+    set_cursor(1, 0)
+    -- First toggle: convert to to-do
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] plain list item')
+    -- Second toggle: cycle status
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] plain list item')
 end
 
 -- =============================================================================

@@ -320,4 +320,65 @@ T['edge_cases']['transformPath handles empty string'] = function()
     eq(result, '')
 end
 
+-- =============================================================================
+-- Issue #293: setup() called with unnamed buffer leaves initial_dir nil
+-- When lazy.nvim loads the plugin via a key mapping (e.g. <leader>Ni),
+-- setup() runs BEFORE the markdown file is opened. At that point,
+-- nvim_buf_get_name(0) returns "" and initial_dir becomes nil.
+-- Later, following a link crashes with:
+--   "attempt to concatenate upvalue 'initial_dir' (a nil value)"
+-- =============================================================================
+T['setup_without_file'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+        end,
+        post_once = child.stop,
+    },
+})
+
+T['setup_without_file']['initial_dir is set after activation'] = function()
+    -- Simulate lazy.nvim key trigger: setup() runs with no file open
+    child.lua([[require('mkdnflow').setup({
+        links = { transform_explicit = false, transform_implicit = false },
+    })]])
+
+    -- Open a markdown file to trigger activation
+    child.lua([[
+        local tmpdir = vim.fn.tempname()
+        vim.fn.mkdir(tmpdir, 'p')
+        local tmpfile = tmpdir .. '/test.md'
+        vim.fn.writefile({''}, tmpfile)
+        vim.cmd('e ' .. tmpfile)
+        vim.bo.filetype = 'markdown'
+    ]])
+
+    local initial_dir = child.lua_get([[require('mkdnflow').initial_dir]])
+    eq(type(initial_dir), 'string')
+end
+
+T['setup_without_file']['following link works after setup with unnamed buffer'] = function()
+    -- 1. Setup with no file open (like lazy.nvim key trigger loading)
+    child.lua([[require('mkdnflow').setup({
+        links = { transform_explicit = false, transform_implicit = false },
+    })]])
+
+    -- 2. Open a markdown file (like <cmd>e ~/wiki/index.md<CR>)
+    child.lua([[
+        local tmpdir = vim.fn.tempname()
+        vim.fn.mkdir(tmpdir, 'p')
+        local tmpfile = tmpdir .. '/index.md'
+        vim.fn.writefile({'[test](other.md)'}, tmpfile)
+        vim.cmd('e ' .. tmpfile)
+        vim.bo.filetype = 'markdown'
+    ]])
+
+    -- 3. Following a link should NOT crash with nil initial_dir
+    child.lua('vim.api.nvim_win_set_cursor(0, {1, 2})')
+    local ok, err = unpack(child.lua_get([[{pcall(function()
+        require('mkdnflow.paths').handlePath('other.md')
+    end)}]]))
+    eq(ok, true)
+end
+
 return T
