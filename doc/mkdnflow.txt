@@ -334,6 +334,7 @@ the documentation for the configuration options below or in the help files.
                 return text
             end,
             auto_create = true,
+            on_create_new = false,
         },
         new_file_template = {
             enabled = false,
@@ -828,6 +829,7 @@ links ~
                 return(text)
             end,
             auto_create = true,
+            on_create_new = false,
         },
     })
 <
@@ -904,6 +906,27 @@ links.auto_create                          *Mkdnflow-config-links-auto-create*
     to follow a link and a link can't be found under the cursor. Previously
     named `links.create_on_follow_failure`.
 
+links.on_create_new                      *Mkdnflow-config-links-on-create-new*
+    Type: false` | `fun(string, string|nil): string|nil
+
+    A callback invoked when following a link to a file that does not yet
+    exist, allowing file creation to be delegated to an external tool (e.g.
+    `zk`, Obsidian CLI, a custom script). This callback is only invoked when
+    the target file does not yet exist. Following a link to an existing file
+    bypasses this callback entirely.
+
+    The function receives two arguments: the full resolved path (with
+    extension) that mkdnflow would create, and the link's display text (which
+    may be `nil`).
+
+    It should return a `string` (file path for mkdnflow to open) or `nil` (if
+    the callback handled everything). If a path is returned and the file
+    exists there, mkdnflow opens it directly (skipping template injection). If
+    the file does not exist at the returned path, mkdnflow runs its normal
+    creation flow.
+
+    `false`: (default): Use mkdnflow's built-in file creation.
+
 
 SAMPLE LINKS RECIPES~
 
@@ -926,6 +949,35 @@ SAMPLE LINKS RECIPES~
                 end
             end
         }
+    })
+<
+
+Delegate new-file creation to zk:
+
+>
+    require('mkdnflow').setup({
+        links = {
+            on_create_new = function(path, title)
+                -- Let zk create the note with its own templates and ID scheme.
+                -- `zk new` prints the created path to stdout.
+                local dir = vim.fn.fnamemodify(path, ':h')
+                local cmd = { 'zk', 'new', '--no-input', '--print-path', dir }
+                if title then
+                    table.insert(cmd, '--title')
+                    table.insert(cmd, title)
+                end
+                local result = vim.fn.system(cmd)
+                local new_path = vim.trim(result)
+                if vim.v.shell_error ~= 0 then
+                    vim.api.nvim_echo(
+                        {{ 'zk new failed: ' .. result, 'ErrorMsg' }},
+                        true, {}
+                    )
+                    return nil
+                end
+                return new_path  -- mkdnflow opens the zk-created file
+            end,
+        },
     })
 <
 

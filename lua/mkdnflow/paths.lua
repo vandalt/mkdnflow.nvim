@@ -190,6 +190,37 @@ local vim_open = function(path, anchor)
         -- Looks like this links to a directory, possibly a notebook
         enter_internal_path(path)
     else
+        -- If the file doesn't exist and on_create_new is set, call the callback
+        if not exists(path_w_ext, 'f') and type(links_config.on_create_new) == 'function' then
+            local title = links.getLinkPart(links.getLinkUnderCursor(), 'name')
+            local result = links_config.on_create_new(path_w_ext, title)
+            if result == nil then
+                -- Callback handled everything; no buffer push, no file open
+                return
+            end
+            if type(result) == 'string' then
+                path_w_ext = result
+                -- Ensure directories exist for the callback-returned path
+                local result_dir = string.match(path_w_ext, '(.*)' .. sep .. '.-$')
+                if result_dir and create_dirs and not exists(result_dir) then
+                    if this_os:match('Windows') then
+                        os.execute('mkdir "' .. result_dir .. '"')
+                    else
+                        os.execute('mkdir -p ' .. vim.fn.shellescape(result_dir))
+                    end
+                end
+            else
+                -- Unexpected return type; warn and proceed with default behavior
+                vim.api.nvim_echo({
+                    {
+                        '⬇️  on_create_new callback returned unexpected type: '
+                            .. type(result)
+                            .. ' (expected string or nil)',
+                        'WarningMsg',
+                    },
+                }, true, {})
+            end
+        end
         -- Push the current buffer name onto the main buffer stack
         buffers.push(buffers.main, vim.api.nvim_win_get_buf(0))
         -- Prepare to inject the filled-out template at the top of the new file
@@ -199,7 +230,7 @@ local vim_open = function(path, anchor)
                 template = M.formatTemplate('before')
             end
         end
-        vim.cmd(':e ' .. path_w_ext)
+        vim.cmd.edit(vim.fn.fnameescape(path_w_ext))
         M.updateDirs()
         -- Inject the template
         if new_file_config.enabled and template then
@@ -331,8 +362,11 @@ M.updateDirs = function()
                 -- Get the new root dir, if there is one
                 local dir = cur_file:match('(.*)' .. sep .. '.-')
                 if path_resolution.update_on_navigate then
-                    root_dir =
-                        require('mkdnflow').utils.getRootDir(dir, path_resolution.root_marker, this_os)
+                    root_dir = require('mkdnflow').utils.getRootDir(
+                        dir,
+                        path_resolution.root_marker,
+                        this_os
+                    )
                     if root_dir then
                         local name = root_dir:match('.*' .. sep .. '(.*)') or root_dir
                         if not silent then
@@ -592,16 +626,12 @@ M.moveSource = function()
                 local dir = string.match(derived_goal, '(.*)' .. sep .. '.-$')
                 if goal_exists then -- If the goal location already exists, abort
                     vim.api.nvim_command('normal! :')
-                    vim.api.nvim_echo(
+                    vim.api.nvim_echo({
                         {
-                            {
-                                "⬇️  '" .. location .. "' already exists! Aborting.",
-                                'WarningMsg',
-                            },
+                            "⬇️  '" .. location .. "' already exists! Aborting.",
+                            'WarningMsg',
                         },
-                        true,
-                        {}
-                    )
+                    }, true, {})
                 elseif source_exists then -- If the source location exists, proceed
                     if dir then -- If there's a directory in the goal location, ...
                         local to_dir_exists = exists(dir, 'd')

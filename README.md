@@ -302,6 +302,7 @@ the help files.
             return text
         end,
         auto_create = true,
+        on_create_new = false,
     },
     new_file_template = {
         enabled = false,
@@ -609,6 +610,7 @@ require('mkdnflow').setup({
             return(text)
         end,
         auto_create = true,
+        on_create_new = false,
     },
 })
 ```
@@ -623,6 +625,7 @@ require('mkdnflow').setup({
 | `links.transform_on_create` | `fun(string): string` \| `boolean` | `false`: No transformations are applied to the text to be turned into the name of the link source/path.<br>**`fun(string): string`** (default): A function that transforms the text to be inserted as the source/path of a link when a link is created. Anchor links are not currently customizable. For an example, see the sample recipes beneath this table.<br>Previously named `links.transform_explicit`. |
 | `links.transform_on_follow` | `fun(string): string` \| `boolean` | **`false`** (default): Do not perform any transformations on the link's source when following.<br>`fun(string): string`: A function that transforms the path of a link immediately before interpretation. It does not transform the actual text in the buffer but can be used to modify link interpretation. For an example, see the sample recipe below.<br>Previously named `links.transform_implicit`. |
 | `links.auto_create` | `boolean` | **`true`** (default): Try to create a link from the word under the cursor if there is no link under the cursor to follow.<br>`false`: Do nothing if trying to follow a link and a link can't be found under the cursor.<br>Previously named `links.create_on_follow_failure`. |
+| `links.on_create_new` | `false` \| `fun(string, string\|nil): string\|nil` | A callback invoked when following a link to a file that does not yet exist,<br>allowing file creation to be delegated to an external tool (e.g. `zk`,<br>Obsidian CLI, a custom script). This callback is only invoked when the target<br>file does not yet exist. Following a link to an existing file bypasses this<br>callback entirely.<br><br>The function receives two arguments: the full resolved path (with extension)<br>that mkdnflow would create, and the link's display text (which may be `nil`).<br><br>It should return a `string` (file path for mkdnflow to open) or `nil` (if the<br>callback handled everything). If a path is returned and the file exists there,<br>mkdnflow opens it directly (skipping template injection). If the file does not<br>exist at the returned path, mkdnflow runs its normal creation flow.<br><br>**`false`** (default): Use mkdnflow's built-in file creation. |
 
 <details>
 <summary>Sample links recipes</summary>
@@ -646,6 +649,35 @@ require('mkdnflow').setup({
             end
         end
     }
+})
+```
+
+**Delegate new-file creation to [zk](https://github.com/zk-org/zk):**
+
+```lua
+require('mkdnflow').setup({
+    links = {
+        on_create_new = function(path, title)
+            -- Let zk create the note with its own templates and ID scheme.
+            -- `zk new` prints the created path to stdout.
+            local dir = vim.fn.fnamemodify(path, ':h')
+            local cmd = { 'zk', 'new', '--no-input', '--print-path', dir }
+            if title then
+                table.insert(cmd, '--title')
+                table.insert(cmd, title)
+            end
+            local result = vim.fn.system(cmd)
+            local new_path = vim.trim(result)
+            if vim.v.shell_error ~= 0 then
+                vim.api.nvim_echo(
+                    {{ 'zk new failed: ' .. result, 'ErrorMsg' }},
+                    true, {}
+                )
+                return nil
+            end
+            return new_path  -- mkdnflow opens the zk-created file
+        end,
+    },
 })
 ```
 

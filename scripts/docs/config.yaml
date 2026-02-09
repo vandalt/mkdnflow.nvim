@@ -255,6 +255,25 @@ links:
       `false`: Do nothing if trying to follow a link and a link can't be found under the cursor.
       Previously named `links.create_on_follow_failure`.
 
+  - name: links.on_create_new
+    type: "false | fun(string, string|nil): string|nil"
+    description: |
+      A callback invoked when following a link to a file that does not yet exist,
+      allowing file creation to be delegated to an external tool (e.g. `zk`,
+      Obsidian CLI, a custom script). This callback is only invoked when the target
+      file does not yet exist. Following a link to an existing file bypasses this
+      callback entirely.
+
+      The function receives two arguments: the full resolved path (with extension)
+      that mkdnflow would create, and the link's display text (which may be `nil`).
+
+      It should return a `string` (file path for mkdnflow to open) or `nil` (if the
+      callback handled everything). If a path is returned and the file exists there,
+      mkdnflow opens it directly (skipping template injection). If the file does not
+      exist at the returned path, mkdnflow runs its normal creation flow.
+
+      **`false`** (default): Use mkdnflow's built-in file creation.
+
 new_file_template:
   - name: new_file_template.enabled
     type: boolean

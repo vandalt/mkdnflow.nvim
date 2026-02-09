@@ -90,6 +90,7 @@ local default_config = {
             return text
         end,
         auto_create = true,
+        on_create_new = false,
     },
     new_file_template = {
         enabled = false,

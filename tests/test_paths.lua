@@ -84,12 +84,14 @@ T['pathType']['identifies file: prefix'] = function()
 end
 
 T['pathType']['identifies file: with absolute path'] = function()
-    local result = child.lua_get([[require('mkdnflow.paths').pathType('file:/path/to/document.pdf')]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').pathType('file:/path/to/document.pdf')]])
     eq(result, 'file')
 end
 
 T['pathType']['identifies file: with home path'] = function()
-    local result = child.lua_get([[require('mkdnflow.paths').pathType('file:~/documents/file.pdf')]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').pathType('file:~/documents/file.pdf')]])
     eq(result, 'file')
 end
 
@@ -153,7 +155,8 @@ T['transformPath']['preserves path with special chars'] = function()
 end
 
 T['transformPath']['preserves relative paths'] = function()
-    local result = child.lua_get([[require('mkdnflow.paths').transformPath('folder/subfolder/note')]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').transformPath('folder/subfolder/note')]])
     eq(result, 'folder/subfolder/note')
 end
 
@@ -186,7 +189,8 @@ T['formatTemplate']['uses custom template parameter'] = function()
     set_lines({ '[Note Title](note.md)' })
     set_cursor(1, 5)
     -- Pass a custom template that uses date instead of title
-    local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('before', 'Created: {{date}}')]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').formatTemplate('before', 'Created: {{date}}')]])
     -- Should contain a date in YYYY-MM-DD format
     local matches_date = result:match('^Created: %d%d%d%d%-%d%d%-%d%d$') ~= nil
     eq(matches_date, true)
@@ -195,7 +199,9 @@ end
 T['formatTemplate']['handles template with both placeholders'] = function()
     set_lines({ '[My Note](note.md)' })
     set_cursor(1, 5)
-    local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('before', '# {{title}}\nDate: {{date}}')]])
+    local result = child.lua_get(
+        [[require('mkdnflow.paths').formatTemplate('before', '# {{title}}\nDate: {{date}}')]]
+    )
     -- First line should be title
     local has_title = result:match('^# My Note\n') ~= nil
     eq(has_title, true)
@@ -208,7 +214,8 @@ T['formatTemplate']['after timing uses after placeholders'] = function()
     -- Default config has empty 'after' placeholders, so template stays unchanged
     set_lines({ '[Title](note.md)' })
     set_cursor(1, 5)
-    local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('after', 'Static text')]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').formatTemplate('after', 'Static text')]])
     eq(result, 'Static text')
 end
 
@@ -238,7 +245,8 @@ end
 T['formatTemplate']['os_date still works when no link'] = function()
     set_lines({ 'No link here' })
     set_cursor(1, 5)
-    local result = child.lua_get([[require('mkdnflow.paths').formatTemplate('before', 'Date: {{date}}')]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').formatTemplate('before', 'Date: {{date}}')]])
     -- Should still replace date placeholder
     local matches_date = result:match('^Date: %d%d%d%d%-%d%d%-%d%d$') ~= nil
     eq(matches_date, true)
@@ -379,6 +387,431 @@ T['setup_without_file']['following link works after setup with unnamed buffer'] 
         require('mkdnflow.paths').handlePath('other.md')
     end)}]]))
     eq(ok, true)
+end
+
+-- =============================================================================
+-- on_create_new callback (Issue #261)
+-- =============================================================================
+T['on_create_new'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._on_create_calls = {}
+                _G._tmpdir = vim.fn.tempname()
+                vim.fn.mkdir(_G._tmpdir, 'p')
+                local tmpfile = _G._tmpdir .. '/index.md'
+                vim.fn.writefile({''}, tmpfile)
+                vim.cmd('e ' .. tmpfile)
+                vim.bo.filetype = 'markdown'
+            ]])
+        end,
+    },
+})
+
+-- Test 1: Callback receives correct path and title
+T['on_create_new']['callback receives correct path and title'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    table.insert(_G._on_create_calls, { path = path, title = title })
+                    return path
+                end,
+            },
+        })
+    ]])
+    set_lines({ '[My Note](my-note.md)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.paths').handlePath('my-note.md')]])
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 1)
+    -- Path should end with my-note.md
+    local path_match = calls[1].path:match('my%-note%.md$') ~= nil
+    eq(path_match, true)
+    eq(calls[1].title, 'My Note')
+end
+
+-- Test 2: Returns nil stops further processing
+T['on_create_new']['returns nil stops further processing'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    table.insert(_G._on_create_calls, { path = path, title = title })
+                    return nil
+                end,
+            },
+        })
+    ]])
+    set_lines({ '[My Note](my-note.md)' })
+    set_cursor(1, 5)
+    local buf_before = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    child.lua([[require('mkdnflow.paths').handlePath('my-note.md')]])
+    local buf_after = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    -- Buffer should NOT have changed
+    eq(buf_before, buf_after)
+    -- Callback was called
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 1)
+end
+
+-- Test 3: Returns different path opens that file
+T['on_create_new']['returns different path opens that file'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    -- Redirect to a different file in the same dir
+                    local dir = path:match('(.*)/.-$')
+                    return dir .. '/redirected.md'
+                end,
+            },
+        })
+    ]])
+    set_lines({ '[My Note](my-note.md)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.paths').handlePath('my-note.md')]])
+    local buf_name = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    local match = buf_name:match('redirected%.md$') ~= nil
+    eq(match, true)
+end
+
+-- Test 4: Callback creates file, returns path — skips template
+T['on_create_new']['callback creates file returns path skips template'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    -- Create the file ourselves with custom content
+                    local dir = path:match('(.*)/.-$')
+                    local new_path = dir .. '/created-by-callback.md'
+                    vim.fn.writefile({'# Custom Header', '', 'Body text'}, new_path)
+                    return new_path
+                end,
+            },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = { title = 'link_title' },
+                    after = {},
+                },
+                template = '# {{ title }}',
+            },
+        })
+    ]])
+    set_lines({ '[My Note](my-note.md)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.paths').handlePath('my-note.md')]])
+    local lines = get_lines()
+    -- Should have the callback's content, not the template
+    eq(lines[1], '# Custom Header')
+    eq(lines[2], '')
+    eq(lines[3], 'Body text')
+end
+
+-- Test 5: Default (false) doesn't interfere
+T['on_create_new']['default false does not interfere'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = false,
+            },
+        })
+    ]])
+    set_lines({ '[Test](new-page.md)' })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.paths').handlePath('new-page.md')]])
+    -- Should open the file normally
+    local buf_name = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    local match = buf_name:match('new%-page%.md$') ~= nil
+    eq(match, true)
+end
+
+-- Test 6: Not called for existing files
+T['on_create_new']['not called for existing files'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    table.insert(_G._on_create_calls, { path = path, title = title })
+                    return path
+                end,
+            },
+        })
+        -- Create the target file so it already exists
+        vim.fn.writefile({'# Existing'}, _G._tmpdir .. '/existing.md')
+    ]])
+    set_lines({ '[Existing](existing.md)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.paths').handlePath('existing.md')]])
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 0)
+end
+
+-- Test 7: Returns path of non-existent file — falls through to template
+T['on_create_new']['returns non-existent path falls through to template'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    -- Return a different non-existent path
+                    local dir = path:match('(.*)/.-$')
+                    return dir .. '/template-target.md'
+                end,
+            },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = { title = 'link_title' },
+                    after = {},
+                },
+                template = '# {{ title }}',
+            },
+        })
+    ]])
+    set_lines({ '[My Title](my-note.md)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.paths').handlePath('my-note.md')]])
+    local buf_name = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    local match = buf_name:match('template%-target%.md$') ~= nil
+    eq(match, true)
+    -- Template should have been injected
+    local lines = get_lines()
+    eq(lines[1], '# My Title')
+end
+
+-- Test 8: Anchor navigation works after callback
+T['on_create_new']['anchor navigation works after callback'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    -- Create a file with a heading to jump to
+                    vim.fn.writefile({'# Top', '', '## Target Section', '', 'Content'}, path)
+                    return path
+                end,
+            },
+        })
+    ]])
+    set_lines({ '[Note](anchored.md#target-section)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.paths').handlePath('anchored.md', '#target-section')]])
+    local cursor = child.lua_get('vim.api.nvim_win_get_cursor(0)')
+    -- Should jump to the "## Target Section" heading on line 3
+    eq(cursor[1], 3)
+end
+
+-- Test 9: Receives correct path with non-default implicit_extension
+T['on_create_new']['receives correct path with non-default implicit_extension'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                implicit_extension = 'txt',
+                on_create_new = function(path, title)
+                    table.insert(_G._on_create_calls, { path = path, title = title })
+                    return path
+                end,
+            },
+        })
+    ]])
+    set_lines({ '[Note](my-note)' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.paths').handlePath('my-note')]])
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 1)
+    -- Path should end with .txt, not .md
+    local path_match = calls[1].path:match('my%-note%.txt$') ~= nil
+    eq(path_match, true)
+end
+
+-- Test 10: Not called when path is a directory
+T['on_create_new']['not called when path is a directory'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    table.insert(_G._on_create_calls, { path = path, title = title })
+                    return path
+                end,
+            },
+        })
+        -- Create a directory that matches the link target
+        vim.fn.mkdir(_G._tmpdir .. '/subdir', 'p')
+        -- Mock vim.ui.input to avoid blocking in headless mode
+        vim.ui.input = function(opts, on_confirm)
+            on_confirm(nil)
+        end
+    ]])
+    set_lines({ '[Dir](subdir)' })
+    set_cursor(1, 3)
+    -- handlePath for a directory will enter the directory prompt (enter_internal_path),
+    -- not the else branch where on_create_new runs
+    child.lua([[require('mkdnflow.paths').handlePath('subdir')]])
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 0)
+end
+
+-- Test 11: Callback that throws an error propagates naturally
+T['on_create_new']['callback error propagates naturally'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    error('intentional test error')
+                end,
+            },
+        })
+    ]])
+    set_lines({ '[Note](error-note.md)' })
+    set_cursor(1, 5)
+    local ok, err = unpack(child.lua_get([[{pcall(function()
+        require('mkdnflow.paths').handlePath('error-note.md')
+    end)}]]))
+    eq(ok, false)
+    local has_msg = err:match('intentional test error') ~= nil
+    eq(has_msg, true)
+end
+
+-- Test 12: Title matches source when wiki link has no explicit display text
+T['on_create_new']['title is source text for wiki link without display text'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                style = 'wiki',
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    table.insert(_G._on_create_calls, { path = path, title = title })
+                    return path
+                end,
+            },
+        })
+    ]])
+    -- Wiki link with no pipe/display text: [[page]]
+    -- getLinkPart('name') falls back to the source text for wiki links
+    set_lines({ '[[some-page]]' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.paths').handlePath('some-page')]])
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 1)
+    eq(calls[1].title, 'some-page')
+end
+
+-- Test 12b: Title is nil when cursor is not on a link
+T['on_create_new']['title is nil when no link under cursor'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                on_create_new = function(path, title)
+                    table.insert(_G._on_create_calls, { path = path, title = title })
+                    return path
+                end,
+            },
+        })
+    ]])
+    -- No link under cursor, but handlePath is called directly with a path
+    set_lines({ 'plain text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.paths').handlePath('orphan-note.md')]])
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 1)
+    -- No link under cursor means getLinkPart returns nil, which is omitted from table
+    eq(calls[1].title, nil)
+end
+
+-- Test 13: Callback not invoked when no link under cursor (auto_create=false)
+T['on_create_new']['not invoked when no link under cursor'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                auto_create = false,
+                on_create_new = function(path, title)
+                    table.insert(_G._on_create_calls, { path = path, title = title })
+                    return path
+                end,
+            },
+        })
+    ]])
+    set_lines({ 'Just plain text, no links here' })
+    set_cursor(1, 5)
+    -- followLink returns early when there's no link and auto_create is false
+    child.lua([[require('mkdnflow.links').followLink()]])
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 0)
+end
+
+-- Test 14: <CR> keypress triggers callback (E2E)
+T['on_create_new_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._on_create_calls = {}
+                _G._tmpdir = vim.fn.tempname()
+                vim.fn.mkdir(_G._tmpdir, 'p')
+                local tmpfile = _G._tmpdir .. '/index.md'
+                vim.fn.writefile({''}, tmpfile)
+
+                -- Source the plugin to register commands
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.cmd('e ' .. tmpfile)
+                vim.bo.filetype = 'markdown'
+
+                require('mkdnflow').setup({
+                    links = {
+                        transform_on_create = false,
+                        transform_on_follow = false,
+                        on_create_new = function(path, title)
+                            table.insert(_G._on_create_calls, { path = path, title = title })
+                            return nil
+                        end,
+                    },
+                })
+
+                -- Trigger autocmd to set up mappings
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['on_create_new_e2e']['<CR> keypress triggers callback'] = function()
+    set_lines({ '[E2E Note](e2e-note.md)' })
+    set_cursor(1, 5)
+    child.type_keys('<CR>')
+    local calls = child.lua_get('_G._on_create_calls')
+    eq(#calls, 1)
+    local path_match = calls[1].path:match('e2e%-note%.md$') ~= nil
+    eq(path_match, true)
+    eq(calls[1].title, 'E2E Note')
 end
 
 return T
