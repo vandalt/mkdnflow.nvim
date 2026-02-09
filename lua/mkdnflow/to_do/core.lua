@@ -824,7 +824,28 @@ function M.toggle_to_do()
             )
         end
     else
-        M.get_to_do_item():rotate_status()
+        local item = M.get_to_do_item()
+        if item.valid then
+            item:rotate_status()
+        else
+            -- Convert a plain list item to a to-do item (#292)
+            local lists = require('mkdnflow').lists
+            local row = vim.api.nvim_win_get_cursor(0)[1]
+            local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+            local li_type = lists.hasListType(line)
+            if li_type == 'ul' or li_type == 'ol' then
+                local _, last = string.find(line, lists.patterns[li_type].pre)
+                local not_started_marker = to_do_statuses:get('not_started'):get_marker()
+                vim.api.nvim_buf_set_text(
+                    0,
+                    row - 1,
+                    last,
+                    row - 1,
+                    last,
+                    { ' [' .. not_started_marker .. ']' }
+                )
+            end
+        end
     end
 
     -- Clear the cache after the operation
