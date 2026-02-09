@@ -2459,12 +2459,15 @@ T['grid_multiline_nav']['cursor on continuation line detects correct cell'] = fu
         '| aaa   | bbb   |',
         '+-------+-------+',
     })
-    set_cursor(3, 3) -- on continuation line 'foo'
-    -- Tab should navigate to next cell in same logical row or wrap
+    set_cursor(3, 3) -- on continuation line 'foo' (cell 1)
+    -- Tab should navigate to cell 2 on the primary row
     child.lua([[require('mkdnflow.tables').moveToCell(0, 1)]])
     local cursor = get_cursor()
-    -- On continuation, cursor is in last cell, so Tab wraps to next row
-    eq(cursor[1], 5)
+    -- Cursor is in cell 1 on continuation line, so Tab moves to cell 2 on primary row
+    eq(cursor[1], 2)
+    local line = get_line(2)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true)
 end
 
 T['grid_multiline_nav']['multiple multiline rows navigate correctly'] = function()
@@ -2548,7 +2551,7 @@ T['grid_multiline_e2e']['MkdnTablePrevRow skips multiline continuation'] = funct
     eq(cursor[1], 2) -- should land on 'hello' (primary), not 'foo' (continuation)
 end
 
-T['grid_multiline_e2e']['Tab from continuation line wraps correctly'] = function()
+T['grid_multiline_e2e']['Tab from continuation line cell 1 moves to cell 2'] = function()
     set_lines({
         '+-------+-------+',
         '| hello | world |',
@@ -2557,13 +2560,57 @@ T['grid_multiline_e2e']['Tab from continuation line wraps correctly'] = function
         '| aaa   | bbb   |',
         '+-------+-------+',
     })
-    set_cursor(3, 3) -- on continuation line 'foo'
+    set_cursor(3, 3) -- on continuation line 'foo' (cell 1)
     child.type_keys('i')
     child.type_keys('<Tab>')
     child.type_keys('<Esc>')
     local cursor = get_cursor()
-    -- From continuation (last cell), should wrap to next row
+    -- Should move to cell 2 on the primary row, not wrap to next row
+    eq(cursor[1], 2)
+    local line = get_line(2)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true)
+end
+
+T['grid_multiline_e2e']['Tab from continuation line last cell wraps to next row'] = function()
+    set_lines({
+        '+-------+-------+',
+        '| hello | world |',
+        '| foo   | bar   |',
+        '+=======+=======+',
+        '| aaa   | bbb   |',
+        '+-------+-------+',
+    })
+    set_cursor(3, 11) -- on continuation line 'bar' (cell 2, last cell)
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- From last cell of continuation, should wrap to next row
     eq(cursor[1], 5)
+end
+
+T['grid_multiline_e2e']['Tab from continuation line cell 1 in wide grid table'] = function()
+    set_lines({
+        '+------------------------+-------------+',
+        '| Col1                   | Col2        |',
+        '+:=======================+=============+',
+        '| No breaks              | Breaks      |',
+        '| Heyyyyy                |             |',
+        '+------------------------+-------------+',
+        '| HELLLLLLLA hungryyyyyy | Bananasanas |',
+        '+------------------------+-------------+',
+    })
+    set_cursor(5, 5) -- on continuation line 'Heyyyyy' (cell 1)
+    child.type_keys('i')
+    child.type_keys('<Tab>')
+    child.type_keys('<Esc>')
+    local cursor = get_cursor()
+    -- Should move to cell 2 on the primary row (Breaks), not next row (HELLLLLLLA)
+    eq(cursor[1], 4)
+    local line = get_line(4)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true)
 end
 
 T['grid_multiline_e2e']['Enter on continuation line moves to next row'] = function()
@@ -4039,6 +4086,275 @@ T['cellNewLine_grid']['does nothing on border line'] = function()
     child.lua([[require('mkdnflow.tables').cellNewLine()]])
     local lines = get_lines()
     eq(#lines, 5) -- No change
+end
+
+-- =============================================================================
+-- cellNewLine: Grid table reuse-empty-line behavior
+-- =============================================================================
+T['cellNewLine_grid_reuse'] = new_set()
+
+T['cellNewLine_grid_reuse']['inserts new line when no empty continuation exists'] = function()
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '+---------+---------+',
+        '| Empty   | Empty   |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 13) -- In second cell, on "Line2.1"
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 8) -- One new line added
+    -- New line should be a content line after line 4
+    eq(lines[5]:match('^|.*|$') ~= nil, true)
+end
+
+T['cellNewLine_grid_reuse']['reuses empty continuation line in same cell'] = function()
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '| Line1.2 |         |',
+        '+---------+---------+',
+        '| Empty   | Empty   |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 13) -- In second cell, on "Line2.1"
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    -- Should NOT add a new line — reuse existing empty continuation
+    eq(#lines, 8)
+end
+
+T['cellNewLine_grid_reuse']['cursor moves to existing empty continuation cell'] = function()
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '| Line1.2 |         |',
+        '+---------+---------+',
+        '| Empty   | Empty   |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 13) -- In second cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local cursor = get_cursor()
+    -- Cursor should land on the existing continuation line (line 5), in cell 2
+    eq(cursor[1], 5)
+    local line = get_line(5)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true)
+end
+
+T['cellNewLine_grid_reuse']['no empty continuation: first cell'] = function()
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 3) -- In first cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 6) -- New line added
+    local cursor = get_cursor()
+    eq(cursor[1], 5)
+end
+
+T['cellNewLine_grid_reuse']['all continuation lines have content: inserts new line'] = function()
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '| Line1.2 | Line2.2 |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 13) -- In second cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 7) -- New line added (no empty cell 2 below)
+end
+
+T['cellNewLine_grid_reuse']['empty continuation in different cell only: inserts new line'] = function()
+    -- Cell 1 is empty on continuation but cell 2 (cursor's cell) has content
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '|         | Line2.2 |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 13) -- In second cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 7) -- New line added (cell 2 isn't empty on continuation)
+end
+
+T['cellNewLine_grid_reuse']['multiple continuations: jumps to first empty in target cell'] = function()
+    -- First continuation has content in cell 2, second has empty cell 2
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '| Line1.2 | Line2.2 |',
+        '| Line1.3 |         |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 13) -- In second cell on primary row
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 7) -- No new line — reused line 6
+    local cursor = get_cursor()
+    eq(cursor[1], 6) -- Jumped to the third content line
+end
+
+T['cellNewLine_grid_reuse']['cursor on continuation: jumps to later empty cell'] = function()
+    -- Cursor is on a continuation line, another continuation below has empty cell
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '| Line1.2 | Line2.2 |',
+        '|         |         |',
+        '+---------+---------+',
+    })
+    set_cursor(5, 13) -- On continuation line "Line2.2", cell 2
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 7) -- No new line — reused line 6
+    local cursor = get_cursor()
+    eq(cursor[1], 6) -- Jumped to existing empty line
+end
+
+T['cellNewLine_grid_reuse']['cursor on empty continuation: no empty below: inserts'] = function()
+    -- Cursor is on an empty continuation line, no more empty below
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '|         |         |',
+        '+---------+---------+',
+    })
+    set_cursor(5, 13) -- On empty continuation, cell 2
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 7) -- New line added (no more empty below cursor)
+end
+
+T['cellNewLine_grid_reuse']['3-column table: targets correct cell'] = function()
+    set_lines({
+        '+------+------+------+',
+        '| c1   | c2   | c3   |',
+        '+======+======+======+',
+        '| a    | b    | c    |',
+        '| a2   |      | c2   |',
+        '+------+------+------+',
+    })
+    set_cursor(4, 10) -- In second cell (cell 2)
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 6) -- No new line — cell 2 is empty on continuation
+    local cursor = get_cursor()
+    eq(cursor[1], 5) -- Jumped to continuation line
+end
+
+T['cellNewLine_grid_reuse']['3-column table: cell with content not reused'] = function()
+    set_lines({
+        '+------+------+------+',
+        '| c1   | c2   | c3   |',
+        '+======+======+======+',
+        '| a    | b    | c    |',
+        '| a2   |      | c2   |',
+        '+------+------+------+',
+    })
+    set_cursor(4, 17) -- In third cell (cell 3)
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 7) -- New line added (cell 3 has "c2" on continuation)
+end
+
+T['cellNewLine_grid_reuse']['single-column table: reuses empty continuation'] = function()
+    set_lines({
+        '+-------+',
+        '| col1  |',
+        '+=======+',
+        '| foo   |',
+        '|       |',
+        '+-------+',
+    })
+    set_cursor(4, 3) -- In only cell
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 6) -- No new line — reused empty continuation
+    local cursor = get_cursor()
+    eq(cursor[1], 5)
+end
+
+T['cellNewLine_grid_reuse']['sequential calls: first reuses, second inserts'] = function()
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '| Line1.2 |         |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 13) -- In second cell
+    -- First call: should jump to existing empty cell on line 5
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    local lines = get_lines()
+    eq(#lines, 6)
+    local cursor = get_cursor()
+    eq(cursor[1], 5) -- On existing continuation
+    -- Second call: cursor is now on line 5 (empty cell), no more empty below
+    -- Should insert a new line
+    child.lua([[require('mkdnflow.tables').cellNewLine()]])
+    lines = get_lines()
+    eq(#lines, 7) -- New line added
+end
+
+T['cellNewLine_grid_reuse']['e2e: S-CR reuses existing empty continuation'] = function()
+    child.restart({ '-u', 'scripts/minimal_init.lua' })
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({ tables = { format_on_move = false } })
+        vim.cmd('doautocmd BufEnter')
+    ]])
+    set_lines({
+        '+---------+---------+',
+        '| Col1    | Col2    |',
+        '+:========+=========+',
+        '| Line1.1 | Line2.1 |',
+        '| Line1.2 |         |',
+        '+---------+---------+',
+        '| Empty   | Empty   |',
+        '+---------+---------+',
+    })
+    set_cursor(4, 13) -- In second cell, end of "Line2.1"
+    child.type_keys('i')
+    child.type_keys('<S-CR>')
+    child.type_keys('<Esc>')
+    local lines = get_lines()
+    local cursor = get_cursor()
+    -- Should NOT add a new line — reuse existing empty continuation
+    eq(#lines, 8)
+    -- Cursor should be on the existing continuation line (line 5), in cell 2
+    eq(cursor[1], 5)
+    local line = get_line(5)
+    local mid_pipe = line:find('|', 2)
+    eq(cursor[2] >= mid_pipe, true)
 end
 
 -- =============================================================================

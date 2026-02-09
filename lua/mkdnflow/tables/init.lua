@@ -206,13 +206,10 @@ function M.moveToCell(row_offset, cell_offset)
 
     -- Figure out which cell the cursor is currently in
     local current_row = TableRow:from_string(current_line, effective_position)
-    local cursor_cell
-    if is_cont then
-        -- On a continuation line, cursor is always in the last cell of the primary row
-        cursor_cell = #current_row.cells
-    else
-        cursor_cell = current_row:which_cell(position[2])
-    end
+    -- Use the cursor's actual column to determine the cell. In grid tables,
+    -- continuation lines share the same pipe positions as the primary row,
+    -- so which_cell works correctly for both.
+    local cursor_cell = current_row:which_cell(position[2])
     local line_count = vim.api.nvim_buf_line_count(0)
 
     -- Calculate target row, accounting for multiline rows

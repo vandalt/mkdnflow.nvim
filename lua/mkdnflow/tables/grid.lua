@@ -990,7 +990,24 @@ function M.add_cell_line(tbl, cursor_position)
     local current_row = TableRow:from_string(current_line_text, cursor_position[1])
     local current_cell = current_row:which_cell(cursor_position[2])
 
-    -- Build empty content line matching table's column structure
+    -- Check if an empty continuation line already exists in this cell
+    -- within the same logical row (before the next grid border)
+    local line_count = vim.api.nvim_buf_line_count(0)
+    for check_linenr = cursor_position[1] + 1, line_count do
+        local check_line =
+            vim.api.nvim_buf_get_lines(0, check_linenr - 1, check_linenr, false)[1]
+        if not check_line or MarkdownTable.isGridBorder(check_line) then
+            break
+        end
+        local check_row = TableRow:from_string(check_line, check_linenr)
+        if #check_row.cells >= current_cell and check_row.cells[current_cell].content == '' then
+            local cell_start, _ = check_row:locate_cell(current_cell)
+            vim.api.nvim_win_set_cursor(0, { check_linenr, cell_start - 1 })
+            return
+        end
+    end
+
+    -- No empty continuation found — build and insert a new empty content line
     local empty_cells = {}
     for _ = 1, tbl.col_count do
         table.insert(empty_cells, '')
