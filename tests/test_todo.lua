@@ -577,4 +577,86 @@ T['custom_status_count']['four statuses: full cycle with four toggles'] = functi
     eq(get_line(1), '- [ ] task')
 end
 
+-- =============================================================================
+-- Visual mode toggle (E2E via keymap) — tests that <C-Space> in visual mode
+-- toggles all selected to-do items through the full command/mapping pipeline
+-- =============================================================================
+T['visual_toggle_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                -- Source the plugin to register commands
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    modules = { to_do = true, lists = true, maps = true },
+                    silent = true,
+                })
+
+                -- Trigger autocmd to set up buffer-local mappings
+                vim.cmd('doautocmd FileType')
+            ]])
+        end,
+    },
+})
+
+T['visual_toggle_e2e']['<C-Space> toggles all visually selected to-do items'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+        '- [ ] third',
+    })
+    set_cursor(1, 0)
+    -- Enter visual mode and select all three lines, then toggle
+    child.type_keys('v', '2j', '<C-Space>')
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [-] second')
+    eq(get_line(3), '- [-] third')
+end
+
+T['visual_toggle_e2e']['<C-Space> toggles subset of visually selected to-do items'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+        '- [ ] third',
+        '- [ ] fourth',
+    })
+    set_cursor(2, 0)
+    -- Select lines 2-3 only
+    child.type_keys('v', 'j', '<C-Space>')
+    eq(get_line(1), '- [ ] first') -- untouched
+    eq(get_line(2), '- [-] second')
+    eq(get_line(3), '- [-] third')
+    eq(get_line(4), '- [ ] fourth') -- untouched
+end
+
+T['visual_toggle_e2e']['<C-Space> toggles selection made from bottom to top'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+        '- [ ] third',
+    })
+    set_cursor(3, 0)
+    -- Select upward from line 3 to line 1
+    child.type_keys('v', '2k', '<C-Space>')
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [-] second')
+    eq(get_line(3), '- [-] third')
+end
+
+T['visual_toggle_e2e']['<C-Space> in visual mode only toggles single line when no motion'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+    })
+    set_cursor(1, 0)
+    -- Enter visual mode on line 1 only (no motion), then toggle
+    child.type_keys('v', '<C-Space>')
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [ ] second') -- untouched
+end
+
 return T
