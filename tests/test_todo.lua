@@ -770,4 +770,103 @@ T['visual_toggle_direct']['<C-V> (blockwise) toggles multiple items'] = function
     eq(get_line(3), '- [-] third')
 end
 
+-- =============================================================================
+-- Visual mode: plain list item conversion and mixed selections
+-- =============================================================================
+T['visual_toggle_conversion'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    modules = { to_do = true, lists = true, maps = true },
+                    silent = true,
+                })
+
+                vim.cmd('doautocmd FileType')
+            ]])
+        end,
+    },
+})
+
+T['visual_toggle_conversion']['converts plain list items to to-dos'] = function()
+    set_lines({
+        '- Task 1',
+        '- Task 2',
+        '- Task 3',
+    })
+    set_cursor(1, 0)
+    child.type_keys('v', '2j', '<C-Space>')
+    eq(get_line(1), '- [ ] Task 1')
+    eq(get_line(2), '- [ ] Task 2')
+    eq(get_line(3), '- [ ] Task 3')
+end
+
+T['visual_toggle_conversion']['converts ordered list items to to-dos'] = function()
+    set_lines({
+        '1. Task 1',
+        '2. Task 2',
+    })
+    set_cursor(1, 0)
+    child.type_keys('v', 'j', '<C-Space>')
+    eq(get_line(1), '1. [ ] Task 1')
+    eq(get_line(2), '2. [ ] Task 2')
+end
+
+T['visual_toggle_conversion']['handles mixed plain and existing to-dos'] = function()
+    set_lines({
+        '- Task 1',
+        '- [ ] Task 2',
+        '- Task 3',
+    })
+    set_cursor(1, 0)
+    child.type_keys('v', '2j', '<C-Space>')
+    eq(get_line(1), '- [ ] Task 1') -- converted
+    eq(get_line(2), '- [-] Task 2') -- rotated
+    eq(get_line(3), '- [ ] Task 3') -- converted
+end
+
+T['visual_toggle_conversion']['skips non-list lines'] = function()
+    set_lines({
+        '- Task 1',
+        'Just some text',
+        '- Task 3',
+    })
+    set_cursor(1, 0)
+    child.type_keys('v', '2j', '<C-Space>')
+    eq(get_line(1), '- [ ] Task 1') -- converted
+    eq(get_line(2), 'Just some text') -- unchanged
+    eq(get_line(3), '- [ ] Task 3') -- converted
+end
+
+T['visual_toggle_conversion']['converts subset of plain items'] = function()
+    set_lines({
+        '- Task 1',
+        '- Task 2',
+        '- Task 3',
+        '- Task 4',
+    })
+    set_cursor(2, 0)
+    child.type_keys('v', 'j', '<C-Space>')
+    eq(get_line(1), '- Task 1') -- untouched
+    eq(get_line(2), '- [ ] Task 2') -- converted
+    eq(get_line(3), '- [ ] Task 3') -- converted
+    eq(get_line(4), '- Task 4') -- untouched
+end
+
+T['visual_toggle_conversion']['works with V (line visual) for plain items'] = function()
+    set_lines({
+        '- Task 1',
+        '- Task 2',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', 'j', '<C-Space>')
+    eq(get_line(1), '- [ ] Task 1')
+    eq(get_line(2), '- [ ] Task 2')
+end
+
 return T

@@ -797,6 +797,32 @@ function M.get_to_do_list(line_nr, use_cache)
     return list
 end
 
+--- Toggle or convert a single line: rotate an existing to-do, or convert a plain list item.
+--- @param line_nr integer A (one-based) buffer line number
+local function toggle_line(line_nr)
+    local item = M.get_to_do_item(line_nr)
+    if item.valid then
+        item:rotate_status()
+    else
+        -- Convert a plain list item to a to-do item (#292)
+        local lists = require('mkdnflow').lists
+        local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
+        local li_type = lists.hasListType(line)
+        if li_type == 'ul' or li_type == 'ol' then
+            local _, last = string.find(line, lists.patterns[li_type].pre)
+            local not_started_marker = to_do_statuses:get('not_started'):get_marker()
+            vim.api.nvim_buf_set_text(
+                0,
+                line_nr - 1,
+                last,
+                line_nr - 1,
+                last,
+                { ' [' .. not_started_marker .. ']' }
+            )
+        end
+    end
+end
+
 --- Function to cycle through the to-do status markers for the item on the current line
 --- @param opts? {line1: integer, line2: integer} Optional range (e.g. from a visual-mode command)
 function M.toggle_to_do(opts)
@@ -809,7 +835,7 @@ function M.toggle_to_do(opts)
     if line1 and line2 then
         -- Range provided (from visual mode via command pipeline)
         for line_nr = line1, line2 do
-            M.get_to_do_item(line_nr):rotate_status()
+            toggle_line(line_nr)
         end
     else
         local mode = vim.api.nvim_get_mode()['mode']
@@ -820,35 +846,14 @@ function M.toggle_to_do(opts)
             local first, last =
                 (pos_a < pos_b and pos_a) or pos_b, (pos_b > pos_a and pos_b) or pos_a
             if first == 0 or last == 0 then
-                M.get_to_do_item(pos_b):rotate_status()
+                toggle_line(pos_b)
             else
                 for line_nr = first, last do
-                    M.get_to_do_item(line_nr):rotate_status()
+                    toggle_line(line_nr)
                 end
             end
         else
-            local item = M.get_to_do_item()
-            if item.valid then
-                item:rotate_status()
-            else
-                -- Convert a plain list item to a to-do item (#292)
-                local lists = require('mkdnflow').lists
-                local row = vim.api.nvim_win_get_cursor(0)[1]
-                local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
-                local li_type = lists.hasListType(line)
-                if li_type == 'ul' or li_type == 'ol' then
-                    local _, last = string.find(line, lists.patterns[li_type].pre)
-                    local not_started_marker = to_do_statuses:get('not_started'):get_marker()
-                    vim.api.nvim_buf_set_text(
-                        0,
-                        row - 1,
-                        last,
-                        row - 1,
-                        last,
-                        { ' [' .. not_started_marker .. ']' }
-                    )
-                end
-            end
+            toggle_line(vim.api.nvim_win_get_cursor(0)[1])
         end
     end
 
