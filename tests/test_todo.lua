@@ -869,4 +869,148 @@ T['visual_toggle_conversion']['works with V (line visual) for plain items'] = fu
     eq(get_line(2), '- [ ] Task 2')
 end
 
+-- =============================================================================
+-- Visual mode toggle with nested to-do items and propagation
+-- Tests that selecting a parent + children doesn't double-toggle children
+-- =============================================================================
+T['visual_toggle_nested'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    modules = { to_do = true, lists = true, maps = true },
+                    to_do = {
+                        status_propagation = { up = true, down = true },
+                    },
+                    silent = true,
+                })
+
+                vim.cmd('doautocmd FileType')
+            ]])
+        end,
+    },
+})
+
+T['visual_toggle_nested']['parent+children: not_started to in_progress'] = function()
+    set_lines({
+        '- [ ] Parent',
+        '    - [ ] Child 1',
+        '    - [ ] Child 2',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', '2j', '<C-Space>')
+    -- Parent toggled to in_progress; children left to propagation
+    -- (in_progress.propagate.down is a no-op, so children stay as-is)
+    eq(get_line(1), '- [-] Parent')
+    eq(get_line(2), '    - [ ] Child 1')
+    eq(get_line(3), '    - [ ] Child 2')
+end
+
+T['visual_toggle_nested']['parent+children: in_progress to complete propagates down'] = function()
+    set_lines({
+        '- [-] Parent',
+        '    - [-] Child 1',
+        '    - [-] Child 2',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', '2j', '<C-Space>')
+    -- Parent toggled to complete; complete.propagate.down pushes to children
+    eq(get_line(1), '- [X] Parent')
+    eq(get_line(2), '    - [X] Child 1')
+    eq(get_line(3), '    - [X] Child 2')
+end
+
+T['visual_toggle_nested']['parent+children: complete to not_started propagates down'] = function()
+    set_lines({
+        '- [X] Parent',
+        '    - [X] Child 1',
+        '    - [X] Child 2',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', '2j', '<C-Space>')
+    -- Parent toggled to not_started; not_started.propagate.down resets children
+    eq(get_line(1), '- [ ] Parent')
+    eq(get_line(2), '    - [ ] Child 1')
+    eq(get_line(3), '    - [ ] Child 2')
+end
+
+T['visual_toggle_nested']['only children selected toggles independently'] = function()
+    set_lines({
+        '- [ ] Parent',
+        '    - [ ] Child 1',
+        '    - [ ] Child 2',
+    })
+    set_cursor(2, 0)
+    -- Select only the children (lines 2-3), parent is outside range
+    child.type_keys('V', 'j', '<C-Space>')
+    -- Children toggle independently; upward propagation updates parent
+    eq(get_line(2), '    - [-] Child 1')
+    eq(get_line(3), '    - [-] Child 2')
+    -- Parent should be in_progress via upward propagation
+    eq(get_line(1), '- [-] Parent')
+end
+
+T['visual_toggle_nested']['deeply nested: grandparent selected skips all descendants'] = function()
+    set_lines({
+        '- [-] Grandparent',
+        '    - [-] Parent',
+        '        - [-] Child',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', '2j', '<C-Space>')
+    -- Only grandparent toggled; complete propagates down through the tree
+    eq(get_line(1), '- [X] Grandparent')
+    eq(get_line(2), '    - [X] Parent')
+    eq(get_line(3), '        - [X] Child')
+end
+
+T['visual_toggle_nested']['siblings at same level all toggle'] = function()
+    set_lines({
+        '- [ ] Sibling 1',
+        '- [ ] Sibling 2',
+        '- [ ] Sibling 3',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', '2j', '<C-Space>')
+    -- Same-level items have no parent relationship; all toggle
+    eq(get_line(1), '- [-] Sibling 1')
+    eq(get_line(2), '- [-] Sibling 2')
+    eq(get_line(3), '- [-] Sibling 3')
+end
+
+T['visual_toggle_nested']['two parent-child groups in one selection'] = function()
+    set_lines({
+        '- [ ] Parent A',
+        '    - [ ] Child A1',
+        '- [ ] Parent B',
+        '    - [ ] Child B1',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', '3j', '<C-Space>')
+    -- Both parents toggle; children are skipped (handled by propagation)
+    eq(get_line(1), '- [-] Parent A')
+    eq(get_line(2), '    - [ ] Child A1')
+    eq(get_line(3), '- [-] Parent B')
+    eq(get_line(4), '    - [ ] Child B1')
+end
+
+T['visual_toggle_nested']['mixed plain items and nested to-dos'] = function()
+    set_lines({
+        '- Plain item',
+        '- [ ] Parent',
+        '    - [ ] Child',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', '2j', '<C-Space>')
+    -- Plain item converted; parent toggled; child skipped
+    eq(get_line(1), '- [ ] Plain item')
+    eq(get_line(2), '- [-] Parent')
+    eq(get_line(3), '    - [ ] Child')
+end
+
 return T

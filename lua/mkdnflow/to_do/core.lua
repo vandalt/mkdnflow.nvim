@@ -823,6 +823,39 @@ local function toggle_line(line_nr)
     end
 end
 
+--- Toggle a range of lines, skipping children whose parent is also in the range.
+--- Parent items are toggled directly and their propagation handles children, avoiding
+--- double-toggling that would produce incorrect results.
+--- @param first integer Start line (one-based, inclusive)
+--- @param last integer End line (one-based, inclusive)
+local function toggle_range(first, last)
+    -- Pre-scan: identify to-do items whose parent is also in the range using
+    -- the cheap read() (line-level parse only, no relationship building).
+    -- A to-do item is a child-in-range if a to-do at a lower indent level
+    -- appears above it within the range.
+    local skip = {}
+    local level_stack = {} -- tracks indent levels of to-do ancestors in the range
+    for line_nr = first, last do
+        local item = to_do_item:read(line_nr)
+        if item.valid then
+            -- Pop levels >= current (same-level siblings or deeper — not parents)
+            while #level_stack > 0 and level_stack[#level_stack] >= item.level do
+                table.remove(level_stack)
+            end
+            if #level_stack > 0 then
+                skip[line_nr] = true
+            end
+            table.insert(level_stack, item.level)
+        end
+    end
+
+    for line_nr = first, last do
+        if not skip[line_nr] then
+            toggle_line(line_nr)
+        end
+    end
+end
+
 --- Function to cycle through the to-do status markers for the item on the current line
 --- @param opts? {line1: integer, line2: integer} Optional range (e.g. from a visual-mode command)
 function M.toggle_to_do(opts)
@@ -833,10 +866,7 @@ function M.toggle_to_do(opts)
     local line1, line2 = opts.line1, opts.line2
 
     if line1 and line2 then
-        -- Range provided (from visual mode via command pipeline)
-        for line_nr = line1, line2 do
-            toggle_line(line_nr)
-        end
+        toggle_range(line1, line2)
     else
         local mode = vim.api.nvim_get_mode()['mode']
         -- If we're in any visual mode (direct call, not via command), toggle selected lines.
@@ -848,9 +878,7 @@ function M.toggle_to_do(opts)
             if first == 0 or last == 0 then
                 toggle_line(pos_b)
             else
-                for line_nr = first, last do
-                    toggle_line(line_nr)
-                end
+                toggle_range(first, last)
             end
         else
             toggle_line(vim.api.nvim_win_get_cursor(0)[1])
