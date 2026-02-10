@@ -813,8 +813,9 @@ function M.toggle_to_do(opts)
         end
     else
         local mode = vim.api.nvim_get_mode()['mode']
-        -- If we're in visual mode (direct call, not via command), toggle selected lines
-        if mode == 'v' then
+        -- If we're in any visual mode (direct call, not via command), toggle selected lines.
+        -- getpos('v') returns valid line numbers for v, V, and <C-V> alike.
+        if mode == 'v' or mode == 'V' or mode == '\22' then
             local pos_a, pos_b = vim.fn.getpos('v')[2], vim.api.nvim_win_get_cursor(0)[1]
             local first, last =
                 (pos_a < pos_b and pos_a) or pos_b, (pos_b > pos_a and pos_b) or pos_a
@@ -824,14 +825,6 @@ function M.toggle_to_do(opts)
                 for line_nr = first, last do
                     M.get_to_do_item(line_nr):rotate_status()
                 end
-            end
-        elseif string.lower(mode):match('v') then
-            if not silent then
-                vim.api.nvim_echo(
-                    { { '⬇️  Use simple visual mode (not line/block)', 'WarningMsg' } },
-                    true,
-                    {}
-                )
             end
         else
             local item = M.get_to_do_item()

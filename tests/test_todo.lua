@@ -701,4 +701,73 @@ T['visual_toggle_e2e']['V (line visual) single line'] = function()
     eq(get_line(2), '- [ ] second') -- untouched
 end
 
+-- =============================================================================
+-- Visual mode toggle (direct Lua call path) — tests the fallback code path
+-- where toggle_to_do() is called without range opts while in visual mode.
+-- Uses <Cmd> mapping to preserve visual mode during execution.
+-- =============================================================================
+T['visual_toggle_direct'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    modules = { to_do = true, lists = true },
+                    silent = true,
+                })
+
+                -- Set up a direct-call mapping using <Cmd> to preserve visual mode.
+                -- This bypasses the command pipeline entirely, exercising the
+                -- mode-detection fallback in toggle_to_do().
+                vim.g.mapleader = ','
+                vim.api.nvim_buf_set_keymap(0, 'x', ',t',
+                    '<Cmd>lua require("mkdnflow.to_do").toggle_to_do()<CR>',
+                    { noremap = true })
+            ]])
+        end,
+    },
+})
+
+T['visual_toggle_direct']['v (characterwise) toggles multiple items'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+        '- [ ] third',
+    })
+    set_cursor(1, 0)
+    -- <Cmd> preserves visual mode, so <Esc> afterwards to unblock child
+    child.type_keys('v', '2j', ',t', '<Esc>')
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [-] second')
+    eq(get_line(3), '- [-] third')
+end
+
+T['visual_toggle_direct']['V (linewise) toggles multiple items'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+        '- [ ] third',
+    })
+    set_cursor(1, 0)
+    child.type_keys('V', '2j', ',t', '<Esc>')
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [-] second')
+    eq(get_line(3), '- [-] third')
+end
+
+T['visual_toggle_direct']['<C-V> (blockwise) toggles multiple items'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+        '- [ ] third',
+    })
+    set_cursor(1, 0)
+    child.type_keys('<C-V>', '2j', ',t', '<Esc>')
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [-] second')
+    eq(get_line(3), '- [-] third')
+end
+
 return T
