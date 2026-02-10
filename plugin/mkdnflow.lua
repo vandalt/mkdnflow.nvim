@@ -175,9 +175,13 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     user_command('MkdnToggleToDo', function(opts)
         local to_do = require_module('to_do')
         if to_do then
-            to_do.toggle_to_do()
+            if opts.range > 0 then
+                to_do.toggle_to_do({ line1 = opts.line1, line2 = opts.line2 })
+            else
+                to_do.toggle_to_do()
+            end
         end
-    end, {})
+    end, { range = true })
     user_command('MkdnSortToDoList', function(opts)
         local to_do = require_module('to_do')
         if to_do then

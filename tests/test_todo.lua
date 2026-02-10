@@ -659,4 +659,46 @@ T['visual_toggle_e2e']['<C-Space> in visual mode only toggles single line when n
     eq(get_line(2), '- [ ] second') -- untouched
 end
 
+T['visual_toggle_e2e']['V (line visual) toggles all selected to-do items'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+        '- [ ] third',
+    })
+    set_cursor(1, 0)
+    -- Line visual mode: select all three lines, then toggle
+    child.type_keys('V', '2j', '<C-Space>')
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [-] second')
+    eq(get_line(3), '- [-] third')
+end
+
+T['visual_toggle_e2e']['V (line visual) toggles subset'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+        '- [ ] third',
+        '- [ ] fourth',
+    })
+    set_cursor(2, 0)
+    -- Select lines 2-3 only
+    child.type_keys('V', 'j', '<C-Space>')
+    eq(get_line(1), '- [ ] first') -- untouched
+    eq(get_line(2), '- [-] second')
+    eq(get_line(3), '- [-] third')
+    eq(get_line(4), '- [ ] fourth') -- untouched
+end
+
+T['visual_toggle_e2e']['V (line visual) single line'] = function()
+    set_lines({
+        '- [ ] first',
+        '- [ ] second',
+    })
+    set_cursor(1, 0)
+    -- Line visual on just one line
+    child.type_keys('V', '<C-Space>')
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [ ] second') -- untouched
+end
+
 return T

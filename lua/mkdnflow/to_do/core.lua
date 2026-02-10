@@ -798,52 +798,63 @@ function M.get_to_do_list(line_nr, use_cache)
 end
 
 --- Function to cycle through the to-do status markers for the item on the current line
-function M.toggle_to_do()
+--- @param opts? {line1: integer, line2: integer} Optional range (e.g. from a visual-mode command)
+function M.toggle_to_do(opts)
     -- Initialize the cache for this operation
     init_cache()
 
-    local mode = vim.api.nvim_get_mode()['mode']
-    -- If we're in visual mode, toggle the to-do items on all selected lines
-    if mode == 'v' then
-        local pos_a, pos_b = vim.fn.getpos('v')[2], vim.api.nvim_win_get_cursor(0)[1]
-        -- Use the lower value for `first` and the higher value for `last`
-        local first, last = (pos_a < pos_b and pos_a) or pos_b, (pos_b > pos_a and pos_b) or pos_a
-        if first == 0 or last == 0 then
-            M.get_to_do_item(pos_b):rotate_status()
-        else
-            for line_nr = first, last do
-                M.get_to_do_item(line_nr):rotate_status()
-            end
-        end
-    elseif string.lower(mode):match('v') then
-        if not silent then
-            vim.api.nvim_echo(
-                { { '⬇️  Use simple visual mode (not line/block)', 'WarningMsg' } },
-                true,
-                {}
-            )
+    opts = opts or {}
+    local line1, line2 = opts.line1, opts.line2
+
+    if line1 and line2 then
+        -- Range provided (from visual mode via command pipeline)
+        for line_nr = line1, line2 do
+            M.get_to_do_item(line_nr):rotate_status()
         end
     else
-        local item = M.get_to_do_item()
-        if item.valid then
-            item:rotate_status()
-        else
-            -- Convert a plain list item to a to-do item (#292)
-            local lists = require('mkdnflow').lists
-            local row = vim.api.nvim_win_get_cursor(0)[1]
-            local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
-            local li_type = lists.hasListType(line)
-            if li_type == 'ul' or li_type == 'ol' then
-                local _, last = string.find(line, lists.patterns[li_type].pre)
-                local not_started_marker = to_do_statuses:get('not_started'):get_marker()
-                vim.api.nvim_buf_set_text(
-                    0,
-                    row - 1,
-                    last,
-                    row - 1,
-                    last,
-                    { ' [' .. not_started_marker .. ']' }
+        local mode = vim.api.nvim_get_mode()['mode']
+        -- If we're in visual mode (direct call, not via command), toggle selected lines
+        if mode == 'v' then
+            local pos_a, pos_b = vim.fn.getpos('v')[2], vim.api.nvim_win_get_cursor(0)[1]
+            local first, last =
+                (pos_a < pos_b and pos_a) or pos_b, (pos_b > pos_a and pos_b) or pos_a
+            if first == 0 or last == 0 then
+                M.get_to_do_item(pos_b):rotate_status()
+            else
+                for line_nr = first, last do
+                    M.get_to_do_item(line_nr):rotate_status()
+                end
+            end
+        elseif string.lower(mode):match('v') then
+            if not silent then
+                vim.api.nvim_echo(
+                    { { '⬇️  Use simple visual mode (not line/block)', 'WarningMsg' } },
+                    true,
+                    {}
                 )
+            end
+        else
+            local item = M.get_to_do_item()
+            if item.valid then
+                item:rotate_status()
+            else
+                -- Convert a plain list item to a to-do item (#292)
+                local lists = require('mkdnflow').lists
+                local row = vim.api.nvim_win_get_cursor(0)[1]
+                local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+                local li_type = lists.hasListType(line)
+                if li_type == 'ul' or li_type == 'ol' then
+                    local _, last = string.find(line, lists.patterns[li_type].pre)
+                    local not_started_marker = to_do_statuses:get('not_started'):get_marker()
+                    vim.api.nvim_buf_set_text(
+                        0,
+                        row - 1,
+                        last,
+                        row - 1,
+                        last,
+                        { ' [' .. not_started_marker .. ']' }
+                    )
+                end
             end
         end
     end
