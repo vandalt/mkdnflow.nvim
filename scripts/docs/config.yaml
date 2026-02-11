@@ -354,6 +354,8 @@ to_do:
     type: string | table
     description: |
       The marker symbol to use for the status. The marker's string width must be 1.
+      When provided as a string (e.g. `' '`), the string is used as both the recognized and written marker.
+      When provided as a table (e.g. `{ 'X', 'x' }`), the first element is the **primary** marker — the one written to the buffer when the status is set. Any additional elements are **legacy** markers that will be recognized as belonging to this status when read from a file, but will be replaced with the primary marker on the next toggle. This is useful for accepting alternate symbols from other tools or conventions without losing compatibility.
 
   - name: to_do.statuses[*].highlight.marker
     type: table (highlight definition)
