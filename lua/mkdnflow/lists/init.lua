@@ -65,7 +65,7 @@ end
 --- @param up boolean Whether to scan upward first
 --- @return integer[], string[] # Arrays of line numbers and list numbers
 local function get_siblings(row, indentation, li_type, up)
-    up = up and true
+    up = up == nil and true or up
     local orig_row = row
     local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
     local number = M.patterns[li_type].number and line and line:match(M.patterns[li_type].number)
@@ -83,14 +83,17 @@ local function get_siblings(row, indentation, li_type, up)
     local inc = up and -1 or 1
 
     while not done do
-        local adj_line = ((up and row - 2 >= 0) and vim.api.nvim_buf_get_lines(0, row - 2, row - 1, true)[1])
+        local adj_line = (
+            (up and row - 2 >= 0) and vim.api.nvim_buf_get_lines(0, row - 2, row - 1, true)[1]
+        )
             or (up == false and vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1])
             or nil
 
         if adj_line then
             local adj_li_type = M.hasListType(adj_line)
             if adj_li_type then
-                local adj_indentation = string.match(adj_line, M.patterns[adj_li_type].indentation) or nil
+                local adj_indentation = string.match(adj_line, M.patterns[adj_li_type].indentation)
+                    or nil
                 if adj_li_type == li_type and adj_indentation == indentation then -- Add row
                     if number then
                         table.insert(
@@ -99,7 +102,11 @@ local function get_siblings(row, indentation, li_type, up)
                             adj_line:match(M.patterns[li_type].number)
                         )
                     end
-                    table.insert(sibling_linenrs, up and list_pos or #sibling_linenrs + 1, row + inc)
+                    table.insert(
+                        sibling_linenrs,
+                        up and list_pos or #sibling_linenrs + 1,
+                        row + inc
+                    )
                     row = row + inc
                 elseif #adj_indentation > #indentation then -- List item is a child; keep looking
                     row = row + inc
@@ -145,9 +152,21 @@ local function update_numbering(row, indentation, li_type, up, start)
         else
             if tonumber(v) ~= n then
                 -- Replace with the correct number on that line
-                local line = vim.api.nvim_buf_get_lines(0, sibling_linenrs[i] - 1, sibling_linenrs[i], false)[1]
-                local replacement = line:gsub('^' .. indentation .. '%d+%.', indentation .. n .. '.')
-                vim.api.nvim_buf_set_lines(0, sibling_linenrs[i] - 1, sibling_linenrs[i], false, { replacement })
+                local line = vim.api.nvim_buf_get_lines(
+                    0,
+                    sibling_linenrs[i] - 1,
+                    sibling_linenrs[i],
+                    false
+                )[1]
+                local replacement =
+                    line:gsub('^' .. indentation .. '%d+%.', indentation .. n .. '.')
+                vim.api.nvim_buf_set_lines(
+                    0,
+                    sibling_linenrs[i] - 1,
+                    sibling_linenrs[i],
+                    false,
+                    { replacement }
+                )
             end
             n = n + 1
         end

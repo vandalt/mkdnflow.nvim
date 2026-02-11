@@ -428,12 +428,15 @@ T['patterns']['exports oltd patterns'] = function()
 end
 
 T['patterns']['ul.main matches unordered list'] = function()
-    local result = child.lua_get([[string.match('- item', require('mkdnflow.lists').patterns.ul.main) ~= nil]])
+    local result =
+        child.lua_get([[string.match('- item', require('mkdnflow.lists').patterns.ul.main) ~= nil]])
     eq(result, true)
 end
 
 T['patterns']['ol.main matches ordered list'] = function()
-    local result = child.lua_get([[string.match('1. item', require('mkdnflow.lists').patterns.ol.main) ~= nil]])
+    local result = child.lua_get(
+        [[string.match('1. item', require('mkdnflow.lists').patterns.ol.main) ~= nil]]
+    )
     eq(result, true)
 end
 
@@ -1293,47 +1296,58 @@ end
 T['patterns_exposed'] = new_set()
 
 T['patterns_exposed']['ul patterns work'] = function()
-    local result = child.lua_get([[string.match('- test', require('mkdnflow.lists').patterns.ul.main)]])
+    local result =
+        child.lua_get([[string.match('- test', require('mkdnflow.lists').patterns.ul.main)]])
     eq(result ~= vim.NIL, true)
 end
 
 T['patterns_exposed']['ol patterns work'] = function()
-    local result = child.lua_get([[string.match('1. test', require('mkdnflow.lists').patterns.ol.main)]])
+    local result =
+        child.lua_get([[string.match('1. test', require('mkdnflow.lists').patterns.ol.main)]])
     eq(result ~= vim.NIL, true)
 end
 
 T['patterns_exposed']['ultd patterns work'] = function()
-    local result = child.lua_get([[string.match('- [ ] test', require('mkdnflow.lists').patterns.ultd.main)]])
+    local result =
+        child.lua_get([[string.match('- [ ] test', require('mkdnflow.lists').patterns.ultd.main)]])
     eq(result ~= vim.NIL, true)
 end
 
 T['patterns_exposed']['oltd patterns work'] = function()
-    local result = child.lua_get([[string.match('1. [ ] test', require('mkdnflow.lists').patterns.oltd.main)]])
+    local result =
+        child.lua_get([[string.match('1. [ ] test', require('mkdnflow.lists').patterns.oltd.main)]])
     eq(result ~= vim.NIL, true)
 end
 
 T['patterns_exposed']['indentation pattern extracts correctly'] = function()
-    local result = child.lua_get([[string.match('    - test', require('mkdnflow.lists').patterns.ul.indentation)]])
+    local result = child.lua_get(
+        [[string.match('    - test', require('mkdnflow.lists').patterns.ul.indentation)]]
+    )
     eq(result, '    ')
 end
 
 T['patterns_exposed']['marker pattern extracts correctly'] = function()
-    local result = child.lua_get([[string.match('- test', require('mkdnflow.lists').patterns.ul.marker)]])
+    local result =
+        child.lua_get([[string.match('- test', require('mkdnflow.lists').patterns.ul.marker)]])
     eq(result, '- ')
 end
 
 T['patterns_exposed']['number pattern extracts correctly'] = function()
-    local result = child.lua_get([[string.match('42. test', require('mkdnflow.lists').patterns.ol.number)]])
+    local result =
+        child.lua_get([[string.match('42. test', require('mkdnflow.lists').patterns.ol.number)]])
     eq(result, '42')
 end
 
 T['patterns_exposed']['content pattern extracts correctly'] = function()
-    local result = child.lua_get([[string.match('- the content', require('mkdnflow.lists').patterns.ul.content)]])
+    local result = child.lua_get(
+        [[string.match('- the content', require('mkdnflow.lists').patterns.ul.content)]]
+    )
     eq(result, 'the content')
 end
 
 T['patterns_exposed']['empty pattern matches empty item'] = function()
-    local result = child.lua_get([[string.match('- ', require('mkdnflow.lists').patterns.ul.empty)]])
+    local result =
+        child.lua_get([[string.match('- ', require('mkdnflow.lists').patterns.ul.empty)]])
     eq(result ~= vim.NIL, true)
 end
 
@@ -1507,6 +1521,155 @@ T['List']['line_range is set correctly'] = function()
     child.lua('_G.list = require("mkdnflow.lists").List:new():read(2)')
     eq(child.lua_get('_G.list.line_range.start'), 2)
     eq(child.lua_get('_G.list.line_range.finish'), 4)
+end
+
+-- =============================================================================
+-- Promotion renumbering (enter on empty nested item promotes + renumbers)
+-- =============================================================================
+T['promotion_renumbering'] = new_set()
+
+-- The user's exact scenario: nested ordered list, enter on last sub-item
+-- creates empty sub-item, enter again promotes it to parent level.
+-- The promoted item should be renumbered as the next parent item.
+T['promotion_renumbering']['promoted item renumbers to continue parent sequence'] = function()
+    set_lines({
+        '1. An item',
+        '2. A second item:',
+        '    1. A sub-item',
+        '    2. A sub-item again',
+        '    3. A sub-item AGAIN again',
+    })
+    -- First enter: creates empty sub-item "    4. "
+    set_cursor(5, 29)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    local lines = get_lines()
+    eq(lines[6], '    4. ')
+
+    -- Second enter on the empty sub-item: promotes to parent level
+    set_cursor(6, 6)
+    child.lua([[require('mkdnflow.lists').newListItem(true, false, true, 'n')]])
+    lines = get_lines()
+    -- Should be promoted to "3. " (continuing the parent 1., 2. sequence)
+    eq(lines[6], '3. ')
+end
+
+T['promotion_renumbering']['promoted ordered item keeps type with unordered parent'] = function()
+    -- When parent list is unordered but sub-list is ordered, promotion
+    -- strips indentation but keeps the ordered marker type (the demotion
+    -- logic doesn't change marker types, only indentation)
+    set_lines({
+        '- An item',
+        '- A second item:',
+        '    1. A sub-item',
+        '    2. Another sub-item',
+        '    3. ',
+    })
+    set_cursor(5, 6)
+    child.lua([[require('mkdnflow.lists').newListItem(true, false, true, 'n')]])
+    local lines = get_lines()
+    -- Promoted but keeps ordered type; renumbers as 1 since it has no ol siblings
+    eq(lines[5], '3. ')
+end
+
+T['promotion_renumbering']['promoted ordered item renumbers among existing siblings'] = function()
+    -- Parent list has items after the nested list; promoted item should
+    -- renumber correctly and subsequent siblings should update too
+    set_lines({
+        '1. First',
+        '2. Second:',
+        '    1. Sub A',
+        '    2. Sub B',
+        '    3. ',
+        '3. Third',
+    })
+    set_cursor(5, 6)
+    child.lua([[require('mkdnflow.lists').newListItem(true, false, true, 'n')]])
+    local lines = get_lines()
+    -- The empty sub-item should be promoted to "3. " between "2. Second:" and old "3. Third"
+    eq(lines[5], '3. ')
+    -- The old "3. Third" should renumber to "4. Third"
+    eq(lines[6], '4. Third')
+end
+
+T['promotion_renumbering']['double promotion renumbers correctly'] = function()
+    -- Two levels of nesting: promote once from level 3 to level 2,
+    -- then promote again from level 2 to level 1
+    set_lines({
+        '1. Top',
+        '    1. Mid:',
+        '        1. Deep',
+        '        2. ',
+    })
+    -- First promotion: level 3 → level 2
+    set_cursor(4, 10)
+    child.lua([[require('mkdnflow.lists').newListItem(true, false, true, 'n')]])
+    local lines = get_lines()
+    eq(lines[4], '    2. ')
+
+    -- Second promotion: level 2 → level 1
+    set_cursor(4, 6)
+    child.lua([[require('mkdnflow.lists').newListItem(true, false, true, 'n')]])
+    lines = get_lines()
+    eq(lines[4], '2. ')
+end
+
+-- E2E test: full keypress flow through MkdnEnter mapping
+T['promotion_renumbering_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                vim.bo.expandtab = true
+                vim.bo.shiftwidth = 4
+                require('mkdnflow').setup({})
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['promotion_renumbering_e2e']['<CR> in insert mode promotes and renumbers'] = function()
+    -- Reconfigure with <CR> mapped in insert mode too
+    child.restart({ '-u', 'scripts/minimal_init.lua' })
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+        vim.bo.expandtab = true
+        vim.bo.shiftwidth = 4
+        require('mkdnflow').setup({
+            mappings = {
+                MkdnEnter = { { 'n', 'v', 'i' }, '<CR>' },
+            },
+        })
+        vim.cmd('doautocmd BufEnter')
+    ]])
+    set_lines({
+        '1. An item',
+        '2. A second item:',
+        '    1. A sub-item',
+        '    2. A sub-item again',
+        '    3. A sub-item AGAIN again',
+    })
+    -- Position at end of last sub-item, enter insert mode, press CR
+    set_cursor(5, 29)
+    child.type_keys('A')
+    child.type_keys('<CR>')
+    child.type_keys('<Esc>')
+    local lines = get_lines()
+    eq(lines[6], '    4. ')
+
+    -- CR again on the empty sub-item: promote to parent level
+    set_cursor(6, 6)
+    child.type_keys('A')
+    child.type_keys('<CR>')
+    child.type_keys('<Esc>')
+    lines = get_lines()
+    -- Should be "3. " (continuing parent sequence), not "4. "
+    eq(lines[6], '3. ')
 end
 
 return T
