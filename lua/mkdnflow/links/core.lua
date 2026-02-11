@@ -103,8 +103,15 @@ end
 -- =============================================================================
 
 -- Pattern order: more specific patterns should come before less specific ones
-local pattern_order =
-    { 'image_link', 'md_link', 'wiki_link', 'auto_link', 'ref_style_link', 'pandoc_citation', 'citation' }
+local pattern_order = {
+    'image_link',
+    'md_link',
+    'wiki_link',
+    'auto_link',
+    'ref_style_link',
+    'pandoc_citation',
+    'citation',
+}
 
 local patterns = {
     image_link = '(!%b[]%b())', -- Must come before md_link
@@ -307,6 +314,16 @@ function Link:read(col, buffer)
                 utils.mFind(lines, pattern, row - context, init_row, init_col)
 
             if start_row and link_type == 'citation' then
+                -- Skip if @ is preceded by an alphanumeric character (e.g. email
+                -- addresses like user@domain.com are not citations)
+                if start_col > 1 then
+                    local line_idx = start_row - (row - context) + 1
+                    local preceding_char = lines[line_idx]:sub(start_col - 1, start_col - 1)
+                    if preceding_char:match('[%a%d]') then
+                        init_row, init_col = end_row, end_col
+                        goto continue_search
+                    end
+                end
                 -- Remove Saxon genitive if present
                 local possessor = string.gsub(capture, "'s$", '')
                 if #capture > #possessor then
@@ -338,6 +355,7 @@ function Link:read(col, buffer)
             else
                 continue = false
             end
+            ::continue_search::
         end
     end
 
