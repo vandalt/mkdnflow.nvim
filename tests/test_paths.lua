@@ -814,4 +814,239 @@ T['on_create_new_e2e']['<CR> keypress triggers callback'] = function()
     eq(calls[1].title, 'E2E Note')
 end
 
+-- =============================================================================
+-- getRootDir() - Root marker search
+-- =============================================================================
+T['getRootDir'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                -- Create nested directory structure:
+                -- tmpdir/
+                -- ├── .root_marker
+                -- ├── index.md
+                -- ├── sub1/
+                -- │   ├── .root_marker
+                -- │   └── page.md
+                -- └── sub2/
+                --     └── page.md
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/sub1', 'p')
+                vim.fn.mkdir(_G._tmpdir .. '/sub2', 'p')
+                vim.fn.writefile({}, _G._tmpdir .. '/.root_marker')
+                vim.fn.writefile({''}, _G._tmpdir .. '/index.md')
+                vim.fn.writefile({}, _G._tmpdir .. '/sub1/.root_marker')
+                vim.fn.writefile({''}, _G._tmpdir .. '/sub1/page.md')
+                vim.fn.writefile({''}, _G._tmpdir .. '/sub2/page.md')
+
+                vim.api.nvim_buf_set_name(0, _G._tmpdir .. '/index.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({ silent = true })
+            ]])
+        end,
+    },
+})
+
+T['getRootDir']['finds marker in current directory'] = function()
+    local result =
+        child.lua_get([[require('mkdnflow.utils').getRootDir(_G._tmpdir, '.root_marker', 'Linux')]])
+    local tmpdir = child.lua_get('_G._tmpdir')
+    eq(result, tmpdir)
+end
+
+T['getRootDir']['finds marker in parent directory'] = function()
+    local result = child.lua_get(
+        [[require('mkdnflow.utils').getRootDir(_G._tmpdir .. '/sub2', '.root_marker', 'Linux')]]
+    )
+    local tmpdir = child.lua_get('_G._tmpdir')
+    eq(result, tmpdir)
+end
+
+T['getRootDir']['finds nearest marker (nested)'] = function()
+    local result = child.lua_get(
+        [[require('mkdnflow.utils').getRootDir(_G._tmpdir .. '/sub1', '.root_marker', 'Linux')]]
+    )
+    local tmpdir = child.lua_get('_G._tmpdir')
+    eq(result, tmpdir .. '/sub1')
+end
+
+T['getRootDir']['returns nil when no marker exists'] = function()
+    child.lua([[
+        _G._isolated = vim.fn.resolve(vim.fn.tempname())
+        vim.fn.mkdir(_G._isolated, 'p')
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.utils').getRootDir(_G._isolated, '.nonexistent_marker', 'Linux')]]
+    )
+    eq(result, vim.NIL)
+end
+
+T['getRootDir']['finds nearest marker with deep nesting'] = function()
+    child.lua([[
+        vim.fn.mkdir(_G._tmpdir .. '/sub1/deep', 'p')
+        vim.fn.writefile({}, _G._tmpdir .. '/sub1/deep/.root_marker')
+        vim.fn.writefile({''}, _G._tmpdir .. '/sub1/deep/page.md')
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.utils').getRootDir(_G._tmpdir .. '/sub1/deep', '.root_marker', 'Linux')]]
+    )
+    local tmpdir = child.lua_get('_G._tmpdir')
+    eq(result, tmpdir .. '/sub1/deep')
+end
+
+-- =============================================================================
+-- updateDirs() - Root re-evaluation on navigation
+-- =============================================================================
+T['updateDirs'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                -- Create nested directory structure
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/sub1', 'p')
+                vim.fn.mkdir(_G._tmpdir .. '/sub2', 'p')
+                vim.fn.writefile({}, _G._tmpdir .. '/.root_marker')
+                vim.fn.writefile({'[sub1 page](sub1/page.md)'}, _G._tmpdir .. '/index.md')
+                vim.fn.writefile({''}, _G._tmpdir .. '/page.md')
+                vim.fn.writefile({}, _G._tmpdir .. '/sub1/.root_marker')
+                vim.fn.writefile({'[parent](../index.md)'}, _G._tmpdir .. '/sub1/index.md')
+                vim.fn.writefile({''}, _G._tmpdir .. '/sub1/page.md')
+                vim.fn.writefile({''}, _G._tmpdir .. '/sub2/page.md')
+
+                -- Open the root index file
+                vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    silent = true,
+                    path_resolution = {
+                        primary = 'root',
+                        root_marker = '.root_marker',
+                        update_on_navigate = true,
+                    },
+                })
+            ]])
+        end,
+    },
+})
+
+T['updateDirs']['re-evaluates when navigating parent to child'] = function()
+    -- Initial root should be tmpdir
+    local tmpdir = child.lua_get('_G._tmpdir')
+    local initial_root = child.lua_get('require("mkdnflow").root_dir')
+    eq(initial_root, tmpdir)
+
+    -- Navigate to sub1/page.md, call updateDirs, then follow a relative link
+    -- to verify the root updated to sub1
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/sub1/page.md')
+        require('mkdnflow.paths').updateDirs()
+        require('mkdnflow.paths').handlePath('index.md')
+        _G._result_buf = vim.api.nvim_buf_get_name(0)
+    ]])
+    local buf_name = child.lua_get('_G._result_buf')
+    -- Should resolve to sub1/index.md (not tmpdir/index.md)
+    eq(buf_name, tmpdir .. '/sub1/index.md')
+end
+
+T['updateDirs']['re-evaluates when navigating child to parent'] = function()
+    local tmpdir = child.lua_get('_G._tmpdir')
+
+    -- Start in sub1
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/sub1/page.md')
+        require('mkdnflow.paths').updateDirs()
+    ]])
+
+    -- Navigate back to parent and follow a relative link
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+        require('mkdnflow.paths').updateDirs()
+        require('mkdnflow.paths').handlePath('page.md')
+        _G._result_buf = vim.api.nvim_buf_get_name(0)
+    ]])
+    local buf_name = child.lua_get('_G._result_buf')
+    -- Should resolve to tmpdir/page.md
+    eq(buf_name, tmpdir .. '/page.md')
+end
+
+T['updateDirs']['skips re-evaluation for same directory'] = function()
+    local tmpdir = child.lua_get('_G._tmpdir')
+
+    -- Navigate to sub1/index.md
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/sub1/index.md')
+        require('mkdnflow.paths').updateDirs()
+    ]])
+
+    -- Navigate to sub1/page.md (same directory)
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/sub1/page.md')
+        require('mkdnflow.paths').updateDirs()
+        require('mkdnflow.paths').handlePath('index.md')
+        _G._result_buf = vim.api.nvim_buf_get_name(0)
+    ]])
+    local buf_name = child.lua_get('_G._result_buf')
+    -- Root should still be sub1
+    eq(buf_name, tmpdir .. '/sub1/index.md')
+end
+
+T['updateDirs']['handles child with no marker (walks to parent)'] = function()
+    local tmpdir = child.lua_get('_G._tmpdir')
+
+    -- Navigate to sub2 (no .root_marker)
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/sub2/page.md')
+        require('mkdnflow.paths').updateDirs()
+        require('mkdnflow.paths').handlePath('index.md')
+        _G._result_buf = vim.api.nvim_buf_get_name(0)
+    ]])
+    local buf_name = child.lua_get('_G._result_buf')
+    -- Root should be tmpdir (parent has the marker)
+    eq(buf_name, tmpdir .. '/index.md')
+end
+
+T['updateDirs']['respects update_on_navigate = false'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/sub1', 'p')
+                vim.fn.writefile({}, _G._tmpdir .. '/.root_marker')
+                vim.fn.writefile({''}, _G._tmpdir .. '/index.md')
+                vim.fn.writefile({}, _G._tmpdir .. '/sub1/.root_marker')
+                vim.fn.writefile({''}, _G._tmpdir .. '/sub1/page.md')
+
+                vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    silent = true,
+                    path_resolution = {
+                        primary = 'root',
+                        root_marker = '.root_marker',
+                        update_on_navigate = false,
+                    },
+                })
+            ]])
+        end,
+    },
+})
+
+T['updateDirs']['respects update_on_navigate = false']['root does not change'] = function()
+    local tmpdir = child.lua_get('_G._tmpdir')
+
+    -- Navigate to sub1 and call updateDirs
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/sub1/page.md')
+        require('mkdnflow.paths').updateDirs()
+        require('mkdnflow.paths').handlePath('index.md')
+        _G._result_buf = vim.api.nvim_buf_get_name(0)
+    ]])
+    local buf_name = child.lua_get('_G._result_buf')
+    -- Root should still be tmpdir (update_on_navigate is false)
+    eq(buf_name, tmpdir .. '/index.md')
+end
+
 return T

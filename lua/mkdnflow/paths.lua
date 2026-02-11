@@ -29,6 +29,7 @@ local path_resolution = require('mkdnflow').config.path_resolution
 -- Get directory of first-opened file
 local initial_dir = require('mkdnflow').initial_dir
 local root_dir = require('mkdnflow').root_dir
+local last_resolved_dir = nil
 local silent = require('mkdnflow').config.silent
 local links_config = require('mkdnflow').config.links
 local new_file_config = require('mkdnflow').config.new_file_template
@@ -358,21 +359,24 @@ M.updateDirs = function()
     if path_resolution.update_on_navigate or path_resolution.sync_cwd then
         if path_resolution.primary == 'root' then
             local cur_file = vim.api.nvim_buf_get_name(0)
-            if not root_dir or not cur_file:match(root_dir) then
-                -- Get the new root dir, if there is one
-                local dir = cur_file:match('(.*)' .. sep .. '.-')
+            local dir = cur_file:match('(.*)' .. sep .. '.-')
+            if not root_dir or dir ~= last_resolved_dir then
                 if path_resolution.update_on_navigate then
+                    local prev_root = root_dir
                     root_dir = require('mkdnflow').utils.getRootDir(
                         dir,
                         path_resolution.root_marker,
                         this_os
                     )
+                    last_resolved_dir = dir
                     if root_dir then
-                        local name = root_dir:match('.*' .. sep .. '(.*)') or root_dir
-                        if not silent then
-                            vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
-                        end
                         wd = root_dir
+                        if root_dir ~= prev_root then
+                            local name = root_dir:match('.*' .. sep .. '(.*)') or root_dir
+                            if not silent then
+                                vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
+                            end
+                        end
                     else
                         if not silent then
                             vim.api.nvim_echo({
@@ -382,11 +386,11 @@ M.updateDirs = function()
                                     'WarningMsg',
                                 },
                             }, true, {})
-                            if path_resolution.fallback == 'first' and path_resolution.sync_cwd then
-                                wd = initial_dir
-                            elseif path_resolution.sync_cwd then -- Otherwise, set wd to directory the current buffer is in
-                                wd = dir
-                            end
+                        end
+                        if path_resolution.fallback == 'first' and path_resolution.sync_cwd then
+                            wd = initial_dir
+                        elseif path_resolution.sync_cwd then -- Otherwise, set wd to directory the current buffer is in
+                            wd = dir
                         end
                     end
                 end
