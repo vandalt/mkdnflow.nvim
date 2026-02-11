@@ -22,8 +22,8 @@ local M = {}
 --- Get the vim indentation unit (spaces or tab) for the current buffer
 --- @return string The indentation string (spaces based on shiftwidth, or tab)
 local function get_vim_indent()
-    if vim.api.nvim_buf_get_option(0, 'expandtab') == true then
-        return string.rep(' ', vim.api.nvim_buf_get_option(0, 'shiftwidth'))
+    if vim.bo.expandtab then
+        return string.rep(' ', vim.bo.shiftwidth)
     else
         return '\t'
     end

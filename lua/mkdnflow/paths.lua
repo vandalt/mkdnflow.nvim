@@ -87,7 +87,7 @@ local resolve_notebook_path = function(path, sub_home_var)
         -- Path of current file
         local cur_file = vim.api.nvim_buf_get_name(0)
         -- Directory current file is in
-        local cur_file_dir = string.match(cur_file, '(.*)' .. sep .. '.-$')
+        local cur_file_dir = vim.fs.dirname(cur_file)
         -- Paste together dir of current file & dir path provided in link
         if cur_file_dir then
             derived_path = cur_file_dir .. sep .. derived_path
@@ -130,7 +130,7 @@ local vim_open = function(path, anchor)
     path = resolve_notebook_path(path)
 
     -- See if a directory is part of the path
-    local dir = string.match(path, '(.*)' .. sep .. '.-$')
+    local dir = vim.fs.dirname(path)
     -- If there's a dir & user wants dirs created, do so if necessary
     if dir and create_dirs then
         if not exists(dir) then
@@ -168,7 +168,7 @@ local vim_open = function(path, anchor)
             if type(result) == 'string' then
                 path_w_ext = result
                 -- Ensure directories exist for the callback-returned path
-                local result_dir = string.match(path_w_ext, '(.*)' .. sep .. '.-$')
+                local result_dir = vim.fs.dirname(path_w_ext)
                 if result_dir and create_dirs and not exists(result_dir) then
                     vim.fn.mkdir(result_dir, 'p')
                 end
@@ -224,7 +224,7 @@ enter_internal_path = function(path)
     vim.ui.input(input_opts, function(response)
         if response ~= nil and response ~= path .. sep then
             vim_open(response)
-            vim.api.nvim_command('normal! :')
+            vim.cmd('normal! :')
         end
     end)
 end
@@ -302,7 +302,7 @@ local handle_external_file = function(path)
         -- Get the directory the current file is in and paste together the
         -- directory of the current file and the directory path provided in the
         -- link, and escape for shell
-        local cur_file_dir = string.match(cur_file, '(.*)' .. sep .. '.-$')
+        local cur_file_dir = vim.fs.dirname(cur_file)
         real_path = cur_file_dir .. sep .. real_path
     end
     -- Pass to the system_open() function
@@ -321,7 +321,7 @@ M.updateDirs = function()
     if path_resolution.update_on_navigate or path_resolution.sync_cwd then
         if path_resolution.primary == 'root' then
             local cur_file = vim.api.nvim_buf_get_name(0)
-            local dir = cur_file:match('(.*)' .. sep .. '.-')
+            local dir = vim.fs.dirname(cur_file)
             if not root_dir or dir ~= last_resolved_dir then
                 if path_resolution.update_on_navigate then
                     local prev_root = root_dir
@@ -335,7 +335,7 @@ M.updateDirs = function()
                     if root_dir then
                         wd = root_dir
                         if root_dir ~= prev_root then
-                            local name = root_dir:match('.*' .. sep .. '(.*)') or root_dir
+                            local name = vim.fs.basename(root_dir)
                             if not silent then
                                 vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
                             end
@@ -362,7 +362,7 @@ M.updateDirs = function()
             wd = initial_dir
         elseif path_resolution.sync_cwd then
             local cur_file = vim.api.nvim_buf_get_name(0)
-            wd = cur_file:match('(.*)' .. sep .. '.-$')
+            wd = vim.fs.dirname(cur_file)
         end
         if path_resolution.sync_cwd and wd then
             vim.api.nvim_set_current_dir(wd)
@@ -508,7 +508,7 @@ M.moveSource = function()
             .. "' ("
             .. location
             .. ')? [y/n] '
-        local cmdheight = vim.api.nvim_get_option('cmdheight')
+        local cmdheight = vim.o.cmdheight
         local str_width, win_width = vim.api.nvim_strwidth(prompt), vim.api.nvim_win_get_width(0)
         local rows_needed = str_width / win_width
         if rows_needed / math.floor(rows_needed) > 1.0 then
@@ -516,7 +516,7 @@ M.moveSource = function()
         else
             rows_needed = math.floor(rows_needed)
         end
-        vim.api.nvim_set_option('cmdheight', rows_needed)
+        vim.o.cmdheight = rows_needed
         vim.ui.input({ prompt = prompt }, function(response)
             if response == 'y' then
                 local ok = vim.fn.rename(derived_source, derived_goal)
@@ -524,7 +524,7 @@ M.moveSource = function()
                     vim.api.nvim_echo({
                         { '⬇️  Failed to move file (cross-filesystem?)', 'ErrorMsg' },
                     }, true, {})
-                    vim.api.nvim_set_option('cmdheight', cmdheight)
+                    vim.o.cmdheight = cmdheight
                     return
                 end
                 -- Change the link content
@@ -538,8 +538,8 @@ M.moveSource = function()
                 )
                 -- Clear the prompt & print sth
                 -- Reset cmdheight value
-                vim.api.nvim_command('normal! :')
-                vim.api.nvim_set_option('cmdheight', cmdheight)
+                vim.cmd('normal! :')
+                vim.o.cmdheight = cmdheight
                 vim.api.nvim_echo(
                     { { '⬇️  Success! File moved to ' .. derived_goal } },
                     true,
@@ -548,8 +548,8 @@ M.moveSource = function()
             else
                 -- Clear the prompt & print sth
                 -- Reset cmdheight value
-                vim.api.nvim_command('normal! :')
-                vim.api.nvim_set_option('cmdheight', cmdheight)
+                vim.cmd('normal! :')
+                vim.o.cmdheight = cmdheight
                 vim.api.nvim_echo({ { '⬇️  Aborted', 'WarningMsg' } }, true, {})
             end
         end)
@@ -591,9 +591,9 @@ M.moveSource = function()
                 derived_goal = derive_path(derived_goal, M.pathType(derived_goal))
                 local source_exists = exists(derived_source, 'f')
                 local goal_exists = exists(derived_goal, 'f')
-                local dir = string.match(derived_goal, '(.*)' .. sep .. '.-$')
+                local dir = vim.fs.dirname(derived_goal)
                 if goal_exists then -- If the goal location already exists, abort
-                    vim.api.nvim_command('normal! :')
+                    vim.cmd('normal! :')
                     vim.api.nvim_echo({
                         {
                             "⬇️  '" .. location .. "' already exists! Aborting.",
@@ -607,7 +607,7 @@ M.moveSource = function()
                             if create_dirs then
                                 vim.fn.mkdir(dir, 'p')
                             else
-                                vim.api.nvim_command('normal! :')
+                                vim.cmd('normal! :')
                                 vim.api.nvim_echo({
                                     {
                                         "⬇️  The goal directory doesn't exist. Set create_dirs to true for automatic directory creation.",
@@ -642,7 +642,7 @@ M.moveSource = function()
                     end
                 else -- Otherwise, the file we're trying to move must not exist
                     -- Clear the prompt & send a warning
-                    vim.api.nvim_command('normal! :')
+                    vim.cmd('normal! :')
                     vim.api.nvim_echo({
                         {
                             '⬇️  ' .. derived_source .. " doesn't seem to exist! Aborting.",

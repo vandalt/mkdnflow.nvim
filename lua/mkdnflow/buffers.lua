@@ -49,7 +49,7 @@ M.goBack = function()
         -- Get previous buffer number
         local prev_buf = M.main[1]
         -- Go to buffer
-        vim.api.nvim_command('buffer ' .. prev_buf)
+        vim.cmd.buffer(prev_buf)
         -- Pop the buffer we just navigated to off the top of the stack
         M.pop(M.main)
         -- Update the root and/or directory if needed
@@ -82,7 +82,7 @@ M.goForward = function()
     if hist_bufnr then
         M.push(M.main, cur_bufnr)
         -- Go to the historical buffer number
-        vim.api.nvim_command('buffer ' .. hist_bufnr)
+        vim.cmd.buffer(hist_bufnr)
         -- Pop historical buffer stack
         M.pop(M.hist)
         -- Update the root and/or working directory if needed

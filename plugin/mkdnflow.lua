@@ -17,11 +17,11 @@
 -- Only define these commands if the plugin hasn't already been loaded
 if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     -- Save user coptions
-    local save_cpo = vim.api.nvim_get_option('cpoptions')
+    local save_cpo = vim.o.cpoptions
     -- Retrieve defaults
     local cpo_defaults = vim.api.nvim_get_option_info('cpoptions')['default']
     -- Set to defaults
-    vim.api.nvim_set_option('cpoptions', cpo_defaults)
+    vim.o.cpoptions = cpo_defaults
     local user_command = vim.api.nvim_create_user_command
     local mkdnflow = require('mkdnflow')
 
@@ -334,7 +334,7 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     end, {})
 
     -- Return coptions to user values
-    vim.api.nvim_set_option('cpoptions', save_cpo)
+    vim.o.cpoptions = save_cpo
 
     -- Record that the plugin has been loaded
     vim.api.nvim_set_var('loaded_mkdnflow', true)

@@ -139,6 +139,17 @@ T['settings']['sets conceallevel to 2'] = function()
     eq(conceallevel, 2)
 end
 
+T['settings']['sets Conceal highlight to transparent'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { conceal = true }, silent = true })]])
+    child.cmd('doautocmd FileType')
+
+    local hl = child.lua_get([[vim.api.nvim_get_hl(0, { name = 'Conceal' })]])
+    -- Conceal highlight should have no fg/bg (transparent), meaning the
+    -- concealed characters are invisible rather than shown in a highlight color
+    eq(hl.fg, nil)
+    eq(hl.bg, nil)
+end
+
 -- =============================================================================
 -- Screenshot tests for visual concealing verification
 -- =============================================================================

@@ -98,7 +98,11 @@ local function start_link_concealing()
     vim.wo.conceallevel = 2
 
     -- Don't change the highlighting of concealed characters
-    vim.api.nvim_exec([[highlight Conceal ctermbg=NONE ctermfg=NONE guibg=NONE guifg=NONE]], false)
+    vim.api.nvim_set_hl(
+        0,
+        'Conceal',
+        { bg = 'NONE', fg = 'NONE', ctermbg = 'NONE', ctermfg = 'NONE' }
+    )
 end
 
 -- Set up autocommands to trigger the link concealing setup in Markdown files
