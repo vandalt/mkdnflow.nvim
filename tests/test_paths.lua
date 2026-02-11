@@ -1049,4 +1049,77 @@ T['updateDirs']['respects update_on_navigate = false']['root does not change'] =
     eq(buf_name, tmpdir .. '/index.md')
 end
 
+-- =============================================================================
+-- getNotebook() - Statusline component API
+-- =============================================================================
+T['getNotebook'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/sub1', 'p')
+                vim.fn.writefile({}, _G._tmpdir .. '/.root_marker')
+                vim.fn.writefile({''}, _G._tmpdir .. '/index.md')
+                vim.fn.writefile({}, _G._tmpdir .. '/sub1/.root_marker')
+                vim.fn.writefile({''}, _G._tmpdir .. '/sub1/page.md')
+
+                vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    silent = true,
+                    path_resolution = {
+                        primary = 'root',
+                        root_marker = '.root_marker',
+                        update_on_navigate = true,
+                    },
+                })
+            ]])
+        end,
+    },
+})
+
+T['getNotebook']['returns name and root for current notebook'] = function()
+    local tmpdir = child.lua_get('_G._tmpdir')
+    local nb = child.lua_get('require("mkdnflow").getNotebook()')
+    eq(nb.root, tmpdir)
+    -- Name is the last path component
+    local expected_name = tmpdir:match('.*/(.*)') or tmpdir
+    eq(nb.name, expected_name)
+end
+
+T['getNotebook']['updates after navigating to nested collection'] = function()
+    local tmpdir = child.lua_get('_G._tmpdir')
+
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/sub1/page.md')
+        require('mkdnflow.paths').updateDirs()
+    ]])
+
+    local nb = child.lua_get('require("mkdnflow").getNotebook()')
+    eq(nb.root, tmpdir .. '/sub1')
+    eq(nb.name, 'sub1')
+end
+
+T['getNotebook']['returns nil when no root is set'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    silent = true,
+                    path_resolution = { primary = 'first' },
+                })
+            ]])
+        end,
+    },
+})
+
+T['getNotebook']['returns nil when no root is set']['returns nil'] = function()
+    local result = child.lua_get('require("mkdnflow").getNotebook()')
+    eq(result, vim.NIL)
+end
+
 return T

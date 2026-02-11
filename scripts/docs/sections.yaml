@@ -897,6 +897,7 @@ sections:
           - text: Folds (see `folds`)
           - text: Yaml blocks (see `yamlblocks`)
           - text: Bibliography (see `bibliography`)
+          - text: Statusline components (see `statusline`)
     children:
       - title: Initialization
         tag: initialization
@@ -975,6 +976,46 @@ sections:
         content:
           - type: api_section
             ref: bibliography
+
+      - title: Statusline components
+        tag: statusline
+        content:
+          - type: prose
+            text: |
+              The following functions are designed for use in statusline, winbar, or
+              tabline components. They return information about the plugin's current
+              state and are safe to call frequently (e.g. on every statusline redraw).
+          - type: api_section
+            ref: statusline
+          - type: prose
+            text: |
+              **Example: lualine component**
+          - type: code
+            language: lua
+            code: |
+              require('lualine').setup({
+                  sections = {
+                      lualine_x = {
+                          {
+                              function()
+                                  local nb = require('mkdnflow').getNotebook()
+                                  return nb and nb.name or ''
+                              end,
+                              cond = function()
+                                  return require('mkdnflow').getNotebook() ~= nil
+                              end,
+                          },
+                      },
+                  },
+              })
+          - type: prose
+            text: |
+              **Example: custom statusline**
+          - type: code
+            language: lua
+            code: |
+              vim.o.statusline = '%f %m%=%{%v:lua.require("mkdnflow").getNotebook() '
+                  .. '~= nil and " " .. require("mkdnflow").getNotebook().name or ""%}'
 
   # =====================================================================
   # CONTRIBUTING

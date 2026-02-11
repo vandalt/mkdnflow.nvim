@@ -568,6 +568,15 @@ init.setup = function(user_config)
     end
 end
 
+-- Get current notebook info (for statusline components, etc.)
+init.getNotebook = function()
+    if not init.root_dir then
+        return nil
+    end
+    local name = init.root_dir:match('.*/(.*)') or init.root_dir
+    return { name = name, root = init.root_dir }
+end
+
 -- Force start
 init.forceStart = function(opts)
     local silent = (opts[1] == 'silent') or (init.config and init.config.silent)

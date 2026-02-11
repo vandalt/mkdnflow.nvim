@@ -403,6 +403,25 @@ yamlblocks:
         type: number
         description: The ending line number.
 
+statusline:
+  - signature: "require('mkdnflow').getNotebook()"
+    description: |
+      Returns information about the current notebook (root directory), or `nil`
+      if no root is active (e.g. when `path_resolution.primary` is not `'root'`,
+      or no root marker was found). Designed for use in statusline, winbar, or
+      tabline components.
+    returns:
+      - type: "table|nil"
+        description: |
+          A table with the following fields, or `nil`:
+        children:
+          - name: name
+            type: string
+            description: The name of the notebook (last component of the root directory path).
+          - name: root
+            type: string
+            description: The full path to the notebook root directory.
+
 bibliography:
   - signature: "require('mkdnflow').bib.handleCitation(citation)"
     description: Handles a citation, potentially linking to a bibliography entry or external source.

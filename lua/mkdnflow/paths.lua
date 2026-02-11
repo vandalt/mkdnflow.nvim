@@ -369,6 +369,7 @@ M.updateDirs = function()
                         this_os
                     )
                     last_resolved_dir = dir
+                    require('mkdnflow').root_dir = root_dir
                     if root_dir then
                         wd = root_dir
                         if root_dir ~= prev_root then

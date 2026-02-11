@@ -49,6 +49,7 @@ API ........................................................... |Mkdnflow-api|
   Folds ..................................................... |Mkdnflow-folds|
   Yaml blocks .......................................... |Mkdnflow-yamlblocks|
   Bibliography ....................................... |Mkdnflow-bibliography|
+  Statusline components ................................ |Mkdnflow-statusline|
 Contributing ......................................... |Mkdnflow-contributing|
 Version information ............................ |Mkdnflow-versioninformation|
 Related projects .......................................... |Mkdnflow-related|
@@ -1910,6 +1911,7 @@ Below are the primary functions available:
 10. Folds (see |Mkdnflow-folds|)
 11. Yaml blocks (see |Mkdnflow-yamlblocks|)
 12. Bibliography (see |Mkdnflow-bibliography|)
+13. Statusline components (see |Mkdnflow-statusline|)
 
 
 ------------------------------------------------------------------------------
@@ -2366,6 +2368,49 @@ source.
 
 - **Parameters:**
     - `citation`: (string) The citation key to handle. Required.
+
+
+------------------------------------------------------------------------------
+Statusline components                                    *Mkdnflow-statusline*
+
+The following functions are designed for use in statusline, winbar, or tabline
+components. They return information about the plugin's current state and are
+safe to call frequently (e.g. on every statusline redraw).
+
+`require('mkdnflow').getNotebook()`^
+
+
+Returns information about the current notebook (root directory), or `nil` if
+no root is active (e.g. when `path_resolution.primary` is not `'root'`, or no
+root marker was found). Designed for use in statusline, winbar, or tabline
+components.
+
+Example: lualine component
+
+>
+    require('lualine').setup({
+        sections = {
+            lualine_x = {
+                {
+                    function()
+                        local nb = require('mkdnflow').getNotebook()
+                        return nb and nb.name or ''
+                    end,
+                    cond = function()
+                        return require('mkdnflow').getNotebook() ~= nil
+                    end,
+                },
+            },
+        },
+    })
+<
+
+Example: custom statusline
+
+>
+    vim.o.statusline = '%f %m%=%{%v:lua.require("mkdnflow").getNotebook() '
+        .. '~= nil and " " .. require("mkdnflow").getNotebook().name or ""%}'
+<
 
 
 ==============================================================================

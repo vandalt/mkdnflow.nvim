@@ -43,6 +43,7 @@
     1. [Folds](#folds)
     1. [Yaml blocks](#yaml-blocks)
     1. [Bibliography](#bibliography)
+    1. [Statusline components](#statusline-components)
 7. [🤝 Contributing](#-contributing)
 8. [🔢 Version information](#-version-information)
 9. [🔗 Related projects](#-related-projects)
@@ -1126,6 +1127,7 @@ Below are the primary functions available:
 10. Folds ([Folds](#folds))
 11. Yaml blocks ([Yaml blocks](#yaml-blocks))
 12. Bibliography ([Bibliography](#bibliography))
+13. Statusline components ([Statusline components](#statusline-components))
 
 ### Initialization
 
@@ -1493,6 +1495,46 @@ Handles a citation, potentially linking to a bibliography entry or external sour
 
 - **Parameters:**
     - `citation`: (string) The citation key to handle. Required.
+
+### Statusline components
+
+The following functions are designed for use in statusline, winbar, or
+tabline components. They return information about the plugin's current
+state and are safe to call frequently (e.g. on every statusline redraw).
+
+`require('mkdnflow').getNotebook()`
+
+Returns information about the current notebook (root directory), or `nil`
+if no root is active (e.g. when `path_resolution.primary` is not `'root'`,
+or no root marker was found). Designed for use in statusline, winbar, or
+tabline components.
+
+**Example: lualine component**
+
+```lua
+require('lualine').setup({
+    sections = {
+        lualine_x = {
+            {
+                function()
+                    local nb = require('mkdnflow').getNotebook()
+                    return nb and nb.name or ''
+                end,
+                cond = function()
+                    return require('mkdnflow').getNotebook() ~= nil
+                end,
+            },
+        },
+    },
+})
+```
+
+**Example: custom statusline**
+
+```lua
+vim.o.statusline = '%f %m%=%{%v:lua.require("mkdnflow").getNotebook() '
+    .. '~= nil and " " .. require("mkdnflow").getNotebook().name or ""%}'
+```
 
 ## 🤝 Contributing
 
