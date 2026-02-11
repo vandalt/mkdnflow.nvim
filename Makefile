@@ -51,7 +51,7 @@ demos:
 		echo "Recording $$tape (light)..."; \
 		MARGIN_FILL="#ffffff" SUFFIX="_light" envsubst '$$MARGIN_FILL $$SUFFIX' < "$$tape" | vhs || exit 1; \
 		echo "Recording $$tape (dark)..."; \
-		MARGIN_FILL="#0d1117" SUFFIX="_dark" envsubst '$$MARGIN_FILL $$SUFFIX' < "$$tape" | vhs || exit 1; \
+		MARGIN_FILL="#212830" SUFFIX="_dark" envsubst '$$MARGIN_FILL $$SUFFIX' < "$$tape" | vhs || exit 1; \
 	done
 	@echo "All demos recorded."
 
@@ -67,7 +67,7 @@ demo:
 	fi
 	@if [ -z "$(VARIANT)" ] || [ "$(VARIANT)" = "dark" ]; then \
 		echo "Recording $(TAPE) (dark)..."; \
-		MARGIN_FILL="#0d1117" SUFFIX="_dark" envsubst '$$MARGIN_FILL $$SUFFIX' < "scripts/demos/$(TAPE).tape" | vhs || exit 1; \
+		MARGIN_FILL="#212830" SUFFIX="_dark" envsubst '$$MARGIN_FILL $$SUFFIX' < "scripts/demos/$(TAPE).tape" | vhs || exit 1; \
 	fi
 
 # Copy generated demo GIFs to the media repo
