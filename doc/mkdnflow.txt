@@ -1597,7 +1597,9 @@ Configuration options.
     cursor is on a section heading); if in insert mode, it will create a new
     list item (if cursor is in a list), go to the next row in a table (if
     cursor is in a table), or behave normally (if cursor is not in a list or a
-    table).
+    table). In visual mode, if the selection overlaps a citation (`@citekey`
+    or `[@citekey]`), a markdown link is created from the citekey instead of
+    following the citation.
 
     Note: There is no insert-mode mapping for this command by default since
     some may find its effects intrusive. To enable the insert-mode

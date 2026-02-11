@@ -102,6 +102,9 @@ sections:
                     done: true
                   - text: "Citations (`@citekey` or Pandoc-style `[@citekey]`)"
                     done: true
+                    children:
+                      - text: "Visual selection of a citation + `<CR>` creates a link from the citekey"
+                        done: true
           - type: responsive_image
             light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_light.gif
             dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_dark.gif

@@ -356,6 +356,22 @@ T['getLinkUnderCursor']['handles possessive citation'] = function()
     eq(result, '@smith2020')
 end
 
+T['getLinkUnderCursor']['does not detect email as citation'] = function()
+    set_lines({ 'Contact me at jakewvincent@gmail.com please.' })
+    set_cursor(1, 30) -- cursor on 'g' of 'gmail'
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link')
+    eq(result, vim.NIL)
+end
+
+T['getLinkUnderCursor']['does not detect email as citation on @'] = function()
+    set_lines({ 'Contact me at jakewvincent@gmail.com please.' })
+    set_cursor(1, 26) -- cursor on '@'
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link')
+    eq(result, vim.NIL)
+end
+
 -- =============================================================================
 -- Pandoc-style bracketed citations (Issue #285)
 -- =============================================================================
@@ -479,23 +495,19 @@ T['pandoc_citation_bib'] = new_set({
             child.restart({ '-u', 'scripts/minimal_init.lua' })
             -- Get the absolute path to the test bib file
             local test_bib_path = vim.fn.fnamemodify('tests/fixtures/test.bib', ':p')
-            child.lua(
-                [[
+            child.lua([[
                 vim.api.nvim_buf_set_name(0, 'test.md')
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({
                     modules = { bib = true },
                     bib = {
-                        default_path = ']]
-                    .. test_bib_path
-                    .. [[',
+                        default_path = ']] .. test_bib_path .. [[',
                         find_in_root = false
                     },
                     links = { transform_on_create = false },
                     silent = true
                 })
-            ]]
-            )
+            ]])
         end,
     },
 })
@@ -2060,6 +2072,277 @@ T['LinkPart']['get_full_text() returns text with anchor'] = function()
         _G.part = core.LinkPart:new({ text = 'page.md', anchor = '#section' })
     ]])
     eq(child.lua_get('_G.part:get_full_text()'), 'page.md#section')
+end
+
+-- =============================================================================
+-- cleanCitationText() - Strip citation syntax
+-- =============================================================================
+T['cleanCitationText'] = new_set()
+
+T['cleanCitationText']['strips brackets from full pandoc syntax'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').cleanCitationText('[@smith2020]')]])
+    eq(result, '@smith2020')
+end
+
+T['cleanCitationText']['preserves @ without brackets'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').cleanCitationText('@smith2020')]])
+    eq(result, '@smith2020')
+end
+
+T['cleanCitationText']['strips trailing ] preserves @'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').cleanCitationText('@smith2020]')]])
+    eq(result, '@smith2020')
+end
+
+T['cleanCitationText']['strips leading [ preserves @'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').cleanCitationText('[@smith2020')]])
+    eq(result, '@smith2020')
+end
+
+T['cleanCitationText']['leaves plain text unchanged'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').cleanCitationText('smith2020')]])
+    eq(result, 'smith2020')
+end
+
+T['cleanCitationText']['handles special chars in citekey'] = function()
+    local result =
+        child.lua_get([[require('mkdnflow.links').cleanCitationText('[@smith_2020-a.b]')]])
+    eq(result, '@smith_2020-a.b')
+end
+
+T['cleanCitationText']['returns nil for nil input'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').cleanCitationText(nil)]])
+    eq(result, vim.NIL)
+end
+
+T['cleanCitationText']['returns empty string for empty input'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').cleanCitationText('')]])
+    eq(result, '')
+end
+
+T['cleanCitationText']['does not strip internal @'] = function()
+    local result = child.lua_get([[require('mkdnflow.links').cleanCitationText('user@host')]])
+    eq(result, 'user@host')
+end
+
+-- =============================================================================
+-- followLink() with range + citation (integration tests)
+-- =============================================================================
+T['citation_link_creation'] = new_set()
+
+T['citation_link_creation']['plain citation with range creates link'] = function()
+    set_lines({ 'See @smith2020 for details.' })
+    set_cursor(1, 7) -- cursor on the citation so getLinkUnderCursor detects it
+    child.lua([[
+        vim.api.nvim_buf_set_mark(0, '<', 1, 4, {})
+        vim.api.nvim_buf_set_mark(0, '>', 1, 13, {})
+        require('mkdnflow.links').followLink({ range = true })
+    ]])
+    local result = get_line(1)
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_link_creation']['pandoc citation with range creates link'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 7) -- cursor on the citation so getLinkUnderCursor detects it
+    child.lua([[
+        vim.api.nvim_buf_set_mark(0, '<', 1, 4, {})
+        vim.api.nvim_buf_set_mark(0, '>', 1, 15, {})
+        require('mkdnflow.links').followLink({ range = true })
+    ]])
+    local result = get_line(1)
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_link_creation']['partial marks on plain citation expand to full bounds'] = function()
+    -- Marks cover only 'smith2020' (without @), but citation bounds should expand
+    set_lines({ 'See @smith2020 for details.' })
+    set_cursor(1, 7) -- cursor on the citation
+    child.lua([[
+        vim.api.nvim_buf_set_mark(0, '<', 1, 5, {})  -- 's' of smith2020
+        vim.api.nvim_buf_set_mark(0, '>', 1, 13, {})  -- '0' of smith2020
+        require('mkdnflow.links').followLink({ range = true })
+    ]])
+    local result = get_line(1)
+    -- Full @smith2020 is replaced, not just the partial selection
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_link_creation']['partial marks on pandoc citation expand to full bounds'] = function()
+    -- Marks cover only '@smith2020' (without brackets), but citation bounds should expand
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 7) -- cursor on the citation
+    child.lua([[
+        vim.api.nvim_buf_set_mark(0, '<', 1, 5, {})  -- '@' of @smith2020
+        vim.api.nvim_buf_set_mark(0, '>', 1, 14, {})  -- '0' of smith2020
+        require('mkdnflow.links').followLink({ range = true })
+    ]])
+    local result = get_line(1)
+    -- Full [@smith2020] is replaced, not just the partial selection
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_link_creation']['normal mode on citation does not create link'] = function()
+    set_lines({ 'See @smith2020 for details.' })
+    set_cursor(1, 7)
+    -- followLink without range should NOT create a link (it would try to follow the citation)
+    -- We just verify the line is unchanged (bib lookup will fail silently without a bib file)
+    child.lua([[
+        pcall(function()
+            require('mkdnflow.links').followLink()
+        end)
+    ]])
+    local result = get_line(1)
+    eq(result, 'See @smith2020 for details.')
+end
+
+-- =============================================================================
+-- E2E tests: Visual selection of citation + <CR> creates link
+-- =============================================================================
+T['citation_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    links = {
+                        transform_on_create = false,
+                    },
+                })
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['citation_e2e']['visual select plain citation + <CR> creates link'] = function()
+    set_lines({ 'See @smith2020 for details.' })
+    set_cursor(1, 4)
+    child.type_keys('v')
+    child.type_keys('e')
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_e2e']['visual select full pandoc citation + <CR> creates link'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 4)
+    child.type_keys('v')
+    -- Select to the closing ]
+    child.type_keys('f]')
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_e2e']['visual select bare citekey + <CR> creates link'] = function()
+    set_lines({ 'See smith2020 for details.' })
+    set_cursor(1, 4)
+    child.type_keys('v')
+    child.type_keys('e')
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    eq(result, 'See [smith2020](smith2020.md) for details.')
+end
+
+T['citation_e2e']['partial select @smith2020] expands to full citation'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 5)
+    child.type_keys('v')
+    child.type_keys('f]')
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    -- With bounds expansion, the full [@smith2020] is replaced even though [ was not selected
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_e2e']['partial select [@smith2020 expands to full citation'] = function()
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 4)
+    child.type_keys('v')
+    child.type_keys('t', ']') -- select up to but not including ']'
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    -- With bounds expansion, the full [@smith2020] is replaced even though ] was not selected
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_e2e']['partial select bare citekey from plain citation expands'] = function()
+    -- Select just 'smith2020' (without @) from '@smith2020'
+    set_lines({ 'See @smith2020 for details.' })
+    set_cursor(1, 5) -- on 's' of 'smith2020'
+    child.type_keys('v')
+    child.type_keys('e')
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    -- Bounds expansion replaces the full @smith2020
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_e2e']['partial select bare citekey from pandoc citation expands'] = function()
+    -- Select just 'smith2020' (without @ or brackets) from '[@smith2020]'
+    set_lines({ 'See [@smith2020] for details.' })
+    set_cursor(1, 6) -- on 's' of 'smith2020'
+    child.type_keys('v')
+    child.type_keys('e')
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    -- Bounds expansion replaces the full [@smith2020]
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_e2e']['inverted selection on citation + <CR> creates link'] = function()
+    set_lines({ 'See @smith2020 for details.' })
+    -- Start at the end of the citation and select backward
+    set_cursor(1, 13)
+    child.type_keys('v')
+    child.type_keys('F@')
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    eq(result, 'See [@smith2020](smith2020.md) for details.')
+end
+
+T['citation_e2e']['normal mode <CR> on citation does not create link'] = function()
+    set_lines({ 'See @smith2020 for details.' })
+    set_cursor(1, 7)
+    -- In normal mode, <CR> should try to follow the citation (which will fail without bib),
+    -- but should NOT create a link
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    eq(result, 'See @smith2020 for details.')
+end
+
+T['citation_e2e']['visual select citation with wiki style creates wiki link'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                style = 'wiki',
+                transform_on_create = false,
+            },
+        })
+    ]])
+    set_lines({ 'See @smith2020 for details.' })
+    set_cursor(1, 4)
+    child.type_keys('v')
+    child.type_keys('e')
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    eq(result, 'See [[smith2020.md|@smith2020]] for details.')
+end
+
+T['citation_e2e']['visual select on email creates plain link not citation link'] = function()
+    set_lines({ 'Contact me at jakewvincent@gmail.com please.' })
+    set_cursor(1, 14) -- on 'j' of 'jakewvincent'
+    child.type_keys('v')
+    child.type_keys('E') -- select the whole email (word + punctuation)
+    child.type_keys('<CR>')
+    local result = get_line(1)
+    -- Should create a regular link from the selection, not treat @gmail.com as a citation
+    eq(result, 'Contact me at [jakewvincent@gmail.com](jakewvincent@gmail.com.md) please.')
 end
 
 return T

@@ -586,6 +586,20 @@ M.formatAnchorLegacy = function(heading_text)
 end
 
 --[[
+cleanCitationText() strips bracket syntax ([, ]) from citation text selected
+in visual mode while preserving the @ prefix, so the link display text still
+reads as a citation (e.g. [@smith2020](smith2020.md)).
+--]]
+M.cleanCitationText = function(text)
+    if not text then
+        return text
+    end
+    text = text:gsub('^%[', '')
+    text = text:gsub('%]$', '')
+    return text
+end
+
+--[[
 formatLink() creates a formatted link from whatever text is passed to it
 Returns a string:
      1. '[string of text](<prefix>_string-of-text.md)' in most cases
@@ -652,6 +666,8 @@ M.createLink = function(args)
 
     args = args or {}
     local from_clipboard = args.from_clipboard or false
+    local from_citation = args.from_citation or false
+    local citation_bounds = args.citation_bounds
     local range = args.range or false
     -- Get mode from vim
     local mode = vim.api.nvim_get_mode()['mode']
@@ -737,6 +753,19 @@ M.createLink = function(args)
             -- Update start/finish for later use
             start[1] = start_row
             finish[1] = end_row
+            -- If citation bounds are provided, expand the replacement area to
+            -- cover the full citation, even if the visual selection was partial.
+            -- Citation bounds use 1-indexed row/col; convert to 0-indexed.
+            if citation_bounds then
+                start_row = citation_bounds.start_row - 1
+                start_col = citation_bounds.start_col - 1
+                end_row = citation_bounds.end_row - 1
+                end_col = citation_bounds.end_col
+                start[1] = start_row
+                start[2] = start_col
+                finish[1] = end_row
+                finish[2] = end_col - 1
+            end
         else
             start = (inverted and { row - 1, col }) or { vis[2] - 1, vis[3] - 1 + vis[4] }
             finish = (inverted and { vis[2] - 1, vis[3] - 1 + vis[4] }) or { row - 1, col }
@@ -768,8 +797,22 @@ M.createLink = function(args)
             end
             -- Save the text selection & format as a link
             local text = table.concat(lines)
-            local replacement = from_clipboard and M.formatLink(text, vim.fn.getreg('+'))
-                or M.formatLink(text)
+            local replacement
+            if from_citation then
+                text = M.cleanCitationText(text)
+                local cite_path = text:gsub('^@', '')
+                cite_path = M.transformPath(cite_path)
+                if not cite_path then
+                    return
+                end
+                if not links.implicit_extension then
+                    cite_path = cite_path .. '.md'
+                end
+                replacement = M.formatLink(text, cite_path)
+            else
+                replacement = from_clipboard and M.formatLink(text, vim.fn.getreg('+'))
+                    or M.formatLink(text)
+            end
             -- If no replacement, end here
             if not replacement then
                 return
@@ -832,11 +875,27 @@ M.followLink = function(args)
     local path = args.path
     local anchor = args.anchor
     local range = args.range or false
-    local link_type
+    local link_type, link
     if path or anchor then
         path, anchor = path, anchor
     else
-        path, anchor, link_type = M.getLinkPart(M.getLinkUnderCursor(), 'source')
+        link = M.getLinkUnderCursor()
+        path, anchor, link_type = M.getLinkPart(link, 'source')
+    end
+    local is_citation = link_type == 'citation' or link_type == 'pandoc_citation'
+    if is_citation and range then
+        -- Pass citation bounds so createLink can expand partial selections
+        -- to the full citation. Link bounds are 1-indexed row, 1-indexed col.
+        local citation_bounds = link
+                and {
+                    start_row = link[4],
+                    start_col = link[5],
+                    end_row = link[6],
+                    end_col = link[7],
+                }
+            or nil
+        M.createLink({ range = range, from_citation = true, citation_bounds = citation_bounds })
+        return
     end
     if path then
         require('mkdnflow').paths.handlePath(path, anchor, link_type)
