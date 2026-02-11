@@ -72,7 +72,7 @@ function TableCell:read(raw_content, col_index)
         raw_content = raw_content,
     })
     -- Strip leading/trailing whitespace for content
-    cell.content = raw_content:gsub('^%s*', ''):gsub('%s*$', '')
+    cell.content = vim.trim(raw_content)
     cell.display_width = width(cell.content)
     cell.is_separator = cell:_detect_separator()
     if cell.is_separator then

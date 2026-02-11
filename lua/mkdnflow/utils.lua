@@ -59,12 +59,6 @@ M.mergeTables = function(defaults, user_config)
     return defaults
 end
 
--- Private function to detect the extension of a filename passed as a string
-M.getFileType = function(string)
-    local ext = string:match('^.*%.(.+)$')
-    return (ext ~= nil and string.lower(ext) or '')
-end
-
 -- Public function to identify root directory on a unix or Windows machine
 M.getRootDir = function(dir, root_tell, os)
     local results = vim.fs.find(root_tell, { upward = true, path = dir })
@@ -144,17 +138,6 @@ M.mFind = function(tbl, str, start_row, init_row, init_col, plain)
     return match_start_row, match_start_col, match_end_row, match_end_col, capture, match_lines
 end
 
-M.strSplit = function(str, sep)
-    if sep == nil then
-        sep = '%s'
-    end
-    local splits = {}
-    for match in string.gmatch(str, '([^' .. sep .. ']+)') do
-        table.insert(splits, match)
-    end
-    return splits
-end
-
 M.isMultibyteChar = function(args)
     -- Extract arguments from table
     local buffer = args.buffer or 0
@@ -188,16 +171,6 @@ M.isMultibyteChar = function(args)
             return false
         end
     end
-end
-
-M.inTable = function(value, tbl)
-    local found = false
-    for _, v in ipairs(tbl) do
-        if v == value then
-            found = true
-        end
-    end
-    return found
 end
 
 M.spairs = function(tbl)

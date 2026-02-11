@@ -198,7 +198,7 @@ local vim_open = function(path, anchor)
         -- Inject the template
         if new_file_config.enabled and template then
             template = M.formatTemplate('after', template)
-            local lines = utils.strSplit(template, '\n')
+            local lines = vim.split(template, '\n', { plain = true })
             vim.api.nvim_buf_set_lines(0, 0, #template, false, lines)
         end
         if anchor and anchor ~= '' then

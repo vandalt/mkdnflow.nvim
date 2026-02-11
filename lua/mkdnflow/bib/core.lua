@@ -133,7 +133,7 @@ function BibEntry:get_authors()
     -- Split on " and " (BibTeX author separator)
     -- Add sentinel to handle last author
     for author in (author_field .. ' and '):gmatch('(.-)%s+and%s+') do
-        author = author:gsub('^%s*', ''):gsub('%s*$', '')
+        author = vim.trim(author)
         if author ~= '' then
             table.insert(authors, author)
         end
@@ -141,7 +141,7 @@ function BibEntry:get_authors()
 
     -- If no " and " found, the whole field is a single author
     if #authors == 0 and author_field ~= '' then
-        local trimmed = author_field:gsub('^%s*', ''):gsub('%s*$', '')
+        local trimmed = vim.trim(author_field)
         if trimmed ~= '' then
             return { trimmed }
         end

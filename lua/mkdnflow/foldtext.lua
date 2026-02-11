@@ -41,8 +41,7 @@ M.default_title_transformer = function(text)
     local level = heading_level(text)
     local level_fill = 6 - level
     text = text:gsub('%b{}', '') -- Attributes
-    text = text:gsub('^%s*', '') -- Leading whitespace
-    text = text:gsub('%s*$', '') -- Trailing whitespace
+    text = vim.trim(text)
     text = text:gsub('^%s*#+%s*', '') -- Hashes and any surrounding whitespace
 
     -- Add text representing the heading level

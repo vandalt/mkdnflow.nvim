@@ -84,7 +84,7 @@ local function slice_cells(content_line, col_boundaries)
         end
         for i = 1, #pipe_positions - 1 do
             local cell_text = trimmed:sub(pipe_positions[i] + 1, pipe_positions[i + 1] - 1)
-            cell_text = cell_text:gsub('^%s*', ''):gsub('%s*$', '')
+            cell_text = vim.trim(cell_text)
             table.insert(cells, cell_text)
         end
         while #cells < #col_boundaries do
@@ -101,7 +101,7 @@ local function slice_cells(content_line, col_boundaries)
             cell_text = trimmed:sub(boundary.start)
         end
         -- Remove leading/trailing pipe and whitespace
-        cell_text = cell_text:gsub('^%s*', ''):gsub('%s*$', '')
+        cell_text = vim.trim(cell_text)
         table.insert(cells, cell_text)
     end
     return cells
@@ -178,7 +178,7 @@ end
 --- @param segment string e.g. "===", ":===", "===:", ":===:"
 --- @return string 'left'|'right'|'center'|'default'
 local function parse_segment_alignment(segment)
-    local trimmed = segment:gsub('^%s*', ''):gsub('%s*$', '')
+    local trimmed = vim.trim(segment)
     if trimmed:match('^:=+:$') then
         return 'center'
     elseif trimmed:match('^:=+$') then
