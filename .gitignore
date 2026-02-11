@@ -9,5 +9,9 @@ DEVELOPMENT.md
 # Test dependencies
 deps/
 
+# Demo recordings and VHS artifacts
+scripts/demos/gif/
+scripts/demos/.lazy/
+
 # Python
 __pycache__/
