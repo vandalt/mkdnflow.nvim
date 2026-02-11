@@ -7,7 +7,7 @@ help:
 	@echo "  make test       - Run all tests"
 	@echo "  make test_file FILE=<path>  - Run a specific test file"
 	@echo "  make test-compat - Run tests on all supported Neovim versions (requires bob)"
-	@echo "  make demos      - Generate all demo GIFs (requires vhs)"
+	@echo "  make demos [VARIANT=light|dark]  - Generate all demo GIFs (requires vhs)"
 	@echo "  make demo TAPE=<name> [VARIANT=light|dark]  - Generate one demo (e.g. TAPE=todo)"
 	@echo "  make demos-publish - Copy generated GIFs to media repo"
 
@@ -43,15 +43,20 @@ test-compat: deps/mini.nvim
 	done
 	@echo "All versions passed!"
 
-# Generate demo GIFs in light and dark variants (requires vhs: https://github.com/charmbracelet/vhs)
+# Generate demo GIFs (requires vhs: https://github.com/charmbracelet/vhs)
+# Both variants by default, or specify VARIANT=light|dark
 demos:
 	@command -v vhs >/dev/null 2>&1 || { echo "Error: vhs is not installed. See https://github.com/charmbracelet/vhs"; exit 1; }
 	@command -v envsubst >/dev/null 2>&1 || { echo "Error: envsubst is not installed (part of gettext)."; exit 1; }
 	@for tape in scripts/demos/*.tape; do \
-		echo "Recording $$tape (light)..."; \
-		MARGIN_FILL="#ffffff" SUFFIX="_light" envsubst '$$MARGIN_FILL $$SUFFIX' < "$$tape" | vhs || exit 1; \
-		echo "Recording $$tape (dark)..."; \
-		MARGIN_FILL="#212830" SUFFIX="_dark" envsubst '$$MARGIN_FILL $$SUFFIX' < "$$tape" | vhs || exit 1; \
+		if [ -z "$(VARIANT)" ] || [ "$(VARIANT)" = "light" ]; then \
+			echo "Recording $$tape (light)..."; \
+			MARGIN_FILL="#ffffff" SUFFIX="_light" envsubst '$$MARGIN_FILL $$SUFFIX' < "$$tape" | vhs || exit 1; \
+		fi; \
+		if [ -z "$(VARIANT)" ] || [ "$(VARIANT)" = "dark" ]; then \
+			echo "Recording $$tape (dark)..."; \
+			MARGIN_FILL="#212830" SUFFIX="_dark" envsubst '$$MARGIN_FILL $$SUFFIX' < "$$tape" | vhs || exit 1; \
+		fi; \
 	done
 	@echo "All demos recorded."
 
