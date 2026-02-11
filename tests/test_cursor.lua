@@ -497,7 +497,9 @@ T['changeHeadingLevel_range'] = new_set()
 
 T['changeHeadingLevel_range']['decreases multiple headings in range'] = function()
     set_lines({ '# First', 'text', '## Second', '### Third' })
-    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 1, line2 = 4 })]])
+    child.lua(
+        [[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 1, line2 = 4 })]]
+    )
     eq(get_line(1), '## First')
     eq(get_line(2), 'text')
     eq(get_line(3), '### Second')
@@ -506,7 +508,9 @@ end
 
 T['changeHeadingLevel_range']['increases multiple headings in range'] = function()
     set_lines({ '## First', 'text', '### Second', '#### Third' })
-    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('increase', { line1 = 1, line2 = 4 })]])
+    child.lua(
+        [[require('mkdnflow.cursor').changeHeadingLevel('increase', { line1 = 1, line2 = 4 })]]
+    )
     eq(get_line(1), '# First')
     eq(get_line(2), 'text')
     eq(get_line(3), '## Second')
@@ -515,7 +519,9 @@ end
 
 T['changeHeadingLevel_range']['skips non-heading lines'] = function()
     set_lines({ '# Heading', 'plain text', '- list item' })
-    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 1, line2 = 3 })]])
+    child.lua(
+        [[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 1, line2 = 3 })]]
+    )
     eq(get_line(1), '## Heading')
     eq(get_line(2), 'plain text')
     eq(get_line(3), '- list item')
@@ -523,14 +529,18 @@ end
 
 T['changeHeadingLevel_range']['does not increase H1 beyond limit'] = function()
     set_lines({ '# Already H1', '## Can increase' })
-    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('increase', { line1 = 1, line2 = 2 })]])
+    child.lua(
+        [[require('mkdnflow.cursor').changeHeadingLevel('increase', { line1 = 1, line2 = 2 })]]
+    )
     eq(get_line(1), '# Already H1')
     eq(get_line(2), '# Can increase')
 end
 
 T['changeHeadingLevel_range']['works with single line range'] = function()
     set_lines({ '# First', '## Second', '### Third' })
-    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 2, line2 = 2 })]])
+    child.lua(
+        [[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 2, line2 = 2 })]]
+    )
     eq(get_line(1), '# First')
     eq(get_line(2), '### Second')
     eq(get_line(3), '### Third')
@@ -539,7 +549,9 @@ end
 T['changeHeadingLevel_range']['handles empty range gracefully'] = function()
     set_lines({ '# First', '## Second' })
     -- No-op if line1 > line2 (shouldn't happen in practice, but handle gracefully)
-    child.lua([[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 2, line2 = 1 })]])
+    child.lua(
+        [[require('mkdnflow.cursor').changeHeadingLevel('decrease', { line1 = 2, line2 = 1 })]]
+    )
     eq(get_line(1), '# First')
     eq(get_line(2), '## Second')
 end

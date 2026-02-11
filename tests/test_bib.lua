@@ -13,22 +13,18 @@ local T = new_set({
     hooks = {
         pre_case = function()
             child.restart({ '-u', 'scripts/minimal_init.lua' })
-            child.lua(
-                [[
+            child.lua([[
                 vim.api.nvim_buf_set_name(0, 'test.md')
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({
                     modules = { bib = true },
                     bib = {
-                        default_path = ']]
-                    .. test_bib_path
-                    .. [[',
+                        default_path = ']] .. test_bib_path .. [[',
                         find_in_root = false
                     },
                     silent = true
                 })
-            ]]
-            )
+            ]])
         end,
         post_once = child.stop,
     },
@@ -50,7 +46,9 @@ T['BibEntry:new']['creates empty instance with defaults'] = function()
 end
 
 T['BibEntry:new']['creates instance with provided options'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ key = 'test2020', valid = true, entry_type = 'article' })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ key = 'test2020', valid = true, entry_type = 'article' })]]
+    )
     local key = child.lua_get('_G.e.key')
     local valid = child.lua_get('_G.e.valid')
     local entry_type = child.lua_get('_G.e.entry_type')
@@ -126,14 +124,18 @@ T['BibEntry_accessors']['get_citation_key returns key'] = function()
 end
 
 T['BibEntry_accessors']['get_authors parses single author'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { author = 'John Smith' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { author = 'John Smith' }, valid = true })]]
+    )
     local authors = child.lua_get('_G.e:get_authors()')
     eq(#authors, 1)
     eq(authors[1], 'John Smith')
 end
 
 T['BibEntry_accessors']['get_authors parses multiple authors'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { author = 'John Smith and Jane Doe' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { author = 'John Smith and Jane Doe' }, valid = true })]]
+    )
     local authors = child.lua_get('_G.e:get_authors()')
     eq(#authors, 2)
     eq(authors[1], 'John Smith')
@@ -141,19 +143,25 @@ T['BibEntry_accessors']['get_authors parses multiple authors'] = function()
 end
 
 T['BibEntry_accessors']['get_title returns title'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { title = 'My Great Paper' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { title = 'My Great Paper' }, valid = true })]]
+    )
     local title = child.lua_get('_G.e:get_title()')
     eq(title, 'My Great Paper')
 end
 
 T['BibEntry_accessors']['get_year returns year'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { year = '2023' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { year = '2023' }, valid = true })]]
+    )
     local year = child.lua_get('_G.e:get_year()')
     eq(year, '2023')
 end
 
 T['BibEntry_accessors']['get_field returns any field by name'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { journal = 'Test Journal' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { journal = 'Test Journal' }, valid = true })]]
+    )
     local journal = child.lua_get([[_G.e:get_field('journal')]])
     eq(journal, 'Test Journal')
 end
@@ -165,7 +173,9 @@ T['BibEntry_accessors']['get_field returns nil for missing field'] = function()
 end
 
 T['BibEntry_accessors']['has_field returns true for existing field'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { title = 'Test' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { title = 'Test' }, valid = true })]]
+    )
     local result = child.lua_get([[_G.e:has_field('title')]])
     eq(result, true)
 end
@@ -188,43 +198,57 @@ end
 T['BibEntry:get_link'] = new_set()
 
 T['BibEntry:get_link']['returns file path when file field exists'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { file = '/path/to/paper.pdf' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { file = '/path/to/paper.pdf' }, valid = true })]]
+    )
     local link = child.lua_get('_G.e:get_link()')
     eq(link, 'file:/path/to/paper.pdf')
 end
 
 T['BibEntry:get_link']['returns url when url field exists'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { url = 'https://example.com' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { url = 'https://example.com' }, valid = true })]]
+    )
     local link = child.lua_get('_G.e:get_link()')
     eq(link, 'https://example.com')
 end
 
 T['BibEntry:get_link']['returns DOI url when doi field exists'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { doi = '10.1234/test.2020' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { doi = '10.1234/test.2020' }, valid = true })]]
+    )
     local link = child.lua_get('_G.e:get_link()')
     eq(link, 'https://doi.org/10.1234/test.2020')
 end
 
 T['BibEntry:get_link']['returns howpublished when that field exists'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { howpublished = 'https://website.org' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { howpublished = 'https://website.org' }, valid = true })]]
+    )
     local link = child.lua_get('_G.e:get_link()')
     eq(link, 'https://website.org')
 end
 
 T['BibEntry:get_link']['returns nil when no link fields exist'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { title = 'No Links' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { title = 'No Links' }, valid = true })]]
+    )
     local link = child.lua_get('_G.e:get_link()')
     eq(link, vim.NIL)
 end
 
 T['BibEntry:get_link']['follows priority file > url'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { file = '/path/to/paper.pdf', url = 'https://example.com' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { file = '/path/to/paper.pdf', url = 'https://example.com' }, valid = true })]]
+    )
     local link = child.lua_get('_G.e:get_link()')
     eq(link, 'file:/path/to/paper.pdf')
 end
 
 T['BibEntry:get_link']['follows priority url > doi'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { url = 'https://example.com', doi = '10.1234/test' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ fields = { url = 'https://example.com', doi = '10.1234/test' }, valid = true })]]
+    )
     local link = child.lua_get('_G.e:get_link()')
     eq(link, 'https://example.com')
 end
@@ -235,19 +259,25 @@ end
 T['BibEntry:format_citation'] = new_set()
 
 T['BibEntry:format_citation']['formats single author with year'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ key = 'test2020', fields = { author = 'John Smith', year = '2020' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ key = 'test2020', fields = { author = 'John Smith', year = '2020' }, valid = true })]]
+    )
     local citation = child.lua_get('_G.e:format_citation()')
     eq(citation, 'John Smith (2020)')
 end
 
 T['BibEntry:format_citation']['formats multiple authors with et al'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ key = 'test2020', fields = { author = 'Smith, John and Doe, Jane and Williams, Bob', year = '2020' }, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ key = 'test2020', fields = { author = 'Smith, John and Doe, Jane and Williams, Bob', year = '2020' }, valid = true })]]
+    )
     local citation = child.lua_get('_G.e:format_citation()')
     eq(citation:match('et al') ~= nil, true)
 end
 
 T['BibEntry:format_citation']['handles missing fields gracefully'] = function()
-    child.lua([[_G.e = require('mkdnflow.bib').BibEntry:new({ key = 'test2020', fields = {}, valid = true })]])
+    child.lua(
+        [[_G.e = require('mkdnflow.bib').BibEntry:new({ key = 'test2020', fields = {}, valid = true })]]
+    )
     local citation = child.lua_get('_G.e:format_citation()')
     eq(citation, '@test2020')
 end

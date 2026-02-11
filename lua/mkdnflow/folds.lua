@@ -94,7 +94,10 @@ M.foldSection = function()
         if not can_create_manual_folds() then
             if not silent then
                 vim.api.nvim_echo({
-                    { "⬇️  Cannot create fold: 'foldmethod' must be 'manual' or 'marker'", 'WarningMsg' },
+                    {
+                        "⬇️  Cannot create fold: 'foldmethod' must be 'manual' or 'marker'",
+                        'WarningMsg',
+                    },
                 }, true, {})
             end
             return

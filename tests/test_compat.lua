@@ -77,9 +77,8 @@ T['compat']['migrates colors to highlight'] = function()
         })
     ]])
     -- Verify the config was migrated - check that highlight is set
-    local highlight_first = child.lua_get(
-        "require('mkdnflow').config.to_do.statuses[1].highlight[1]"
-    )
+    local highlight_first =
+        child.lua_get("require('mkdnflow').config.to_do.statuses[1].highlight[1]")
     eq(highlight_first, 'Comment')
 end
 
@@ -341,7 +340,7 @@ T['filetypes']['disabled filetype does not trigger repeated setup'] = function()
         vim.cmd('doautocmd FileType')
     ]])
     -- Should only have been called once (initial setup), not on FileType events
-    local count = child.lua_get("_G.setup_count")
+    local count = child.lua_get('_G.setup_count')
     eq(count, 1)
 end
 

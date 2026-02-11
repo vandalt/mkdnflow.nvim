@@ -67,62 +67,11 @@ end
 
 -- Public function to identify root directory on a unix or Windows machine
 M.getRootDir = function(dir, root_tell, os)
-    local drive = dir:match('^%u')
-    -- List files in directory
-    local search_is_on, root = true, nil
-    -- Until the root directory is found, keep looking higher and higher
-    -- each pass
-    while search_is_on do
-        -- Get the output of running ls -a in dir
-        local pfile
-        if os:match('Windows') then
-            pfile = io.popen('dir /b "' .. dir .. '"')
-        else
-            pfile = io.popen('ls -a "' .. dir .. '"')
-        end
-        -- Check the list of files for the tell
-        for filename in pfile:lines() do
-            local match = filename == root_tell
-            if match then
-                root = dir
-                search_is_on = false
-            end
-        end
-        pfile:close()
-        if search_is_on then
-            if os:match('Windows') then
-                if dir == drive .. ':\\' then
-                    -- If we've reached the highest directory possible, call off
-                    -- the search and return nothing
-                    search_is_on = false
-                    return nil
-                else
-                    -- If there's still more to remove, remove it
-                    dir = dir:match('(.*)\\')
-                    -- If dir is an empty string, look for the tell in *root* root
-                    if dir == drive .. ':' then
-                        dir = drive .. ':\\'
-                    end
-                end
-            else
-                if dir == '/' or dir == '~/' then
-                    -- If we've reached the highest directory possible, call off
-                    -- the search and return nothing
-                    search_is_on = false
-                    return nil
-                else
-                    -- If there's still more to remove, remove it
-                    dir = dir:match('(.*)/')
-                    -- If dir is an empty string, look for the tell in *root* root
-                    if dir == '' then
-                        dir = '/'
-                    end
-                end
-            end
-        else
-            return root
-        end
+    local results = vim.fs.find(root_tell, { upward = true, path = dir })
+    if results and results[1] then
+        return vim.fs.dirname(results[1])
     end
+    return nil
 end
 
 M.moduleAvailable = function(name)
@@ -140,23 +89,8 @@ M.moduleAvailable = function(name)
     end
 end
 
-M.luaEscape = function(string)
-    -- Which characters to match
-    local chars = '[-.\'"+?%%]'
-    -- Set up table of replacements
-    local replacements = {
-        ['-'] = '%-',
-        ['.'] = '%.',
-        ["'"] = "'",
-        ['"'] = '"',
-        ['+'] = '%+',
-        ['?'] = '%?',
-        ['%'] = '%%',
-    }
-    -- Do the replacement
-    local escaped = string.gsub(string, chars, replacements)
-    -- Return the new string
-    return escaped
+M.luaEscape = function(str)
+    return vim.pesc(str)
 end
 
 M.mFind = function(tbl, str, start_row, init_row, init_col, plain)

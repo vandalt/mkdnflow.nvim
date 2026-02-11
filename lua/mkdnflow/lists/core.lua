@@ -487,11 +487,15 @@ function List:update_numbering(start_num)
             if item.number ~= n then
                 -- Replace with the correct number on that line
                 local line = vim.api.nvim_buf_get_lines(0, item.line_nr - 1, item.line_nr, false)[1]
-                local replacement = line:gsub(
-                    '^' .. item.indentation .. '%d+%.',
-                    item.indentation .. n .. '.'
+                local replacement =
+                    line:gsub('^' .. item.indentation .. '%d+%.', item.indentation .. n .. '.')
+                vim.api.nvim_buf_set_lines(
+                    0,
+                    item.line_nr - 1,
+                    item.line_nr,
+                    false,
+                    { replacement }
                 )
-                vim.api.nvim_buf_set_lines(0, item.line_nr - 1, item.line_nr, false, { replacement })
                 item.number = n
                 item.content = replacement
             end

@@ -1355,7 +1355,6 @@ T['buffer_boundaries']['table preceded by content'] = function()
     eq(lines[3]:match('|') ~= nil, true)
 end
 
-
 -- =============================================================================
 -- Cursor Position Preservation (Gap 7)
 -- =============================================================================
@@ -1542,7 +1541,6 @@ T['special_cell_content']['mixed special content'] = function()
     eq(lines[3]:match('%[link%]') ~= nil, true)
 end
 
-
 -- =============================================================================
 -- Row deletion
 -- =============================================================================
@@ -1654,7 +1652,6 @@ T['deleteRow']['preserves other rows'] = function()
     eq(lines[3]:match('row1a') ~= nil, true)
     eq(lines[4]:match('row3a') ~= nil, true)
 end
-
 
 -- =============================================================================
 -- Column deletion
@@ -1788,7 +1785,6 @@ T['deleteCol']['preserves other columns'] = function()
     eq(lines[3]:match('c') ~= nil, true)
     eq(lines[3]:match('d') ~= nil, true)
 end
-
 
 -- =============================================================================
 -- Grid table detection

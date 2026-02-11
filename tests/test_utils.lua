@@ -75,6 +75,26 @@ T['luaEscape']['passes through plain text'] = function()
     eq(utils.luaEscape('hello world'), 'hello world')
 end
 
+T['luaEscape']['escapes parentheses'] = function()
+    eq(utils.luaEscape('foo(bar)'), 'foo%(bar%)')
+end
+
+T['luaEscape']['escapes square brackets'] = function()
+    eq(utils.luaEscape('foo[bar]'), 'foo%[bar%]')
+end
+
+T['luaEscape']['escapes caret'] = function()
+    eq(utils.luaEscape('^start'), '%^start')
+end
+
+T['luaEscape']['escapes dollar sign'] = function()
+    eq(utils.luaEscape('end$'), 'end%$')
+end
+
+T['luaEscape']['escapes asterisk'] = function()
+    eq(utils.luaEscape('foo*bar'), 'foo%*bar')
+end
+
 -- =============================================================================
 -- strSplit tests
 -- =============================================================================

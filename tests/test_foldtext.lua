@@ -85,9 +85,8 @@ T['default_title_transformer']['removes attributes'] = function()
 end
 
 T['default_title_transformer']['handles heading with special characters'] = function()
-    local result = child.lua_get(
-        [[require('mkdnflow.foldtext').default_title_transformer("# It's a Test!")]]
-    )
+    local result =
+        child.lua_get([[require('mkdnflow.foldtext').default_title_transformer("# It's a Test!")]])
     eq(result:match("It's a Test!$") ~= nil, true)
 end
 
@@ -139,7 +138,8 @@ T['default_count_opts'] = new_set()
 T['default_count_opts']['has table counting'] = function()
     -- Can't serialize functions, so just check structure
     local has_tbl = child.lua_get('require("mkdnflow.foldtext").default_count_opts.tbl ~= nil')
-    local has_icon = child.lua_get('require("mkdnflow.foldtext").default_count_opts.tbl.icon ~= nil')
+    local has_icon =
+        child.lua_get('require("mkdnflow.foldtext").default_count_opts.tbl.icon ~= nil')
     local has_method =
         child.lua_get('require("mkdnflow.foldtext").default_count_opts.tbl.count_method ~= nil')
     eq(has_tbl, true)

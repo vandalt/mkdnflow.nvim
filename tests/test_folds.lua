@@ -93,7 +93,8 @@ end
 
 T['getHeadingLevel']['handles multiple hashes in text'] = function()
     -- Pattern matches leading hashes only
-    local result = child.lua_get([[require('mkdnflow.folds').getHeadingLevel('# Heading ## with hashes')]])
+    local result =
+        child.lua_get([[require('mkdnflow.folds').getHeadingLevel('# Heading ## with hashes')]])
     eq(result, 1)
 end
 

@@ -45,26 +45,12 @@ M.bib_paths = {
 local bib_path = require('mkdnflow').config.bib.default_path
 local find_in_root = require('mkdnflow').config.bib.find_in_root
 local root_dir = require('mkdnflow').root_dir
-local this_os = require('mkdnflow').this_os
 
 -- Find bib files in root directory
 if find_in_root and root_dir then
-    local pfile
-    if this_os:match('Windows') then
-        pfile = io.popen('dir /b "' .. root_dir .. '"')
-    else
-        pfile = io.popen('ls -a "' .. root_dir .. '"')
-    end
-    if pfile then
-        -- Check the list of files for any bib files
-        for filename in pfile:lines() do
-            local match = filename:match('%.bib$')
-            if match then
-                -- TODO: Make the following OS-agnostic
-                table.insert(M.bib_paths.root, root_dir .. '/' .. filename)
-            end
-        end
-        pfile:close()
+    local bib_files = vim.fn.glob(root_dir .. '/*.bib', false, true)
+    for _, filepath in ipairs(bib_files) do
+        table.insert(M.bib_paths.root, filepath)
     end
 end
 

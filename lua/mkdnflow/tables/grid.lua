@@ -994,8 +994,7 @@ function M.add_cell_line(tbl, cursor_position)
     -- within the same logical row (before the next grid border)
     local line_count = vim.api.nvim_buf_line_count(0)
     for check_linenr = cursor_position[1] + 1, line_count do
-        local check_line =
-            vim.api.nvim_buf_get_lines(0, check_linenr - 1, check_linenr, false)[1]
+        local check_line = vim.api.nvim_buf_get_lines(0, check_linenr - 1, check_linenr, false)[1]
         if not check_line or MarkdownTable.isGridBorder(check_line) then
             break
         end

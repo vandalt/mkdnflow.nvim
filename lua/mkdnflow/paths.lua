@@ -43,47 +43,17 @@ local bib = require('mkdnflow.bib')
 local cursor = require('mkdnflow.cursor')
 local links = require('mkdnflow.links')
 
-local tobool = function(str)
-    local bool = false
-    str = (str:gsub(' ', ''))
-    if str == 'true' then
-        bool = true
-    end
-    return bool
-end
-
 --[[
 exists() determines whether the path specified as the argument exists
 NOTE: Assumes that the initially opened file is in an existing directory!
 --]]
 local exists = function(path, unit_type)
-    -- If type is not specified, use "d" (directory) by default
     unit_type = unit_type or 'd'
-    local handle
-    if this_os:match('Windows') then
-        if unit_type == 'd' then
-            unit_type = '\\'
-        else
-            unit_type = ''
-        end
-        local command = 'IF exist "' .. path .. unit_type .. '" ( echo true ) ELSE ( echo false )'
-        handle = io.popen(command)
+    if unit_type == 'd' then
+        return vim.fn.isdirectory(path) == 1
     else
-        -- Use the shell to determine if the path exists
-        handle = io.popen(
-            'if [ -'
-                .. unit_type
-                .. ' '
-                .. vim.fn.shellescape(path)
-                .. ' ]; then echo true; else echo false; fi'
-        )
+        return vim.fn.filereadable(path) == 1
     end
-    local output = handle:read('*l')
-    io.close(handle)
-    -- Get the contents of the first (only) line & store as a boolean
-    output = tobool(output)
-    -- Return the existence property of the path
-    return output
 end
 
 local M = {}
@@ -164,11 +134,7 @@ local vim_open = function(path, anchor)
     -- If there's a dir & user wants dirs created, do so if necessary
     if dir and create_dirs then
         if not exists(dir) then
-            if this_os:match('Windows') then
-                os.execute('mkdir "' .. dir .. '"')
-            else
-                os.execute('mkdir -p ' .. vim.fn.shellescape(dir))
-            end
+            vim.fn.mkdir(dir, 'p')
         end
     end
     -- If the path starts with a tilde, replace it w/ $HOME
@@ -204,11 +170,7 @@ local vim_open = function(path, anchor)
                 -- Ensure directories exist for the callback-returned path
                 local result_dir = string.match(path_w_ext, '(.*)' .. sep .. '.-$')
                 if result_dir and create_dirs and not exists(result_dir) then
-                    if this_os:match('Windows') then
-                        os.execute('mkdir "' .. result_dir .. '"')
-                    else
-                        os.execute('mkdir -p ' .. vim.fn.shellescape(result_dir))
-                    end
+                    vim.fn.mkdir(result_dir, 'p')
                 end
             else
                 -- Unexpected return type; warn and proceed with default behavior
@@ -274,11 +236,11 @@ Returns nothing
 local system_open = function(path, type)
     local shell_open = function(path_)
         if this_os == 'Linux' then
-            vim.api.nvim_command('silent !xdg-open ' .. vim.fn.shellescape(path_, true))
+            vim.fn.jobstart({ 'xdg-open', path_ }, { detach = true })
         elseif this_os == 'Darwin' then
-            vim.api.nvim_command('silent !open ' .. vim.fn.shellescape(path_, true) .. ' &')
+            vim.fn.jobstart({ 'open', path_ }, { detach = true })
         elseif this_os:match('Windows') then
-            os.execute('cmd.exe /c "start "" "' .. path_ .. '"')
+            vim.fn.jobstart({ 'cmd.exe', '/c', 'start', '', path_ }, { detach = true })
         else
             if not silent then
                 vim.api.nvim_echo({ { this_os_err, 'ErrorMsg' } }, true, {})
@@ -557,13 +519,14 @@ M.moveSource = function()
         vim.api.nvim_set_option('cmdheight', rows_needed)
         vim.ui.input({ prompt = prompt }, function(response)
             if response == 'y' then
-                local command = string.format(
-                    '%s %s %s',
-                    this_os:match('Windows') and 'move' or 'mv',
-                    vim.fn.shellescape(derived_source),
-                    vim.fn.shellescape(derived_goal)
-                )
-                os.execute(command)
+                local ok = vim.fn.rename(derived_source, derived_goal)
+                if ok ~= 0 then
+                    vim.api.nvim_echo({
+                        { '⬇️  Failed to move file (cross-filesystem?)', 'ErrorMsg' },
+                    }, true, {})
+                    vim.api.nvim_set_option('cmdheight', cmdheight)
+                    return
+                end
                 -- Change the link content
                 vim.api.nvim_buf_set_text(
                     0,
@@ -642,9 +605,7 @@ M.moveSource = function()
                         local to_dir_exists = exists(dir, 'd')
                         if not to_dir_exists then
                             if create_dirs then
-                                local path_to_file = vim.fn.shellescape(dir)
-                                local command = this_os:match('Windows') and 'mkdir' or 'mkdir -p'
-                                os.execute(command .. ' ' .. path_to_file)
+                                vim.fn.mkdir(dir, 'p')
                             else
                                 vim.api.nvim_command('normal! :')
                                 vim.api.nvim_echo({
