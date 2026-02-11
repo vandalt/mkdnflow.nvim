@@ -71,7 +71,11 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 - [x] Jump to links
 - [x] Jump to section headings
 
-![In-buffer navigation demo](https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/gif/in_buffer_nav/in_buffer_nav.gif)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/navigation_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/navigation_light.gif">
+  <img alt="In-buffer navigation demo" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/navigation_light.gif">
+</picture>
 
 #### Within-notebook navigation
 
@@ -99,6 +103,12 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
     - [x] Image links (`![alt text](image.png)`) — opened in system viewer
     - [x] Citations (`@citekey` or Pandoc-style `[@citekey]`)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_light.gif">
+  <img alt="Link lifecycle demo" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_light.gif">
+</picture>
+
 ### 📊 Table support
 
 - [x] Table creation
@@ -109,11 +119,23 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 - [ ] Paste delimited data as a table
 - [ ] Import delimited file into a new table
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/tables_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/tables_light.gif">
+  <img alt="Table workflow demo" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/tables_light.gif">
+</picture>
+
 ### 📝 List support
 
 - [x] Automatic list extension
 - [x] Sensible auto-indentation and auto-dedentation
 - [x] Ordered list number updating
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/lists_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/lists_light.gif">
+  <img alt="List management demo" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/lists_light.gif">
+</picture>
 
 ### ✅ To-do list support
 
@@ -122,6 +144,12 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 - [x] To-do list sorting
 - [x] Create to-do items from plain ordered or unordered list items
 - [x] Customizable highlighting for to-do status markers and content
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/todo_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/todo_light.gif">
+  <img alt="To-do list demo" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/todo_light.gif">
+</picture>
 
 ### 📁 File management
 
@@ -136,6 +164,12 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
     - [x] Counts of Markdown objects (tables, lists, code blocks, etc.)
     - [x] Line and word counts
 - [ ] YAML block folding
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/folding_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/folding_light.gif">
+  <img alt="Section folding demo" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/folding_light.gif">
+</picture>
 
 ### 🔮 Completion
 

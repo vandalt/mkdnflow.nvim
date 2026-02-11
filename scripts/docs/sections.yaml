@@ -42,8 +42,9 @@ sections:
                     done: true
                   - text: Jump to section headings
                     done: true
-              - type: image
-                url: https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/gif/in_buffer_nav/in_buffer_nav.gif
+              - type: responsive_image
+                light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/navigation_light.gif
+                dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/navigation_dark.gif
                 alt: In-buffer navigation demo
 
           - title: Within-notebook navigation
@@ -101,6 +102,10 @@ sections:
                     done: true
                   - text: "Citations (`@citekey` or Pandoc-style `[@citekey]`)"
                     done: true
+          - type: responsive_image
+            light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_light.gif
+            dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_dark.gif
+            alt: Link lifecycle demo
 
       - title: Table support
         tag: table-support
@@ -122,6 +127,10 @@ sections:
                 done: false
               - text: Import delimited file into a new table
                 done: false
+          - type: responsive_image
+            light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/tables_light.gif
+            dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/tables_dark.gif
+            alt: Table workflow demo
 
       - title: List support
         tag: list-support
@@ -135,6 +144,10 @@ sections:
                 done: true
               - text: Ordered list number updating
                 done: true
+          - type: responsive_image
+            light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/lists_light.gif
+            dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/lists_dark.gif
+            alt: List management demo
 
       - title: To-do list support
         tag: todo-support
@@ -152,6 +165,10 @@ sections:
                 done: true
               - text: Customizable highlighting for to-do status markers and content
                 done: true
+          - type: responsive_image
+            light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/todo_light.gif
+            dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/todo_dark.gif
+            alt: To-do list demo
 
       - title: File management
         tag: file-mgmt
@@ -183,6 +200,10 @@ sections:
                     done: true
               - text: YAML block folding
                 done: false
+          - type: responsive_image
+            light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/folding_light.gif
+            dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/folding_dark.gif
+            alt: Section folding demo
 
       - title: Completion
         tag: completion
