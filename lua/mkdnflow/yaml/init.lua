@@ -33,8 +33,14 @@ M.init = function()
             local start, finish = M.hasYaml()
             if start then
                 local yaml = M.ingestYamlBlock(start, finish)
-                if yaml and yaml.bib then
-                    bib.bib_paths.yaml = yaml.bib
+                if yaml and (yaml.bib or yaml.bibliography) then
+                    local paths = {}
+                    for _, list in ipairs({ yaml.bib or {}, yaml.bibliography or {} }) do
+                        for _, path in ipairs(list) do
+                            table.insert(paths, path)
+                        end
+                    end
+                    bib.bib_paths.yaml = paths
                 end
             end
         end,

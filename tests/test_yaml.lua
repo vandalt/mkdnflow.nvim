@@ -280,6 +280,64 @@ T['bib_paths']['extracts multiple bibliography paths'] = function()
 end
 
 -- =============================================================================
+-- bibliography/bib normalization in yaml init
+-- =============================================================================
+T['bib_paths']['bibliography key populates bib_paths.yaml'] = function()
+    child.restart({ '-u', 'scripts/minimal_init.lua' })
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        vim.api.nvim_buf_set_name(0, 'test_bib_norm.md')
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({
+            modules = { yaml = true, bib = true },
+            silent = true,
+        })
+    ]])
+    set_lines({ '---', 'bibliography: refs.bib', '---', 'Content' })
+    child.lua('vim.cmd("doautocmd FileType")')
+    local paths = child.lua_get('require("mkdnflow").bib.bib_paths.yaml')
+    eq(#paths, 1)
+    eq(paths[1], 'refs.bib')
+end
+
+T['bib_paths']['bib key populates bib_paths.yaml'] = function()
+    child.restart({ '-u', 'scripts/minimal_init.lua' })
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        vim.api.nvim_buf_set_name(0, 'test_bib_key.md')
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({
+            modules = { yaml = true, bib = true },
+            silent = true,
+        })
+    ]])
+    set_lines({ '---', 'bib: refs.bib', '---', 'Content' })
+    child.lua('vim.cmd("doautocmd FileType")')
+    local paths = child.lua_get('require("mkdnflow").bib.bib_paths.yaml')
+    eq(#paths, 1)
+    eq(paths[1], 'refs.bib')
+end
+
+T['bib_paths']['both bib and bibliography keys are merged'] = function()
+    child.restart({ '-u', 'scripts/minimal_init.lua' })
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        vim.api.nvim_buf_set_name(0, 'test_bib_merge.md')
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({
+            modules = { yaml = true, bib = true },
+            silent = true,
+        })
+    ]])
+    set_lines({ '---', 'bib: first.bib', 'bibliography: second.bib', '---', 'Content' })
+    child.lua('vim.cmd("doautocmd FileType")')
+    local paths = child.lua_get('require("mkdnflow").bib.bib_paths.yaml')
+    eq(#paths, 2)
+    eq(paths[1], 'first.bib')
+    eq(paths[2], 'second.bib')
+end
+
+-- =============================================================================
 -- Edge cases
 -- =============================================================================
 T['edge_cases'] = new_set()
