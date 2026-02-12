@@ -1672,4 +1672,384 @@ T['promotion_renumbering_e2e']['<CR> in insert mode promotes and renumbers'] = f
     eq(lines[6], '3. ')
 end
 
+-- =============================================================================
+-- changeListType
+-- =============================================================================
+T['changeListType'] = new_set()
+
+-- ---------------------------------------------------------------------------
+-- Basic conversions (single item, siblings mode)
+-- ---------------------------------------------------------------------------
+T['changeListType']['ul to ol'] = function()
+    set_lines({ '- item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    eq(get_line(1), '1. item one')
+end
+
+T['changeListType']['ol to ul'] = function()
+    set_lines({ '1. item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul')]])
+    eq(get_line(1), '- item one')
+end
+
+T['changeListType']['ul to ultd'] = function()
+    set_lines({ '- item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ultd')]])
+    eq(get_line(1), '- [ ] item one')
+end
+
+T['changeListType']['ul to oltd'] = function()
+    set_lines({ '- item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('oltd')]])
+    eq(get_line(1), '1. [ ] item one')
+end
+
+T['changeListType']['ultd to ul strips checkbox'] = function()
+    set_lines({ '- [x] done item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul')]])
+    eq(get_line(1), '- done item')
+end
+
+T['changeListType']['oltd to ol strips checkbox'] = function()
+    set_lines({ '1. [x] done item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    eq(get_line(1), '1. done item')
+end
+
+T['changeListType']['ultd to oltd preserves checkbox'] = function()
+    set_lines({ '- [x] done item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('oltd')]])
+    eq(get_line(1), '1. [x] done item')
+end
+
+T['changeListType']['oltd to ultd preserves checkbox'] = function()
+    set_lines({ '1. [-] in progress' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ultd')]])
+    eq(get_line(1), '- [-] in progress')
+end
+
+T['changeListType']['ol to ultd'] = function()
+    set_lines({ '1. plain item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ultd')]])
+    eq(get_line(1), '- [ ] plain item')
+end
+
+T['changeListType']['ol to oltd'] = function()
+    set_lines({ '1. plain item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('oltd')]])
+    eq(get_line(1), '1. [ ] plain item')
+end
+
+T['changeListType']['ultd to oltd preserves unicode checkbox'] = function()
+    set_lines({ '- [✓] done item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('oltd')]])
+    local line = get_line(1)
+    -- Should preserve the unicode checkbox marker
+    local has_check = line:find('✓') ~= nil
+    eq(has_check, true)
+    -- Should be ordered
+    local has_num = line:find('^1%.') ~= nil
+    eq(has_num, true)
+end
+
+-- ---------------------------------------------------------------------------
+-- Sibling scope (no visual selection)
+-- ---------------------------------------------------------------------------
+T['changeListType']['converts all siblings'] = function()
+    set_lines({
+        '- first',
+        '- second',
+        '- third',
+    })
+    set_cursor(2, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    local lines = get_lines()
+    eq(lines[1], '1. first')
+    eq(lines[2], '2. second')
+    eq(lines[3], '3. third')
+end
+
+T['changeListType']['does not convert nested children'] = function()
+    set_lines({
+        '- parent one',
+        '    - child a',
+        '    - child b',
+        '- parent two',
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    local lines = get_lines()
+    eq(lines[1], '1. parent one')
+    eq(lines[2], '    - child a')
+    eq(lines[3], '    - child b')
+    eq(lines[4], '2. parent two')
+end
+
+T['changeListType']['sequential numbering for siblings'] = function()
+    set_lines({
+        '- alpha',
+        '- beta',
+        '- gamma',
+        '- delta',
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    local lines = get_lines()
+    eq(lines[1], '1. alpha')
+    eq(lines[2], '2. beta')
+    eq(lines[3], '3. gamma')
+    eq(lines[4], '4. delta')
+end
+
+-- ---------------------------------------------------------------------------
+-- Visual selection scope
+-- ---------------------------------------------------------------------------
+T['changeListType']['visual range converts all items in range'] = function()
+    set_lines({
+        '- first',
+        '- second',
+        '- third',
+    })
+    child.lua([[
+        require('mkdnflow.lists').changeListType('ol', { line1 = 1, line2 = 3 })
+    ]])
+    local lines = get_lines()
+    eq(lines[1], '1. first')
+    eq(lines[2], '2. second')
+    eq(lines[3], '3. third')
+end
+
+T['changeListType']['visual range includes nested items'] = function()
+    set_lines({
+        '- parent',
+        '    - child a',
+        '    - child b',
+        '- sibling',
+    })
+    child.lua([[
+        require('mkdnflow.lists').changeListType('ol', { line1 = 1, line2 = 4 })
+    ]])
+    local lines = get_lines()
+    eq(lines[1], '1. parent')
+    eq(lines[2], '    1. child a')
+    eq(lines[3], '    2. child b')
+    eq(lines[4], '2. sibling')
+end
+
+T['changeListType']['visual range skips non-list lines'] = function()
+    set_lines({
+        '- first',
+        '',
+        'some text',
+        '- second',
+    })
+    child.lua([[
+        require('mkdnflow.lists').changeListType('ol', { line1 = 1, line2 = 4 })
+    ]])
+    local lines = get_lines()
+    eq(lines[1], '1. first')
+    eq(lines[2], '')
+    eq(lines[3], 'some text')
+    eq(lines[4], '1. second')
+end
+
+-- ---------------------------------------------------------------------------
+-- Edge cases
+-- ---------------------------------------------------------------------------
+T['changeListType']['empty list item'] = function()
+    set_lines({ '- ' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    eq(get_line(1), '1. ')
+end
+
+T['changeListType']['already target type is no-op'] = function()
+    set_lines({ '- item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul')]])
+    eq(get_line(1), '- item')
+end
+
+T['changeListType']['same type with marker swaps bullet'] = function()
+    set_lines({ '- first', '- second' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul', { marker = '*' })]])
+    eq(get_line(1), '* first')
+    eq(get_line(2), '* second')
+end
+
+T['changeListType']['same type ultd with marker swaps bullet'] = function()
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ultd', { marker = '+' })]])
+    eq(get_line(1), '+ [ ] task')
+end
+
+T['changeListType']['non-list line is no-op'] = function()
+    set_lines({ 'just some text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    eq(get_line(1), 'just some text')
+end
+
+T['changeListType']['invalid type shows warning'] = function()
+    set_lines({ '- item' })
+    set_cursor(1, 0)
+    -- Should not error, just warn
+    child.lua([[require('mkdnflow.lists').changeListType('invalid')]])
+    eq(get_line(1), '- item')
+end
+
+T['changeListType']['preserves indentation'] = function()
+    set_lines({ '        - deeply indented' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    eq(get_line(1), '        1. deeply indented')
+end
+
+T['changeListType']['star marker converts to ol and back'] = function()
+    set_lines({ '* starred item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    eq(get_line(1), '1. starred item')
+    child.lua([[require('mkdnflow.lists').changeListType('ul')]])
+    eq(get_line(1), '- starred item')
+end
+
+T['changeListType']['plus marker converts to ol'] = function()
+    set_lines({ '+ plus item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol')]])
+    eq(get_line(1), '1. plus item')
+end
+
+-- ---------------------------------------------------------------------------
+-- Marker option
+-- ---------------------------------------------------------------------------
+T['changeListType']['marker option uses star for ul'] = function()
+    set_lines({ '1. item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul', { marker = '*' })]])
+    eq(get_line(1), '* item one')
+end
+
+T['changeListType']['marker option uses plus for ul'] = function()
+    set_lines({ '1. item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul', { marker = '+' })]])
+    eq(get_line(1), '+ item one')
+end
+
+T['changeListType']['marker option uses star for ultd'] = function()
+    set_lines({ '1. item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ultd', { marker = '*' })]])
+    eq(get_line(1), '* [ ] item one')
+end
+
+T['changeListType']['marker option defaults to dash'] = function()
+    set_lines({ '1. item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul')]])
+    eq(get_line(1), '- item one')
+end
+
+T['changeListType']['marker option ignored for ol'] = function()
+    set_lines({ '- item one' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ol', { marker = '*' })]])
+    eq(get_line(1), '1. item one')
+end
+
+T['changeListType']['invalid marker shows warning'] = function()
+    set_lines({ '1. item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul', { marker = '>' })]])
+    eq(get_line(1), '1. item')
+end
+
+T['changeListType']['marker applies to all siblings'] = function()
+    set_lines({
+        '1. first',
+        '2. second',
+        '3. third',
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.lists').changeListType('ul', { marker = '*' })]])
+    local lines = get_lines()
+    eq(lines[1], '* first')
+    eq(lines[2], '* second')
+    eq(lines[3], '* third')
+end
+
+-- ---------------------------------------------------------------------------
+-- E2E command test
+-- ---------------------------------------------------------------------------
+T['changeListType_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                vim.bo.expandtab = true
+                vim.bo.shiftwidth = 4
+                require('mkdnflow').setup({})
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['changeListType_e2e']['command converts list'] = function()
+    set_lines({
+        '- first',
+        '- second',
+        '- third',
+    })
+    set_cursor(1, 0)
+    child.lua([[vim.cmd('MkdnChangeListType ol')]])
+    local lines = get_lines()
+    eq(lines[1], '1. first')
+    eq(lines[2], '2. second')
+    eq(lines[3], '3. third')
+end
+
+T['changeListType_e2e']['command with marker argument'] = function()
+    set_lines({
+        '1. first',
+        '2. second',
+    })
+    set_cursor(1, 0)
+    child.lua([[vim.cmd('MkdnChangeListType ul *')]])
+    local lines = get_lines()
+    eq(lines[1], '* first')
+    eq(lines[2], '* second')
+end
+
+T['changeListType_e2e']['command with visual range'] = function()
+    set_lines({
+        '1. first',
+        '1. second',
+        '1. third',
+    })
+    child.lua([[vim.cmd('1,3MkdnChangeListType ul')]])
+    local lines = get_lines()
+    eq(lines[1], '- first')
+    eq(lines[2], '- second')
+    eq(lines[3], '- third')
+end
+
 return T

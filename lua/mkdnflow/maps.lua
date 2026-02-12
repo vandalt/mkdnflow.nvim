@@ -45,6 +45,7 @@ local descriptions = {
     MkdnNewListItemAboveInsert = 'Create list item above and enter insert mode',
     MkdnExtendList = 'Extend list with new item',
     MkdnUpdateNumbering = 'Update numbering in ordered list',
+    MkdnChangeListType = 'Change list type (ul, ol, ultd, oltd)',
     MkdnTableNextCell = 'Jump to next table cell',
     MkdnTablePrevCell = 'Jump to previous table cell',
     MkdnTableCellNewLine = 'Insert new line in table cell',

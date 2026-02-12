@@ -173,6 +173,148 @@ local function update_numbering(row, indentation, li_type, up, start)
     end
 end
 
+--- Valid target types for changeListType
+local valid_types = { ul = true, ol = true, ultd = true, oltd = true }
+
+--- Convert a single list line from its current type to a target type.
+--- Returns the converted line string, or nil if the line is not a list item or already the target type.
+---@param line string The buffer line text
+---@param target_type string One of 'ul', 'ol', 'ultd', 'oltd'
+---@param number integer The number to use for ordered target types
+---@param marker? string The unordered list marker to use ('-', '*', or '+'). Defaults to '-'.
+---@return string|nil converted The converted line, or nil if no conversion needed
+local function convert_line(line, target_type, number, marker)
+    local source_type = M.hasListType(line)
+    if not source_type then
+        return nil
+    end
+    -- Skip if already the target type, unless a marker was specified for an
+    -- unordered target (allows swapping bullet characters, e.g. - → *)
+    if source_type == target_type and not marker then
+        return nil
+    end
+
+    local indent = line:match(M.patterns[source_type].indentation) or ''
+    local text = line:match(M.patterns[source_type].content) or ''
+
+    -- Extract checkbox content if source is a to-do type
+    local checkbox
+    if source_type == 'ultd' or source_type == 'oltd' then
+        checkbox = line:match('%[(..?.?.?)%]')
+    end
+
+    -- Determine checkbox for the target type
+    if target_type == 'ultd' or target_type == 'oltd' then
+        if not checkbox then
+            -- Source is plain → use not_started marker from config
+            local statuses = require('mkdnflow').config.to_do.statuses
+            local not_started = vim.tbl_filter(function(t)
+                return type(t) == 'table' and t.name == 'not_started'
+            end, statuses)[1]
+            checkbox = type(not_started.marker) == 'table' and not_started.marker[1]
+                or not_started.marker
+        end
+    end
+
+    -- Reconstruct the line with the target type's format
+    marker = marker or '-'
+    if target_type == 'ul' then
+        return indent .. marker .. ' ' .. text
+    elseif target_type == 'ol' then
+        return indent .. tostring(number) .. '. ' .. text
+    elseif target_type == 'ultd' then
+        return indent .. marker .. ' [' .. checkbox .. '] ' .. text
+    elseif target_type == 'oltd' then
+        return indent .. tostring(number) .. '. [' .. checkbox .. '] ' .. text
+    end
+end
+
+--- Change the list type of list items in scope.
+--- Without a range, converts all siblings at the cursor's indentation level.
+--- With a range (visual selection), converts all list items in the range.
+---@param target_type string One of 'ul', 'ol', 'ultd', 'oltd'
+---@param opts? {line1: integer, line2: integer, marker: string} Optional range and/or unordered marker
+function M.changeListType(target_type, opts)
+    opts = opts or {}
+
+    if not valid_types[target_type] then
+        vim.api.nvim_echo({
+            { 'Mkdnflow: ', 'WarningMsg' },
+            {
+                "Invalid list type '" .. tostring(target_type) .. "'. Use ul, ol, ultd, or oltd.",
+                'Normal',
+            },
+        }, true, {})
+        return
+    end
+
+    local valid_markers = { ['-'] = true, ['*'] = true, ['+'] = true }
+    local marker = opts.marker
+    if marker and not valid_markers[marker] then
+        vim.api.nvim_echo({
+            { 'Mkdnflow: ', 'WarningMsg' },
+            {
+                "Invalid list marker '" .. tostring(marker) .. "'. Use -, *, or +.",
+                'Normal',
+            },
+        }, true, {})
+        return
+    end
+
+    local line_nrs
+    if opts.line1 and opts.line2 then
+        -- Visual selection: collect all lines in range
+        line_nrs = {}
+        for i = opts.line1, opts.line2 do
+            table.insert(line_nrs, i)
+        end
+    else
+        -- No selection: find siblings at the cursor's level
+        local row = vim.api.nvim_win_get_cursor(0)[1]
+        local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+        local li_type, indentation = M.hasListType(line)
+        if not li_type then
+            return
+        end
+        line_nrs = get_siblings(row, indentation, li_type)
+    end
+
+    -- Track sequential numbering per indentation level for ordered targets.
+    -- Reset when a non-list line breaks the sequence (separate lists get
+    -- independent numbering).
+    local number_by_indent = {}
+
+    for _, line_nr in ipairs(line_nrs) do
+        local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
+        if not line then
+            number_by_indent = {}
+            goto continue
+        end
+
+        local source_type = M.hasListType(line)
+        if not source_type then
+            number_by_indent = {}
+            goto continue
+        end
+
+        local indent = line:match(M.patterns[source_type].indentation) or ''
+
+        -- Assign a sequential number for this indentation level
+        local num = 1
+        if target_type == 'ol' or target_type == 'oltd' then
+            number_by_indent[indent] = (number_by_indent[indent] or 0) + 1
+            num = number_by_indent[indent]
+        end
+
+        local converted = convert_line(line, target_type, num, marker)
+        if converted then
+            vim.api.nvim_buf_set_lines(0, line_nr - 1, line_nr, false, { converted })
+        end
+
+        ::continue::
+    end
+end
+
 --- Compatibility wrapper for toggleToDo
 --- @param opts? table Options table
 function M.toggleToDo(opts)

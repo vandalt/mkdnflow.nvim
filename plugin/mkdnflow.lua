@@ -218,6 +218,27 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             lists.updateNumbering(opts.fargs)
         end
     end, { nargs = '*' })
+    user_command('MkdnChangeListType', function(opts)
+        local lists = require_module('lists')
+        if lists then
+            local target = opts.fargs[1]
+            local marker = opts.fargs[2]
+            if opts.range > 0 then
+                lists.changeListType(
+                    target,
+                    { line1 = opts.line1, line2 = opts.line2, marker = marker }
+                )
+            else
+                lists.changeListType(target, { marker = marker })
+            end
+        end
+    end, {
+        range = true,
+        nargs = '+',
+        complete = function()
+            return { 'ul', 'ol', 'ultd', 'oltd' }
+        end,
+    })
     user_command('MkdnTable', function(opts)
         local tables = require_module('tables')
         if tables then

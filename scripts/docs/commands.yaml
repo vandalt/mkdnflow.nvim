@@ -115,6 +115,15 @@ commands:
     description: |
       Update numbering for all siblings of the list item of the current line.
 
+  - name: "MkdnChangeListType {type} (marker)"
+    default_mapping: null
+    description: |
+      Change the type of a list. The `type` argument must be one of `ul` (unordered), `ol` (ordered), `ultd` (unordered to-do), or `oltd` (ordered to-do). An optional `marker` argument (`-`, `*`, or `+`) specifies which bullet character to use when converting to an unordered type. Defaults to `-`. Ignored for ordered types. When used with a marker on a list that is already the target type, the bullet character is swapped (e.g., `:MkdnChangeListType ul *` changes `-` bullets to `*`).
+
+      Without a visual selection, changes all siblings at the cursor's indentation level. With a visual selection, changes all list items in the selected range.
+
+      When converting to a to-do type, items receive a `not_started` checkbox. When converting from a to-do type to a plain type, checkboxes are removed. When converting between to-do types, the existing checkbox status is preserved.
+
   - name: MkdnNewListItem
     default_mapping: null
     description: |
