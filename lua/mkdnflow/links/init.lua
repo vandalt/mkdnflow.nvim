@@ -167,8 +167,7 @@ M.getBracketedSpanPart = function(part)
                 2,
                 -2
             )
-            local attr_first, attr_last =
-                line[1]:find('%]%{' .. utils.luaEscape(attr), indices['first'])
+            local attr_first, attr_last = line[1]:find('%]%{' .. vim.pesc(attr), indices['first'])
             attr_first = attr_first + 2
             return attr, attr_first, attr_last, row
         end
@@ -820,11 +819,7 @@ M.createLink = function(args)
             -- Replace the visual selection w/ the formatted link replacement
             vim.api.nvim_buf_set_text(0, start_row, start_col, end_row, end_col, replacement)
             -- Leave visual mode
-            vim.api.nvim_feedkeys(
-                vim.api.nvim_replace_termcodes('<esc>', true, false, true),
-                'x',
-                true
-            )
+            vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'x', true)
             -- Retain original cursor position
             vim.api.nvim_win_set_cursor(0, { row, col + 1 })
         else
@@ -944,7 +939,7 @@ M.tagSpan = function()
         -- Replace the visual selection w/ the formatted link replacement
         vim.api.nvim_buf_set_text(0, start_row, start_col, end_row, end_col, { replacement })
         -- Leave visual mode
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<esc>', true, false, true), 'x', true)
+        vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'x', true)
         -- Retain original cursor position
         vim.api.nvim_win_set_cursor(0, { row, col + 1 })
     end

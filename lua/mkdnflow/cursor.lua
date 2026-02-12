@@ -230,7 +230,7 @@ local go_to_id = function(id, starting_row)
         end
         if start then
             local substring = string.sub(line, start, finish)
-            if substring:match('{[^%}]*' .. utils.luaEscape(id) .. '[^%}]*}') then
+            if substring:match('{[^%}]*' .. vim.pesc(id) .. '[^%}]*}') then
                 continue = false
             else
                 local continue_line = true
@@ -238,7 +238,7 @@ local go_to_id = function(id, starting_row)
                     start, finish = line:find('%b[]%b{}', finish)
                     if start then
                         substring = string.sub(line, start, finish)
-                        if substring:match('{[^%}]*' .. utils.luaEscape(id) .. '[^%}]*}') then
+                        if substring:match('{[^%}]*' .. vim.pesc(id) .. '[^%}]*}') then
                             continue_line = false
                             continue = false
                         end

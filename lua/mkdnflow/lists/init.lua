@@ -300,7 +300,7 @@ function M.newListItem(carry, above, cursor_moves, mode_after, alt, line)
         end
     elseif alt then
         -- Feed the requested keys
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(alt, true, false, true), 'n', true)
+        vim.api.nvim_feedkeys(vim.keycode(alt), 'n', true)
     end
 end
 

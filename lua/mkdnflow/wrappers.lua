@@ -44,7 +44,7 @@ M.newListItemOrNextTableRow = function()
         return nil -- Handled
     else
         -- Return the fallback key for expression mapping
-        return vim.api.nvim_replace_termcodes('<CR>', true, false, true)
+        return vim.keycode('<CR>')
     end
 end
 
@@ -80,7 +80,7 @@ M.indentListItemOrJumpTableCell = function(direction)
     else
         -- Return the fallback key for expression mapping
         local fallback_key = direction == -1 and '<S-Tab>' or '<Tab>'
-        return vim.api.nvim_replace_termcodes(fallback_key, true, false, true)
+        return vim.keycode(fallback_key)
     end
 end
 

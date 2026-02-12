@@ -10,56 +10,56 @@ local utils = require('mkdnflow.utils')
 local T = new_set()
 
 -- =============================================================================
--- luaEscape tests
+-- vim.pesc tests (pattern escaping, previously via utils.luaEscape wrapper)
 -- =============================================================================
-T['luaEscape'] = new_set()
+T['vim.pesc'] = new_set()
 
-T['luaEscape']['escapes dash'] = function()
-    eq(utils.luaEscape('foo-bar'), 'foo%-bar')
+T['vim.pesc']['escapes dash'] = function()
+    eq(vim.pesc('foo-bar'), 'foo%-bar')
 end
 
-T['luaEscape']['escapes dot'] = function()
-    eq(utils.luaEscape('file.md'), 'file%.md')
+T['vim.pesc']['escapes dot'] = function()
+    eq(vim.pesc('file.md'), 'file%.md')
 end
 
-T['luaEscape']['escapes plus'] = function()
-    eq(utils.luaEscape('c++'), 'c%+%+')
+T['vim.pesc']['escapes plus'] = function()
+    eq(vim.pesc('c++'), 'c%+%+')
 end
 
-T['luaEscape']['escapes question mark'] = function()
-    eq(utils.luaEscape('what?'), 'what%?')
+T['vim.pesc']['escapes question mark'] = function()
+    eq(vim.pesc('what?'), 'what%?')
 end
 
-T['luaEscape']['escapes percent'] = function()
-    eq(utils.luaEscape('100%'), '100%%')
+T['vim.pesc']['escapes percent'] = function()
+    eq(vim.pesc('100%'), '100%%')
 end
 
-T['luaEscape']['handles multiple special chars'] = function()
-    eq(utils.luaEscape('file-name.md?v=1'), 'file%-name%.md%?v=1')
+T['vim.pesc']['handles multiple special chars'] = function()
+    eq(vim.pesc('file-name.md?v=1'), 'file%-name%.md%?v=1')
 end
 
-T['luaEscape']['passes through plain text'] = function()
-    eq(utils.luaEscape('hello world'), 'hello world')
+T['vim.pesc']['passes through plain text'] = function()
+    eq(vim.pesc('hello world'), 'hello world')
 end
 
-T['luaEscape']['escapes parentheses'] = function()
-    eq(utils.luaEscape('foo(bar)'), 'foo%(bar%)')
+T['vim.pesc']['escapes parentheses'] = function()
+    eq(vim.pesc('foo(bar)'), 'foo%(bar%)')
 end
 
-T['luaEscape']['escapes square brackets'] = function()
-    eq(utils.luaEscape('foo[bar]'), 'foo%[bar%]')
+T['vim.pesc']['escapes square brackets'] = function()
+    eq(vim.pesc('foo[bar]'), 'foo%[bar%]')
 end
 
-T['luaEscape']['escapes caret'] = function()
-    eq(utils.luaEscape('^start'), '%^start')
+T['vim.pesc']['escapes caret'] = function()
+    eq(vim.pesc('^start'), '%^start')
 end
 
-T['luaEscape']['escapes dollar sign'] = function()
-    eq(utils.luaEscape('end$'), 'end%$')
+T['vim.pesc']['escapes dollar sign'] = function()
+    eq(vim.pesc('end$'), 'end%$')
 end
 
-T['luaEscape']['escapes asterisk'] = function()
-    eq(utils.luaEscape('foo*bar'), 'foo%*bar')
+T['vim.pesc']['escapes asterisk'] = function()
+    eq(vim.pesc('foo*bar'), 'foo%*bar')
 end
 
 -- =============================================================================

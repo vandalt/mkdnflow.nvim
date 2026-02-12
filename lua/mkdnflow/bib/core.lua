@@ -25,11 +25,6 @@ local function get_config()
     return require('mkdnflow').config
 end
 
---- Lazy utils accessor
-local function get_utils()
-    return require('mkdnflow').utils
-end
-
 -- =============================================================================
 -- BibEntry Class
 -- =============================================================================
@@ -248,11 +243,10 @@ local function search_bib_file(path, citekey)
         local text = bib_file:read('*a')
         bib_file:close()
         if text then
-            local utils = get_utils()
             -- Check first at the beginning of the file text; then at the beginning of each line
-            local start, _ = string.find(text, '^%s?@[%a]-{%s?' .. utils.luaEscape(citekey))
+            local start, _ = string.find(text, '^%s?@[%a]-{%s?' .. vim.pesc(citekey))
             if not start then
-                start, _ = string.find(text, '\n%s?@[%a]-{%s?' .. utils.luaEscape(citekey))
+                start, _ = string.find(text, '\n%s?@[%a]-{%s?' .. vim.pesc(citekey))
             end
 
             -- If we have a match, get the entry based on bracket matching
