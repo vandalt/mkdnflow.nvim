@@ -29,8 +29,8 @@ local function get_vim_indent()
     end
 end
 
--- Wrapper function for new list items in lists or going to the same cell/next row in a table
--- Returns nil if handled, or the fallback key for expression mappings
+--- Create a new list item (if on a list line) or move to the next table row (if in a table)
+---@return string|nil fallback_key The fallback key to feed, or nil if the action was handled
 M.newListItemOrNextTableRow = function()
     -- Get the current line and line number
     local row = vim.api.nvim_win_get_cursor(0)[1]
@@ -48,6 +48,9 @@ M.newListItemOrNextTableRow = function()
     end
 end
 
+--- Indent/dedent an empty list item, or jump to the next/previous table cell
+---@param direction integer 1 for forward (indent/next cell), -1 for backward (dedent/prev cell)
+---@return string|nil fallback_key The fallback key to feed, or nil if the action was handled
 M.indentListItemOrJumpTableCell = function(direction)
     -- Get the current line and line number
     local row, line = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_get_current_line()
@@ -84,6 +87,8 @@ M.indentListItemOrJumpTableCell = function(direction)
     end
 end
 
+--- Follow/create a link, or toggle a fold, depending on context
+---@param args? {mode?: string, range?: boolean} Optional mode and range info
 M.followOrCreateLinksOrToggleFolds = function(args)
     args = args or {}
     local mode = args.mode or vim.api.nvim_get_mode()['mode']
@@ -109,6 +114,9 @@ M.followOrCreateLinksOrToggleFolds = function(args)
     end
 end
 
+--- Multi-function Enter key handler: follows links/toggles folds in normal/visual, creates list items in insert
+---@param args? {range?: boolean} Optional range info
+---@return string|nil fallback_key The fallback key to feed, or nil if the action was handled
 M.multiFuncEnter = function(args)
     args = args or {}
     local mode = vim.api.nvim_get_mode()['mode']

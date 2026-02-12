@@ -22,6 +22,9 @@ local extension = '.md' -- Keep the '.'
 
 local transform_on_create = require('mkdnflow').config.links.transform_on_create
 
+--- Build completion items from all markdown files in the notebook root directory
+---@return table[] items Array of nvim-cmp completion items
+---@private
 local function get_files_items()
     -- Find all markdown files recursively in the root directory
     local filepaths_in_root = vim.fs.find(function(name)
@@ -68,7 +71,10 @@ local function get_files_items()
     return items
 end
 
--- Remove newline chars and excessive whitespace. Will be used in parse_bib function.
+--- Remove newline characters and collapse excessive whitespace
+---@param text? string The text to clean
+---@return string|nil text The cleaned text, or nil if input was nil
+---@private
 local function clean(text)
     if text then
         text = text:gsub('\n', ' ')
@@ -78,8 +84,10 @@ local function clean(text)
     end
 end
 
--- Parses the .bib file, formatting the completion item
--- Adapted from http://rgieseke.github.io/ta-bibtex/
+--- Parse a .bib file and build nvim-cmp completion items for each entry
+---@param filename string The path to the .bib file
+---@return table[] items Array of nvim-cmp completion items
+---@private
 local function parse_bib(filename)
     local items = {}
     local file = io.open(filename, 'rb')
@@ -107,12 +115,18 @@ local function parse_bib(filename)
     return items
 end
 
+---@class MkdnflowCmpSource
 local source = {}
 
+--- Create a new completion source instance
+---@return MkdnflowCmpSource
 source.new = function()
     return setmetatable({}, { __index = source })
 end
 
+--- Provide completion items (files + bib entries) when triggered by `@`
+---@param params table nvim-cmp completion parameters
+---@param callback fun(items: table[]) Callback to return completion items
 function source:complete(params, callback)
     -- Only provide suggestions if the current word in the context starts with the trigger character '@'
     local line = params.context.cursor_before_line

@@ -43,10 +43,11 @@ local bib = require('mkdnflow.bib')
 local cursor = require('mkdnflow.cursor')
 local links = require('mkdnflow.links')
 
---[[
-exists() determines whether the path specified as the argument exists
-NOTE: Assumes that the initially opened file is in an existing directory!
---]]
+--- Check whether a file or directory exists at the given path
+---@param path string The path to check
+---@param unit_type? string 'd' for directory (default), 'f' for file
+---@return boolean
+---@private
 local exists = function(path, unit_type)
     unit_type = unit_type or 'd'
     if unit_type == 'd' then
@@ -58,9 +59,11 @@ end
 
 local M = {}
 
---[[
-resolve_notebook_path() takes a link source and determines what its absolute reference is
---]]
+--- Resolve a relative link path to an absolute path using the configured path resolution strategy
+---@param path string The path from a link
+---@param sub_home_var? boolean If true, substitute `~/` with `$HOME/` instead of leaving as-is
+---@return string derived_path The resolved absolute path
+---@private
 local resolve_notebook_path = function(path, sub_home_var)
     sub_home_var = sub_home_var or false
     local derived_path = path
@@ -98,10 +101,10 @@ end
 
 local enter_internal_path = function() end
 
---[[
-formatTemplate() takes the user-provided (or default) template and replaces it
-with the user-specified (or default) value
---]]
+--- Fill in placeholders in the new-file template string
+---@param timing? string 'before' or 'after' buffer creation (defaults to 'before')
+---@param template? string The template string to fill (defaults to config template)
+---@return string template The template with placeholders replaced
 M.formatTemplate = function(timing, template)
     timing = timing or 'before'
     template = template or new_file_config.template
@@ -118,10 +121,10 @@ M.formatTemplate = function(timing, template)
     return template
 end
 
---[[
-vim_open() takes a path to a notebook-internal file and (optionally) an
-anchor and opens it in nvim.
---]]
+--- Open a notebook-internal file in Neovim, creating directories and applying templates as needed
+---@param path string The file path to open
+---@param anchor? string An anchor to jump to after opening (heading or ID)
+---@private
 local vim_open = function(path, anchor)
     if this_os:match('Windows') then
         path = path:gsub('/', '\\')
@@ -209,11 +212,9 @@ local vim_open = function(path, anchor)
     end
 end
 
---[[
-enter_internal_path() takes a path and opens a dialog in the command line that
-asks the user to complete the path. Called when the path goes to a directory
-in the notebook, rather than a file.
---]]
+--- Prompt the user to complete a directory path and open the resulting file
+---@param path string The directory path to start from
+---@private
 enter_internal_path = function(path)
     path = path:match(sep .. '$') ~= nil and path or path .. sep
     local input_opts = {
@@ -229,10 +230,10 @@ enter_internal_path = function(path)
     end)
 end
 
---[[
-system_open() handles vim-external paths, including local files or web URLs
-Returns nothing
---]]
+--- Open a path using the system's default application (xdg-open, open, or cmd.exe)
+---@param path string The path or URL to open
+---@param type? string 'url' to skip existence check, nil for local files
+---@private
 local system_open = function(path, type)
     local shell_open = function(path_)
         if this_os == 'Linux' then
@@ -263,9 +264,9 @@ local system_open = function(path, type)
     end
 end
 
---[[
-handle_external_file() takes a path to a non-notebook file and determines how to open it:
---]]
+--- Handle a `file:` prefixed path by resolving it and opening with the system viewer
+---@param path string The path with `file:` prefix
+---@private
 local handle_external_file = function(path)
     -- Get what's after the file: tag
     local real_path = string.match(path, '^file:(.*)')
@@ -311,10 +312,7 @@ local handle_external_file = function(path)
     end
 end
 
---[[
-updateDirs() updates the working directory after switching notebooks or notebook
-folders if nvim_wd_heel is true.
---]]
+--- Update the root directory and/or working directory after navigating to a new buffer
 M.updateDirs = function()
     local wd
     -- See if the new file is in a different root directory
@@ -370,14 +368,11 @@ M.updateDirs = function()
     end
 end
 
---[[
-pathType() determines what kind of path is in a url
-Returns a string:
-     1. 'image' if the link_type is 'image_link',
-     2. 'file' if the path has the 'file:' prefix,
-     3. 'url' is the result of hasUrl(path) is true
-     4. 'nb_page' if (1), (2), and (3) aren't true
---]]
+--- Determine the type of a link path
+---@param path? string The path to classify
+---@param anchor? string An anchor fragment, if present
+---@param link_type? string The link type from the parser (e.g., 'image_link')
+---@return 'image'|'file'|'url'|'citation'|'anchor'|'nb_page'|nil
 M.pathType = function(path, anchor, link_type)
     if not path then
         return nil
@@ -396,10 +391,9 @@ M.pathType = function(path, anchor, link_type)
     end
 end
 
---[[
-transformPath() takes a string and transforms it with a user-defined function if
-it was set. Otherwise returns the string / path unchanged.
---]]
+--- Apply the user's `transform_on_follow` function to a path, if configured
+---@param path string The path to transform
+---@return string path The transformed path (or unchanged if no transform is configured)
 M.transformPath = function(path)
     if type(link_transform) ~= 'function' or not link_transform then
         return path
@@ -408,18 +402,10 @@ M.transformPath = function(path)
     end
 end
 
---[[
-handlePath() does something with the path in the link under the cursor:
-     1. Creates the file specified in the path, if the path is determined to
-        be a notebook page,
-     2. Uses system_open() to open the URL specified in the path, if the path
-        is determined to be a URL, or
-     3. Uses system_open() to open a local file at the specified path via the
-        system's default application for that filetype, if the path is dete-
-        rmined to be neither the filename for a text file nor a URL.
-     4. Uses system_open() to open image links in the system's default viewer.
-Returns nothing
---]]
+--- Route a link path to the appropriate handler based on its type
+---@param path string The link path
+---@param anchor? string|boolean An anchor fragment (e.g., "#heading"), or false
+---@param link_type? string The link type from the parser
 M.handlePath = function(path, anchor, link_type)
     anchor = anchor or false
     path = M.transformPath(path)
@@ -450,10 +436,11 @@ M.handlePath = function(path, anchor, link_type)
     end
 end
 
---[[
-truncate_path() cuts out the middle of a path for improved presentation of long
-paths.
---]]
+--- Truncate a path for display by showing only the divergent suffix
+---@param oldpath string The original path (used to determine the common prefix)
+---@param newpath string The new path to truncate
+---@return string difference The truncated portion of newpath
+---@private
 local truncate_path = function(oldpath, newpath)
     local difference = ''
     local last_slash = string.find(string.reverse(newpath), sep)
@@ -476,10 +463,7 @@ local truncate_path = function(oldpath, newpath)
     return difference
 end
 
---[[
-moveSource() renames the source part of a link and simultaneously renames and/or
-moves the file the link refers to.
---]]
+--- Interactively rename/move the file referenced by the link under the cursor
 M.moveSource = function()
     local derive_path = function(source, type)
         if type == 'file' then

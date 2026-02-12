@@ -18,12 +18,17 @@ local M = {}
 local utils = require('mkdnflow').utils
 local silent = require('mkdnflow').config.silent
 
--- Helper to check if foldmethod allows manual folds
+--- Check if the current window's foldmethod allows manual fold creation
+---@return boolean
+---@private
 local function can_create_manual_folds()
     local foldmethod = vim.wo.foldmethod
     return foldmethod == 'manual' or foldmethod == 'marker'
 end
 
+--- Get the heading level of a markdown line
+---@param line? string The line text to check
+---@return integer level The heading level (1-6), or 99 if not a heading
 M.getHeadingLevel = function(line)
     local level
     if line then
@@ -32,6 +37,10 @@ M.getHeadingLevel = function(line)
     return (level and string.len(level)) or 99
 end
 
+--- Get the row range of a markdown section (from heading to next same-or-higher-level heading)
+---@param start_row? integer The 1-indexed row of the heading (defaults to cursor row)
+---@return integer[]|nil range A two-element array {start_row, end_row}, or nil if not on a heading
+---@private
 local get_section_range = function(start_row)
     start_row = start_row or vim.api.nvim_win_get_cursor(0)[1]
     local line, n_lines =
@@ -65,6 +74,9 @@ local get_section_range = function(start_row)
     end
 end
 
+--- Find the nearest heading above the cursor position
+---@return integer|nil row The 1-indexed row of the nearest heading, or nil if none found
+---@private
 local get_nearest_heading = function()
     local row = vim.api.nvim_win_get_cursor(0)[1] - 1
     local continue, in_fenced_code_block = true, utils.cursorInCodeBlock(row)
@@ -83,6 +95,8 @@ local get_nearest_heading = function()
     end
 end
 
+--- Fold the current markdown section or close an existing open fold
+--- If on a heading, folds the entire section. If inside a section, finds the nearest heading first.
 M.foldSection = function()
     local row, line = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_get_current_line()
     -- See if the cursor is in an open fold. If so, and if it is not also on a heading, close the
@@ -121,6 +135,8 @@ M.foldSection = function()
     end
 end
 
+--- Unfold the section at the given row (or cursor position)
+---@param row? integer The 1-indexed row to unfold (defaults to cursor row)
 M.unfoldSection = function(row)
     row = row or vim.api.nvim_win_get_cursor(0)[1]
     -- If the cursor is on a closed fold, open the fold.

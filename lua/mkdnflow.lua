@@ -282,8 +282,11 @@ local extension_to_filetype = {
     rmd = 'rmd',
 }
 
--- Process filetypes config and return list of filetype patterns for autocmd
--- Also registers unknown extensions via vim.filetype.add()
+--- Process the filetypes config and return a list of filetype patterns for autocmds
+--- Also registers unknown extensions via vim.filetype.add()
+---@param filetypes_config table<string, boolean|string> Map of filetype/extension to enabled flag or filetype name
+---@return string[] patterns Array of filetype strings for use in autocmd patterns
+---@private
 local function resolve_filetypes(filetypes_config)
     local patterns = {} -- Set of filetypes to enable
     local disabled = {} -- Set of filetypes explicitly disabled
@@ -340,8 +343,9 @@ init.user_config = {} -- For user config
 init.config = {} -- For merged configs
 init.loaded = nil -- For load status
 
--- Activate: loads modules and sets up path resolution/root directory.
--- This is defined at module level so both setup() and forceStart() can call it.
+--- Load all enabled modules and set up path resolution/root directory
+--- Called by both setup() and forceStart().
+---@private
 local function activate()
     if init.loaded then
         return
@@ -511,7 +515,8 @@ init.command_deps = {
     MkdnSTab = {},
 }
 
--- Run setup
+--- Initialize Mkdnflow with the given user configuration
+---@param user_config? table User configuration overrides (merged with defaults)
 init.setup = function(user_config)
     user_config = user_config or {}
     init.this_os = vim.loop.os_uname().sysname -- Get OS
@@ -572,7 +577,8 @@ init.setup = function(user_config)
     end
 end
 
--- Get current notebook info (for statusline components, etc.)
+--- Get current notebook info (for statusline components, etc.)
+---@return {name: string, root: string}|nil info The notebook name and root path, or nil if no root
 init.getNotebook = function()
     if not init.root_dir then
         return nil
@@ -581,7 +587,8 @@ init.getNotebook = function()
     return { name = name, root = init.root_dir }
 end
 
--- Force start
+--- Force-start Mkdnflow regardless of current buffer filetype
+---@param opts table Options list; opts[1] can be 'silent' to suppress messages
 init.forceStart = function(opts)
     local silent = (opts[1] == 'silent') or (init.config and init.config.silent)
     if init.loaded then

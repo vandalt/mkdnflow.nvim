@@ -95,7 +95,11 @@ local fallback_commands = {
     MkdnTableCellNewLine = true,
 }
 
--- Helper to set up a single mapping
+--- Set up a single buffer-local keymap for a given command
+---@param mode string The Vim mode ('n', 'v', 'i', etc.)
+---@param lhs string The key sequence to map
+---@param command string The Mkdnflow command name
+---@private
 local function setup_mapping(mode, lhs, command)
     local is_operator = operator_commands[command]
 

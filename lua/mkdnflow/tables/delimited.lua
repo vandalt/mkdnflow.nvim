@@ -20,6 +20,8 @@ local M = {}
 
 local width = vim.api.nvim_strwidth
 
+---@private
+---@return table
 local function get_config()
     return require('mkdnflow').config
 end
@@ -27,10 +29,11 @@ end
 -- Candidate delimiters in priority order (most unambiguous first)
 local DELIMITER_PRIORITY = { '\t', '|', ';', ',' }
 
+---@private
 --- Count occurrences of a delimiter in a line, ignoring delimiters inside double-quoted fields.
---- @param line string
---- @param delimiter string
---- @return integer
+---@param line string
+---@param delimiter string
+---@return integer
 local function count_delimiter(line, delimiter)
     local count = 0
     local in_quotes = false
@@ -57,8 +60,8 @@ local function count_delimiter(line, delimiter)
 end
 
 --- Detect the delimiter used in a set of lines.
---- @param lines string[] Array of lines
---- @return string The detected delimiter
+---@param lines string[]
+---@return string
 function M.detectDelimiter(lines)
     -- Filter out empty lines
     local non_empty = {}
@@ -140,9 +143,9 @@ function M.detectDelimiter(lines)
 end
 
 --- Parse delimited data into a 2D array using an RFC 4180-style state machine.
---- @param lines string[] Array of lines
---- @param delimiter string The delimiter character
---- @return string[][] 2D array of cell content
+---@param lines string[]
+---@param delimiter string
+---@return string[][]
 function M.parseDelimited(lines, delimiter)
     -- Join lines into a single string for proper multiline quoted field handling
     local text = table.concat(lines, '\n')
@@ -239,10 +242,11 @@ function M.parseDelimited(lines, delimiter)
     return rows
 end
 
+---@private
 --- Build a formatted pipe table from parsed data.
---- @param parsed_data string[][] 2D array of cell content
---- @param has_header boolean Whether first row is a header
---- @return string[] Array of formatted table lines
+---@param parsed_data string[][] 2D array of cell content
+---@param has_header boolean Whether first row is a header
+---@return string[] Array of formatted table lines
 local function buildPipeTable(parsed_data, has_header)
     if #parsed_data == 0 then
         return {}
@@ -316,19 +320,20 @@ local function buildPipeTable(parsed_data, has_header)
     return lines
 end
 
+---@private
 --- Build a formatted grid table from parsed data.
---- @param parsed_data string[][] 2D array of cell content
---- @param has_header boolean Whether first row is a header
---- @return string[] Array of formatted table lines
+---@param parsed_data string[][] 2D array of cell content
+---@param has_header boolean Whether first row is a header
+---@return string[] Array of formatted table lines
 local function buildGridTable(parsed_data, has_header)
     local grid = require('mkdnflow.tables.grid')
     return grid.buildFromData(parsed_data, has_header)
 end
 
 --- Build a formatted markdown table from parsed data.
---- @param parsed_data string[][] 2D array of cell content
---- @param has_header boolean Whether first row is a header
---- @return string[] Array of formatted table lines
+---@param parsed_data string[][]
+---@param has_header boolean
+---@return string[]
 function M.buildTable(parsed_data, has_header)
     local config = get_config()
     local table_type = config.tables.type or 'pipe'
@@ -342,8 +347,8 @@ end
 
 --- Paste delimited data from the system clipboard as a formatted markdown table.
 --- Inserts the table below the current cursor line.
---- @param delimiter string|nil Explicit delimiter (auto-detected if nil)
---- @param has_header boolean Whether to treat the first row as a header
+---@param delimiter string|nil
+---@param has_header boolean
 function M.pasteTable(delimiter, has_header)
     local clipboard = vim.fn.getreg('+')
     if not clipboard or clipboard == '' then
@@ -385,10 +390,10 @@ end
 
 --- Convert visually-selected delimited lines into a formatted markdown table.
 --- Replaces the selected lines.
---- @param line1 integer Start line (1-indexed)
---- @param line2 integer End line (1-indexed)
---- @param delimiter string|nil Explicit delimiter (auto-detected if nil)
---- @param has_header boolean Whether to treat the first row as a header
+---@param line1 integer
+---@param line2 integer
+---@param delimiter string|nil
+---@param has_header boolean
 function M.tableFromSelection(line1, line2, delimiter, has_header)
     local lines = vim.api.nvim_buf_get_lines(0, line1 - 1, line2, false)
 

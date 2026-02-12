@@ -25,7 +25,10 @@ ffi.cdef([[
     extern win_T *curwin;
 ]])
 
--- Function to get the level of a heading
+--- Get the heading level by counting leading `#` characters
+---@param text string The heading line text
+---@return integer level The number of `#` characters
+---@private
 local heading_level = function(text)
     local count = 0
     while text:match('^%s*#') do
@@ -35,7 +38,9 @@ local heading_level = function(text)
     return count
 end
 
--- Function to remove unnecessary elements from the leading line of a fold
+--- Default title transformer: strips heading syntax and adds level indicator dots
+---@param text string The raw heading line text
+---@return string text The transformed title for display in the foldtext
 M.default_title_transformer = function(text)
     -- Get the level of the heading before we remove it
     local level = heading_level(text)
@@ -87,12 +92,23 @@ M.object_icons = {
     },
 }
 
+--- Format a percentage string from a numerator and divisor
+---@param num integer The numerator
+---@param div integer The divisor
+---@return string percentage The formatted percentage (e.g., "12.5%")
+---@private
 local percentage = function(num, div)
     local quo = (num / div) * 100
     local round = string.format('%.1f', tostring(quo))
     return round .. '%'
 end
 
+--- Count words across an array of lines, accounting for markdown syntax
+---@param lines string[] The lines to count words in
+---@param singular string The singular noun (e.g., "word")
+---@param plural string The plural noun (e.g., "words")
+---@return string result Formatted count string (e.g., "42 words")
+---@private
 local count_words = function(lines, singular, plural)
     local word_count = 0
     -- Iterate through each string in the table
@@ -187,6 +203,10 @@ M.default_count_opts = {
     },
 }
 
+--- Count contiguous blocks of each object type across lines
+---@param line_objs string[][] Per-line arrays of matched object type names
+---@return table<string, integer> counts Object type name to block count
+---@private
 local count_blocks = function(line_objs)
     local counts = {}
     -- Function to increment the count for an object type
@@ -223,8 +243,10 @@ local count_blocks = function(line_objs)
     return counts
 end
 
--- Function to inject defaults for any object type for which the user didn't specify necessary
--- information.
+--- Merge user object count options with defaults
+---@param user_object_count_opts table The user's object count configuration
+---@return table merged The merged configuration
+---@private
 local inject_object_count_defaults = function(user_object_count_opts)
     return vim.tbl_deep_extend('force', M.default_count_opts, user_object_count_opts)
 end
@@ -232,6 +254,10 @@ end
 -- Initialize as an empty table; will be loaded once count_objects is run for the first time
 local object_count_opts = {}
 
+--- Count various markdown objects (tables, lists, links, etc.) in the given lines
+---@param lines string[] The lines to scan
+---@return string[] formatted Array of formatted count strings with icons (e.g., " 3")
+---@private
 local count_objects = function(lines)
     -- Load up the object count opts into the table above the first time this function is called
     if vim.tbl_isempty(object_count_opts) then
@@ -314,7 +340,8 @@ local count_objects = function(lines)
     return formatted
 end
 
--- Function to generate the text that shows up when a section is folded
+--- Generate the foldtext string for a folded markdown section
+---@return string foldtext The formatted text to display for the fold
 M.fold_text = function()
     local title_transformer = config.foldtext.title_transformer()
     local fold_start, fold_end = vim.v.foldstart, vim.v.foldend

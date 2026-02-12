@@ -17,10 +17,15 @@
 -- This module: Table classes and core logic for markdown table handling
 
 -- Note: We use lazy loading for config to ensure it's accessed after setup()
+
+---@private
+---@return table
 local function get_config()
     return require('mkdnflow').config
 end
 
+---@private
+---@return table
 local function get_utils()
     return require('mkdnflow').utils
 end
@@ -34,20 +39,20 @@ local width = vim.api.nvim_strwidth
 -- TableCell Class
 -- =============================================================================
 
---- @class TableCell
---- @field content string Cell text (whitespace stripped)
---- @field raw_content string Original cell text (with whitespace)
---- @field alignment string 'left'|'right'|'center'|'default'
---- @field display_width integer Display width (handles Unicode)
---- @field col_index integer Column position (1-indexed)
---- @field is_separator boolean Is this a separator cell?
+---@class TableCell
+---@field content string Cell text (whitespace stripped)
+---@field raw_content string Original cell text (with whitespace)
+---@field alignment string 'left'|'right'|'center'|'default'
+---@field display_width integer Display width (handles Unicode)
+---@field col_index integer Column position (1-indexed)
+---@field is_separator boolean Is this a separator cell?
 local TableCell = {}
 TableCell.__index = TableCell
 TableCell.__className = 'TableCell'
 
 --- Constructor for TableCell
---- @param opts? table Optional initial values
---- @return TableCell
+---@param opts? table Optional initial values
+---@return TableCell
 function TableCell:new(opts)
     opts = opts or {}
     local instance = {
@@ -63,9 +68,9 @@ function TableCell:new(opts)
 end
 
 --- Parse a cell from raw content string
---- @param raw_content string The raw cell text (may include whitespace)
---- @param col_index integer The column position (1-indexed)
---- @return TableCell
+---@param raw_content string The raw cell text (may include whitespace)
+---@param col_index integer The column position (1-indexed)
+---@return TableCell
 function TableCell:read(raw_content, col_index)
     local cell = TableCell:new({
         col_index = col_index,
@@ -81,15 +86,17 @@ function TableCell:read(raw_content, col_index)
     return cell
 end
 
+---@private
 --- Detect if this cell is a separator cell (contains only dashes and optional colons)
---- @return boolean
+---@return boolean
 function TableCell:_detect_separator()
     -- Separator cells contain only dashes with optional leading/trailing colons
     return self.content:match('^:?%-+:?$') ~= nil
 end
 
+---@private
 --- Parse alignment from separator cell content
---- @return string 'left'|'right'|'center'|'default'
+---@return string 'left'|'right'|'center'|'default'
 function TableCell:_parse_alignment()
     if self.content:match('^:%-+:$') then
         return 'center'
@@ -103,10 +110,10 @@ function TableCell:_parse_alignment()
 end
 
 --- Format the cell to a target width with specified alignment
---- @param target_width integer The desired content width
---- @param padding string The padding string to use around content
---- @param alignment? string Override alignment ('left'|'right'|'center'|'default')
---- @return string The formatted cell content (without surrounding pipes)
+---@param target_width integer The desired content width
+---@param padding string The padding string to use around content
+---@param alignment? string Override alignment ('left'|'right'|'center'|'default')
+---@return string The formatted cell content (without surrounding pipes)
 function TableCell:format(target_width, padding, alignment)
     alignment = alignment or self.alignment
     local content = self.content
@@ -132,9 +139,9 @@ function TableCell:format(target_width, padding, alignment)
 end
 
 --- Format a separator cell to target width
---- @param target_width integer The desired width (excluding padding)
---- @param padding string The padding string
---- @return string The formatted separator cell content
+---@param target_width integer The desired width (excluding padding)
+---@param padding string The padding string
+---@return string The formatted separator cell content
 function TableCell:format_separator(target_width, padding)
     local alignment = self.alignment
     local formatted
@@ -156,22 +163,22 @@ end
 -- TableRow Class
 -- =============================================================================
 
---- @class TableRow
---- @field cells TableCell[] Array of cells in this row
---- @field line_nr integer Buffer line number (1-indexed)
---- @field raw_content string Original line content from buffer
---- @field is_separator boolean Is this the separator row?
---- @field is_header boolean Is this the header row?
---- @field has_outer_pipes boolean Does this row have outer pipes?
---- @field outer_pipe_side string|nil 'both'|'left'|'right'|nil
---- @field continuation_lines string[] Additional content lines (grid tables only)
+---@class TableRow
+---@field cells TableCell[] Array of cells in this row
+---@field line_nr integer Buffer line number (1-indexed)
+---@field raw_content string Original line content from buffer
+---@field is_separator boolean Is this the separator row?
+---@field is_header boolean Is this the header row?
+---@field has_outer_pipes boolean Does this row have outer pipes?
+---@field outer_pipe_side string|nil 'both'|'left'|'right'|nil
+---@field continuation_lines string[] Additional content lines (grid tables only)
 local TableRow = {}
 TableRow.__index = TableRow
 TableRow.__className = 'TableRow'
 
 --- Constructor for TableRow
---- @param opts? table Optional initial values
---- @return TableRow
+---@param opts? table Optional initial values
+---@return TableRow
 function TableRow:new(opts)
     opts = opts or {}
     local instance = {
@@ -189,17 +196,17 @@ function TableRow:new(opts)
 end
 
 --- Read a row from a buffer line
---- @param line_nr integer The buffer line number (1-indexed)
---- @return TableRow
+---@param line_nr integer The buffer line number (1-indexed)
+---@return TableRow
 function TableRow:read(line_nr)
     local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]
     return TableRow:from_string(line, line_nr)
 end
 
 --- Create a TableRow from a string
---- @param line string The line content
---- @param line_nr? integer Optional line number
---- @return TableRow
+---@param line string The line content
+---@param line_nr? integer Optional line number
+---@return TableRow
 function TableRow:from_string(line, line_nr)
     local row = TableRow:new({
         line_nr = line_nr or -1,
@@ -218,9 +225,10 @@ function TableRow:from_string(line, line_nr)
     return row
 end
 
+---@private
 --- Detect if the line has outer pipes
---- @param line string
---- @return boolean, string|nil
+---@param line string
+---@return boolean, string|nil
 function TableRow:_detect_outer_pipes(line)
     if line:match('^|.*|%s*$') then
         return true, 'both'
@@ -232,8 +240,9 @@ function TableRow:_detect_outer_pipes(line)
     return false, nil
 end
 
+---@private
 --- Parse cells from line content
---- @param line string The row content
+---@param line string The row content
 function TableRow:_parse_cells(line)
     -- Temporarily replace escaped pipes to avoid splitting on them
     -- Use a placeholder that won't appear in normal text and is safe for gsub patterns
@@ -250,8 +259,9 @@ function TableRow:_parse_cells(line)
     end
 end
 
+---@private
 --- Detect if this row is a separator row
---- @return boolean
+---@return boolean
 function TableRow:_detect_separator()
     if #self.cells == 0 then
         return false
@@ -274,20 +284,20 @@ function TableRow:_detect_separator()
 end
 
 --- Get the number of cells in this row
---- @return integer
+---@return integer
 function TableRow:cell_count()
     return #self.cells
 end
 
 --- Get a cell by column index
---- @param index integer 1-indexed column number
---- @return TableCell|nil
+---@param index integer 1-indexed column number
+---@return TableCell|nil
 function TableRow:get_cell(index)
     return self.cells[index]
 end
 
 --- Get column alignments from this row (only valid for separator rows)
---- @return string[] Array of alignment values
+---@return string[] Array of alignment values
 function TableRow:get_alignments()
     local alignments = {}
     for _, cell in ipairs(self.cells) do
@@ -297,8 +307,8 @@ function TableRow:get_alignments()
 end
 
 --- Determine which cell the cursor is in given a column position
---- @param col integer 0-indexed column position in the line
---- @return integer Cell number (1-indexed), or last cell if on trailing pipe
+---@param col integer 0-indexed column position in the line
+---@return integer Cell number (1-indexed), or last cell if on trailing pipe
 function TableRow:which_cell(col)
     -- Temporarily replace escaped pipes
     local work_line = self.raw_content:gsub('\\|', '##')
@@ -320,9 +330,9 @@ function TableRow:which_cell(col)
 end
 
 --- Locate a cell's position in the row string
---- @param target_cell integer The target cell number (1-indexed)
---- @param locate_content? boolean Whether to locate content start vs cell start (default true)
---- @return integer, integer Start and end positions
+---@param target_cell integer The target cell number (1-indexed)
+---@param locate_content? boolean Whether to locate content start vs cell start (default true)
+---@return integer, integer Start and end positions
 function TableRow:locate_cell(target_cell, locate_content)
     locate_content = locate_content == nil and true or locate_content
     local work_line = self.raw_content:gsub('\\|', '  ')
@@ -352,10 +362,10 @@ function TableRow:locate_cell(target_cell, locate_content)
 end
 
 --- Format this row given column widths and config
---- @param col_widths integer[] Array of column widths
---- @param col_alignments string[] Array of column alignments
---- @param style table Style configuration
---- @return string The formatted row string
+---@param col_widths integer[] Array of column widths
+---@param col_alignments string[] Array of column alignments
+---@param style table Style configuration
+---@return string The formatted row string
 function TableRow:format(col_widths, col_alignments, style)
     local cell_padding = string.rep(' ', style.cell_padding or 1)
     local sep_padding = string.rep(' ', style.separator_padding or 1)
@@ -397,19 +407,20 @@ end
 -- MarkdownTable Class
 -- =============================================================================
 
---- @class MarkdownTable
---- @field rows TableRow[] All rows in the table
---- @field metadata table Table metadata (alignments, indices)
---- @field line_range {start: integer, finish: integer} Buffer line range
---- @field col_count integer Number of columns
---- @field col_widths integer[] Maximum width for each column
---- @field valid boolean Is this a valid complete table (has separator)?
+---@class MarkdownTable
+---@field rows TableRow[] All rows in the table
+---@field metadata table Table metadata (alignments, indices)
+---@field line_range {start: integer, finish: integer} Buffer line range
+---@field col_count integer Number of columns
+---@field col_widths integer[] Maximum width for each column
+---@field valid boolean Is this a valid complete table (has separator)?
+---@field table_type string Table format type ('pipe'|'grid')
 local MarkdownTable = {}
 MarkdownTable.__index = MarkdownTable
 MarkdownTable.__className = 'MarkdownTable'
 
 --- Constructor for MarkdownTable
---- @return MarkdownTable
+---@return MarkdownTable
 function MarkdownTable:new()
     local instance = {
         rows = {},
@@ -429,8 +440,8 @@ function MarkdownTable:new()
 end
 
 --- Detect if a line is a grid table border line (+---+---+ or +===+===+)
---- @param line string|nil The line text
---- @return boolean
+---@param line string|nil The line text
+---@return boolean
 function MarkdownTable.isGridBorder(line)
     return line ~= nil
         and line:match('^%s*%+[%-=+:]+%+%s*$') ~= nil
@@ -438,16 +449,17 @@ function MarkdownTable.isGridBorder(line)
 end
 
 --- Detect if a line is a grid table header separator (+===+===+)
---- @param line string|nil The line text
---- @return boolean
+---@param line string|nil The line text
+---@return boolean
 function MarkdownTable.isGridHeaderSeparator(line)
     return line ~= nil and line:match('^%s*%+[=+:]+%+%s*$') ~= nil and line:find('=') ~= nil
 end
 
+---@private
 --- Determine if cursor context is a grid table (vs pipe)
 --- Scans nearby lines for +---+ border patterns
---- @param line_nr integer The buffer line number (1-indexed)
---- @return boolean
+---@param line_nr integer The buffer line number (1-indexed)
+---@return boolean
 function MarkdownTable._isGridContext(line_nr)
     local line_count = vim.api.nvim_buf_line_count(0)
     -- Check the line itself first
@@ -477,9 +489,9 @@ function MarkdownTable._isGridContext(line_nr)
 end
 
 --- Check if a line is part of a table
---- @param text string The line text
---- @param linenr? integer Optional line number for context checking
---- @return boolean
+---@param text string The line text
+---@param linenr? integer Optional line number for context checking
+---@return boolean
 function MarkdownTable.isPartOfTable(text, linenr)
     -- Grid table border lines are always part of a table
     if MarkdownTable.isGridBorder(text) then
@@ -532,8 +544,8 @@ function MarkdownTable.isPartOfTable(text, linenr)
 end
 
 --- Read a table from the buffer starting at a line number
---- @param line_nr? integer Starting line number (defaults to cursor position)
---- @return MarkdownTable
+---@param line_nr? integer Starting line number (defaults to cursor position)
+---@return MarkdownTable
 function MarkdownTable:read(line_nr)
     line_nr = line_nr or vim.api.nvim_win_get_cursor(0)[1]
     if MarkdownTable._isGridContext(line_nr) then
@@ -618,6 +630,7 @@ function MarkdownTable:read(line_nr)
     return tbl
 end
 
+---@private
 --- Calculate the maximum column count across all rows
 function MarkdownTable:_calculate_col_count()
     local max_cols = 0
@@ -629,6 +642,7 @@ function MarkdownTable:_calculate_col_count()
     self.col_count = max_cols
 end
 
+---@private
 --- Ensure all rows have the same number of columns
 function MarkdownTable:_equalize_rows()
     for _, row in ipairs(self.rows) do
@@ -647,6 +661,7 @@ function MarkdownTable:_equalize_rows()
     end
 end
 
+---@private
 --- Calculate maximum width for each column
 function MarkdownTable:_calculate_col_widths()
     self.col_widths = {}
@@ -669,8 +684,8 @@ function MarkdownTable:_calculate_col_widths()
 end
 
 --- Get a row by its buffer line number
---- @param line_nr integer
---- @return TableRow|nil
+---@param line_nr integer
+---@return TableRow|nil
 function MarkdownTable:get_row(line_nr)
     for _, row in ipairs(self.rows) do
         if row.line_nr == line_nr then
@@ -681,18 +696,19 @@ function MarkdownTable:get_row(line_nr)
 end
 
 --- Check if the table has a valid separator row
---- @return boolean
+---@return boolean
 function MarkdownTable:has_separator()
     return self.metadata.separator_row_idx ~= nil
 end
 
 --- Get column alignments
---- @return string[]
+---@return string[]
 function MarkdownTable:get_alignments()
     return self.metadata.col_alignments
 end
 
 --- Format the table and write to buffer
+---@return nil
 function MarkdownTable:format()
     if not self.valid or #self.rows == 0 then
         return
@@ -726,10 +742,10 @@ function MarkdownTable:format()
 end
 
 --- Create a new table in the buffer
---- @param cols integer Number of columns
---- @param rows integer Number of data rows
---- @param header boolean Whether to include header row
---- @return MarkdownTable
+---@param cols integer Number of columns
+---@param rows integer Number of data rows
+---@param header boolean Whether to include header row
+---@return MarkdownTable
 function MarkdownTable:create(cols, rows, header)
     local table_type = get_config().tables.type or 'pipe'
     if table_type == 'grid' then
@@ -776,7 +792,7 @@ function MarkdownTable:create(cols, rows, header)
 end
 
 --- Add a new row to the table
---- @param offset? integer Position offset (0 = below cursor, -1 = above cursor)
+---@param offset? integer Position offset (0 = below cursor, -1 = above cursor)
 function MarkdownTable:add_row(offset)
     if self.table_type == 'grid' then
         return require('mkdnflow.tables.grid').add_row(self, offset)
@@ -814,7 +830,7 @@ function MarkdownTable:add_row(offset)
 end
 
 --- Add a new column to the table
---- @param offset? integer Position offset (0 = after current, -1 = before current)
+---@param offset? integer Position offset (0 = after current, -1 = before current)
 function MarkdownTable:add_col(offset)
     if self.table_type == 'grid' then
         return require('mkdnflow.tables.grid').add_col(self, offset)
@@ -905,6 +921,7 @@ end
 
 --- Delete the current row from the table
 --- Does nothing if cursor is on separator row
+---@return nil
 function MarkdownTable:delete_row()
     if self.table_type == 'grid' then
         return require('mkdnflow.tables.grid').delete_row(self)
@@ -968,6 +985,7 @@ function MarkdownTable:delete_row()
 end
 
 --- Delete the current column from the table
+---@return nil
 function MarkdownTable:delete_col()
     if self.table_type == 'grid' then
         return require('mkdnflow.tables.grid').delete_col(self)

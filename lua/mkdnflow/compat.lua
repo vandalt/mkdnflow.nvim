@@ -27,11 +27,9 @@ if require('mkdnflow').nvim_version < 9 and not silent then
 end
 local M = {}
 
---[[
-userConfigCheck() will check a user config for particular settings that have
-since been migrated to another setting or another format. It returns an equiva-
-lent user config that is upgraded to the new format.
---]]
+--- Check a user config for deprecated settings and migrate them to their modern equivalents
+---@param user_config table The raw user configuration table
+---@return table user_config The migrated configuration table (same reference, modified in-place)
 M.userConfigCheck = function(user_config)
     -- COMPAT(added=v2.8, remove=v3.0): extension-based filetypes → filetype-based
     -- Migrate old extension-based filetypes config to filetype-based

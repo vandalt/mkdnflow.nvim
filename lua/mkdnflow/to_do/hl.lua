@@ -47,7 +47,8 @@ local function set_highlights(to_do_statuses)
     end
 end
 
---- Function to clear existing matches
+--- Clear all previously added to-do syntax matches
+---@private
 local function clear_syntax_matches()
     for _, id in ipairs(match_ids) do
         vim.fn.matchdelete(id)
@@ -55,7 +56,8 @@ local function clear_syntax_matches()
     match_ids = {}
 end
 
---- Function to perform highlighting on matches
+--- Apply syntax highlighting to to-do items based on their status
+---@private
 local function highlight_to_dos()
     local statuses = require('mkdnflow').config.to_do.statuses
     set_highlights(statuses)

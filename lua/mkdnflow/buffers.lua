@@ -20,27 +20,33 @@ local path_resolution = require('mkdnflow').config.path_resolution
 -- Table for global functions and variables
 local M = {}
 
--- Create local tables to keep track of buffers for backward and forward navigation
+--- Stack of buffer numbers for backward navigation
+---@type integer[]
 M.main = {}
+
+--- Stack of buffer numbers for forward navigation (history)
+---@type integer[]
 M.hist = {}
 
+--- Push a buffer number onto the front of a stack
+---@param stack_name integer[] The stack to push onto (M.main or M.hist)
+---@param bufnr integer The buffer number to push
 M.push = function(stack_name, bufnr)
     -- Add the provided buffer number to the first position in the provided
     -- stack, pushing down the others in the provided stack
     table.insert(stack_name, 1, bufnr)
 end
 
+--- Pop the topmost element from a stack
+---@param stack_name integer[] The stack to pop from (M.main or M.hist)
 M.pop = function(stack_name)
     -- Remove the topmost element in the provided stack
     table.remove(stack_name, 1)
 end
 
---[[
-goBack() gets the current buffer number to see if it's greater than 1. If it
-is, the current buffer is not the first that was opened, and there is a buffer
-to go back to. It gets the previous buffer number from the buffer stack, goes
-there, and then pops the top element from the main stack.
---]]
+--- Navigate to the previous buffer in the main stack
+--- Pushes the current buffer onto the history stack for forward navigation.
+---@return boolean success Whether navigation succeeded
 M.goBack = function()
     local cur_bufnr = vim.api.nvim_win_get_buf(0)
     if cur_bufnr > 1 and #M.main > 0 then
@@ -66,12 +72,9 @@ M.goBack = function()
     end
 end
 
---[[
-goForward() looks at the historical buffer stack to see if there's anything to
-be navigated to. If there is, it adds the current buffer to the main stack,
-goes to the buffer at the top of the history stack, and pops it from the histo-
-ry stack. Returns `true` if successful, `false` if it fails.
---]]
+--- Navigate forward to the next buffer in the history stack
+--- Pushes the current buffer onto the main stack for backward navigation.
+---@return boolean success Whether navigation succeeded
 M.goForward = function()
     -- Get current buffer number
     local cur_bufnr = vim.api.nvim_win_get_buf(0)

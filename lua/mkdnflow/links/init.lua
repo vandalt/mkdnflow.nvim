@@ -35,25 +35,23 @@ M.pattern_order = core.pattern_order
 -- Backwards-compatible API functions
 -- =============================================================================
 
---[[
-getLinkUnderCursor() retrieves a link of any type that is beneath a given column
-number on the current line. The col number will be the cursor position by
-default, but that can be overridden by passing in a col number argument.
-
-Returns a Link object that can be accessed both as an object (link.type) and
-as a tuple (link[3]) for backwards compatibility.
---]]
+--- Retrieve the link under the cursor (or at a given column)
+---@param col? integer 0-indexed column to check (defaults to cursor position)
+---@return Link|nil link The link under the cursor, or nil if none found
 M.getLinkUnderCursor = function(col)
     return Link:read(col)
 end
 
---[[
-getLinkPart() extracts a given part of a link (source, name, or anchor)
-Returns a string (or two strings if there is an anchor within the source)
-
-This function accepts both the new Link object and the old tuple format
-for backwards compatibility.
---]]
+--- Extract a specific part (source, name, or anchor) from a Link object or legacy tuple
+---@param link_table Link|table|nil The link to extract from
+---@param part? 'source'|'name'|'anchor' Which part to extract (defaults to 'source')
+---@return string|nil text The extracted text
+---@return string|nil anchor The anchor fragment (for 'source' part), or empty string
+---@return string|nil link_type The link type
+---@return integer|nil start_row
+---@return integer|nil start_col
+---@return integer|nil end_row
+---@return integer|nil end_col
 M.getLinkPart = function(link_table, part)
     if not link_table then
         return nil
@@ -112,10 +110,12 @@ M.getLinkPart = function(link_table, part)
     end
 end
 
---[[
-getBracketedSpanPart() retrieves the given part of a bracketed span (either
-the attribute or the spanned text).
---]]
+--- Retrieve the attribute or text of a Pandoc bracketed span under the cursor
+---@param part? 'attr'|'text' Which part to retrieve (defaults to 'attr')
+---@return string|nil result The attribute or text content
+---@return integer|nil first Start column of the result
+---@return integer|nil last End column of the result
+---@return integer|nil row The row of the bracketed span
 M.getBracketedSpanPart = function(part)
     -- Use 'attr' as part if no argument provided
     part = part or 'attr'
@@ -180,13 +180,12 @@ end
 -- URL and path utilities
 -- =============================================================================
 
---[[
-hasUrl() determines whether a string is a URL
-Arguments: the string to look for a url in; (optional) what should be returned--
-either 'boolean' [default] or 'positions'; (optional) current cursor position
-Returns: a boolean or nil if to_return is empty or 'boolean'; positions of url
-if to_return is 'positions'.
---]]
+--- Determine whether a string contains a URL
+---@param string string The string to search for a URL
+---@param to_return? 'boolean'|'positions' What to return (defaults to 'boolean')
+---@param col? integer If provided, only match URLs overlapping this 0-indexed column
+---@return boolean|integer|nil result Boolean if to_return is 'boolean'; start position if 'positions'
+---@return integer|nil last End position (only when to_return is 'positions')
 M.hasUrl = function(string, to_return, col)
     to_return = to_return or 'boolean'
     col = col or nil
@@ -550,10 +549,9 @@ M.hasUrl = function(string, to_return, col)
     end
 end
 
---[[
-transformPath() transforms the text passed in according to the default or
-user-supplied explicit transformation function.
---]]
+--- Apply the user's `transform_on_create` function to text when creating a link
+---@param text string The text to transform
+---@return string text The transformed text (or unchanged if no transform is configured)
 M.transformPath = function(text)
     local config = require('mkdnflow').config
     local links = config.links
@@ -564,11 +562,9 @@ M.transformPath = function(text)
     end
 end
 
---[[
-formatAnchorLegacy() converts a heading to an anchor using the legacy ASCII-only behavior.
-Used for backwards compatibility fallback when following anchor links.
-Note: The order of operations must match the original formatLink() behavior exactly.
---]]
+--- Convert a heading to an anchor using the legacy ASCII-only behavior (for backwards compatibility)
+---@param heading_text string The heading text (with or without leading `#` characters)
+---@return string anchor The anchor string (e.g., "#my-heading")
 M.formatAnchorLegacy = function(heading_text)
     local path_text = heading_text
     -- Step 1: Strip non-ASCII chars (original behavior - this leaves spaces from stripped chars)
@@ -584,11 +580,9 @@ M.formatAnchorLegacy = function(heading_text)
     return path_text
 end
 
---[[
-cleanCitationText() strips bracket syntax ([, ]) from citation text selected
-in visual mode while preserving the @ prefix, so the link display text still
-reads as a citation (e.g. [@smith2020](smith2020.md)).
---]]
+--- Strip bracket syntax from citation text while preserving the `@` prefix
+---@param text? string The citation text (e.g., "[@smith2020]")
+---@return string|nil text The cleaned text (e.g., "@smith2020"), or nil if input was nil
 M.cleanCitationText = function(text)
     if not text then
         return text
@@ -598,12 +592,11 @@ M.cleanCitationText = function(text)
     return text
 end
 
---[[
-formatLink() creates a formatted link from whatever text is passed to it
-Returns a string:
-     1. '[string of text](<prefix>_string-of-text.md)' in most cases
-     2. '[anchor link](#anchor-link)' if the text starts with a hash (#)
---]]
+--- Create a formatted markdown or wiki link from text
+---@param text string The display text (or heading text for anchors)
+---@param source? string An explicit source path; if nil, derived from text
+---@param part? integer If 1, return only the text; if 2, return only the path
+---@return string[]|string|nil result The formatted link as a single-element array, or a part if requested
 M.formatLink = function(text, source, part)
     local config = require('mkdnflow').config
     local links = config.links
@@ -653,11 +646,8 @@ end
 -- Link manipulation functions
 -- =============================================================================
 
---[[
-createLink() makes a link from the word under the cursor--or, if no word is
-under the cursor, produces the syntax for a md link: [](YYYY-MM-DD_.md)
-Returns nothing via stdout, but does insert text into the vim buffer
---]]
+--- Create a link from the word under the cursor or from a visual selection
+---@param args? {from_clipboard?: boolean, from_citation?: boolean, citation_bounds?: table, range?: boolean}
 M.createLink = function(args)
     local config = require('mkdnflow').config
     local links = config.links
@@ -833,10 +823,7 @@ M.createLink = function(args)
     end
 end
 
---[[
-destroyLink() replaces any link the cursor is currently overlapping with just
-the name part of the link.
---]]
+--- Remove the link under the cursor, keeping only the display text
 M.destroyLink = function()
     -- Get link name, indices, and row the cursor is currently on
     local link = M.getLinkUnderCursor()
@@ -853,12 +840,8 @@ M.destroyLink = function()
     end
 end
 
---[[
-followLink() passes a path and anchor (passed in or picked up from a link under
-the cursor) to handlePath from the paths module. If no path or anchor are passed
-in and there is no link under the cursor, createLink() is called to create a
-link from the word under the cursor or a visual selection (if there is one).
---]]
+--- Follow the link under the cursor, or create a new link if none exists
+---@param args? {path?: string, anchor?: string, range?: boolean}
 M.followLink = function(args)
     local config = require('mkdnflow').config
     local links = config.links
@@ -905,10 +888,7 @@ M.followLink = function(args)
     end
 end
 
---[[
-tagSpan() creates a bracketed span from a visual selection and formats the ID
-attribute.
---]]
+--- Create a Pandoc bracketed span from a visual selection with an auto-generated ID attribute
 M.tagSpan = function()
     -- Get mode & cursor position from vim
     local mode, position = vim.api.nvim_get_mode()['mode'], vim.api.nvim_win_get_cursor(0)

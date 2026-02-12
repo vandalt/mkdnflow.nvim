@@ -19,10 +19,15 @@
 local M = {}
 
 -- Lazy accessors to avoid circular require with core.lua
+
+---@private
+---@return table
 local function get_core()
     return require('mkdnflow.tables.core')
 end
 
+---@private
+---@return table
 local function get_config()
     return require('mkdnflow').config
 end
@@ -34,10 +39,11 @@ local width = vim.api.nvim_strwidth
 -- Helper Functions
 -- =============================================================================
 
+---@private
 --- Parse column boundaries from a border line.
 --- Returns array of {start, finish} byte positions of the content areas between + characters.
---- @param border_line string A grid border like "+---+---+---+"
---- @return table[] Array of {start=int, finish=int} positions
+---@param border_line string A grid border like "+---+---+---+"
+---@return {start: integer, finish: integer}[] boundaries Array of {start, finish} positions
 local function parse_col_boundaries(border_line)
     local boundaries = {}
     local trimmed = border_line:match('^%s*(.*)$')
@@ -58,12 +64,13 @@ local function parse_col_boundaries(border_line)
     return boundaries
 end
 
+---@private
 --- Extract cell content from a content line using column boundaries.
 --- Falls back to pipe-based parsing when content overflows the border boundaries
 --- (e.g. user typed content wider than the current column borders).
---- @param content_line string A grid content line like "| cell1 | cell2 |"
---- @param col_boundaries table[] From parse_col_boundaries
---- @return string[] Array of cell content strings (trimmed)
+---@param content_line string A grid content line like "| cell1 | cell2 |"
+---@param col_boundaries {start: integer, finish: integer}[] From parse_col_boundaries
+---@return string[] cells Array of cell content strings (trimmed)
 local function slice_cells(content_line, col_boundaries)
     local cells = {}
     local trimmed = content_line:match('^%s*(.*)$')
@@ -107,12 +114,13 @@ local function slice_cells(content_line, col_boundaries)
     return cells
 end
 
+---@private
 --- Build a grid border line from column widths.
---- @param col_widths integer[] Column widths (content widths, not including padding)
---- @param padding integer Padding per side
---- @param char string '-' or '='
---- @param alignments? string[] Optional alignment markers per column
---- @return string
+---@param col_widths integer[] Column widths (content widths, not including padding)
+---@param padding integer Padding per side
+---@param char string '-' or '='
+---@param alignments? string[] Optional alignment markers per column
+---@return string
 local function build_border(col_widths, padding, char, alignments)
     local parts = { '+' }
     for i, w in ipairs(col_widths) do
@@ -140,12 +148,13 @@ local function build_border(col_widths, padding, char, alignments)
     return table.concat(parts)
 end
 
+---@private
 --- Build a content line from cell texts with proper padding.
---- @param cell_texts string[] Content for each cell
---- @param col_widths integer[] Column widths
---- @param padding integer Padding per side
---- @param alignments? string[] Column alignments
---- @return string
+---@param cell_texts string[] Content for each cell
+---@param col_widths integer[] Column widths
+---@param padding integer Padding per side
+---@param alignments? string[] Column alignments
+---@return string
 local function build_content_line(cell_texts, col_widths, padding, alignments)
     local pad = string.rep(' ', padding)
     local parts = { '|' }
@@ -174,9 +183,10 @@ local function build_content_line(cell_texts, col_widths, padding, alignments)
     return table.concat(parts)
 end
 
+---@private
 --- Parse alignment from a grid header separator segment.
---- @param segment string e.g. "===", ":===", "===:", ":===:"
---- @return string 'left'|'right'|'center'|'default'
+---@param segment string e.g. "===", ":===", "===:", ":===:"
+---@return 'left'|'right'|'center'|'default'
 local function parse_segment_alignment(segment)
     local trimmed = vim.trim(segment)
     if trimmed:match('^:=+:$') then
@@ -196,9 +206,9 @@ end
 
 --- Build a formatted grid table from a 2D array of cell content.
 --- Used by the delimited data import feature.
---- @param cell_data string[][] 2D array of cell content
---- @param has_header boolean Whether the first row is a header
---- @return string[] Array of formatted grid table lines
+---@param cell_data string[][] 2D array of cell content
+---@param has_header boolean Whether the first row is a header
+---@return string[] lines Array of formatted grid table lines
 function M.buildFromData(cell_data, has_header)
     if #cell_data == 0 then
         return {}
@@ -247,8 +257,8 @@ end
 -- =============================================================================
 
 --- Read a grid table from the buffer starting at a line number.
---- @param line_nr integer Starting line number (1-indexed)
---- @return table MarkdownTable instance
+---@param line_nr integer Starting line number (1-indexed)
+---@return table tbl MarkdownTable instance
 function M.read(line_nr)
     local core = get_core()
     local MarkdownTable = core.MarkdownTable
@@ -474,7 +484,7 @@ end
 -- =============================================================================
 
 --- Format a grid table and write to buffer.
---- @param tbl table MarkdownTable instance with table_type='grid'
+---@param tbl table MarkdownTable instance with table_type='grid'
 function M.format(tbl)
     if not tbl.valid or #tbl.rows == 0 then
         return
@@ -570,10 +580,10 @@ end
 -- =============================================================================
 
 --- Create a new grid table in the buffer.
---- @param cols integer Number of columns
---- @param rows integer Number of data rows
---- @param header boolean Whether to include header row
---- @return table MarkdownTable instance
+---@param cols integer Number of columns
+---@param rows integer Number of data rows
+---@param header boolean Whether to include header row
+---@return table tbl MarkdownTable instance
 function M.create(cols, rows, header)
     local core = get_core()
     local MarkdownTable = core.MarkdownTable
@@ -625,8 +635,8 @@ end
 -- =============================================================================
 
 --- Add a new row to a grid table.
---- @param tbl table MarkdownTable instance
---- @param offset? integer Position offset (0 = below cursor, -1 = above cursor)
+---@param tbl table MarkdownTable instance
+---@param offset? integer Position offset (0 = below cursor, -1 = above cursor)
 function M.add_row(tbl, offset)
     offset = offset or 0
     local core = get_core()
@@ -709,7 +719,7 @@ function M.add_row(tbl, offset)
 end
 
 --- Delete a row from a grid table.
---- @param tbl table MarkdownTable instance
+---@param tbl table MarkdownTable instance
 function M.delete_row(tbl)
     local core = get_core()
     local MarkdownTable = core.MarkdownTable
@@ -793,8 +803,8 @@ end
 -- =============================================================================
 
 --- Add a new column to a grid table.
---- @param tbl table MarkdownTable instance
---- @param offset? integer Position offset (0 = after current, -1 = before current)
+---@param tbl table MarkdownTable instance
+---@param offset? integer Position offset (0 = after current, -1 = before current)
 function M.add_col(tbl, offset)
     offset = offset or 0
     local core = get_core()
@@ -910,7 +920,7 @@ function M.add_col(tbl, offset)
 end
 
 --- Delete a column from a grid table.
---- @param tbl table MarkdownTable instance
+---@param tbl table MarkdownTable instance
 function M.delete_col(tbl)
     local core = get_core()
     local MarkdownTable = core.MarkdownTable
@@ -1022,8 +1032,8 @@ end
 --- Insert a new empty content line within the current grid table row.
 --- The line is inserted after the cursor's current line, before the next border.
 --- Cursor moves to the same cell on the new line.
---- @param tbl table MarkdownTable instance
---- @param cursor_position table {row, col} from nvim_win_get_cursor
+---@param tbl table MarkdownTable instance
+---@param cursor_position integer[] {row, col} from nvim_win_get_cursor
 function M.add_cell_line(tbl, cursor_position)
     local core = get_core()
     local TableRow = core.TableRow

@@ -14,14 +14,18 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
--- Check if treesitter highlighting is active for the buffer
+--- Check if treesitter highlighting is active for the buffer
+---@param bufnr? integer Buffer number (defaults to current buffer)
+---@return boolean
+---@private
 local function ts_highlight_active(bufnr)
     bufnr = bufnr or vim.api.nvim_get_current_buf()
     local ok, hl = pcall(require, 'vim.treesitter.highlighter')
     return ok and hl.active[bufnr] ~= nil
 end
 
--- Add conceal patterns for wiki-style links: [[target]] and [[target|alias]]
+--- Add conceal patterns for wiki-style links: [[target]] and [[target|alias]]
+---@private
 local function add_wiki_patterns()
     -- [[target|alias]] - conceal [[target| prefix
     vim.fn.matchadd('Conceal', '\\zs\\[\\[[^[]\\{-}[|]\\ze[^[]\\{-}\\]\\]', 0, -1, { conceal = '' })
@@ -33,7 +37,8 @@ local function add_wiki_patterns()
     vim.fn.matchadd('Conceal', '\\[\\[[^[]\\{-}\\zs\\]\\]\\ze', 0, -1, { conceal = '' })
 end
 
--- Add conceal patterns for markdown-style links: [text](url) and [text][ref]
+--- Add conceal patterns for markdown-style links: [text](url) and [text][ref]
+---@private
 local function add_markdown_patterns()
     -- Inline links: [text](url)
     vim.fn.matchadd('Conceal', '\\[[^[]\\{-}\\]\\zs([^(]\\{-})\\ze', 0, -1, { conceal = '' })
@@ -85,6 +90,8 @@ local function add_markdown_patterns()
     )
 end
 
+--- Set up link concealing for the current buffer (wiki + markdown patterns)
+---@private
 local function start_link_concealing()
     -- Always add wiki link patterns (treesitter doesn't handle [[...]] syntax)
     add_wiki_patterns()

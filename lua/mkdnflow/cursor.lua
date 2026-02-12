@@ -22,10 +22,14 @@ local search_range = require('mkdnflow').config.links.search_range
 local jump_patterns = require('mkdnflow').config.cursor.jump_patterns
 local utils = require('mkdnflow').utils
 
---[[
-find_patterns() is like a more complex version of string.find that accepts a list of patterns to
-search for and permits reverse searches.
---]]
+--- Find the nearest match among multiple patterns, with support for reverse searching
+---@param str string The string to search in
+---@param patterns string|string[] One or more Lua patterns to search for
+---@param reverse? boolean Search for the rightmost match instead of the leftmost (default false)
+---@param init? integer Starting position for the search
+---@return integer|nil left Start index of the closest match
+---@return integer|nil right End index of the closest match
+---@private
 local find_patterns = function(str, patterns, reverse, init)
     reverse = reverse or false
     -- If the patterns arg is a string, add it to a table
@@ -58,10 +62,9 @@ end
 
 local M = {}
 
---[[
-goTo() sends the cursor to the beginning of the next instance of a pattern or a list of patterns.
-If 'reverse' is 'true', it will go to the previous instance of the pattern.
---]]
+--- Move the cursor to the next (or previous) instance of a pattern in the buffer
+---@param pattern string|string[] One or more Lua patterns to jump to
+---@param reverse? boolean If true, search backward instead of forward
 M.goTo = function(pattern, reverse)
     -- Get current position of cursor
     local position = vim.api.nvim_win_get_cursor(0)
@@ -131,10 +134,10 @@ M.goTo = function(pattern, reverse)
     end
 end
 
---[[
-go_to_heading() finds a heading for the text passed in from an anchor link. If
-no argument is provided, it goes to the next heading it can find, if possible.
---]]
+--- Jump to a heading matching the given anchor text, or to the next/previous heading
+---@param anchor_text? string The anchor link text to match (e.g., "#my-heading"); if nil, jumps to next heading
+---@param reverse? boolean If true, search backward
+---@private
 local go_to_heading = function(anchor_text, reverse)
     -- Record which line we're on; chances are the link goes to something later,
     -- so we'll start looking from here onwards and then circle back to the beginning
@@ -216,6 +219,11 @@ local go_to_heading = function(anchor_text, reverse)
     end
 end
 
+--- Jump to a Pandoc-style bracketed span or heading with a matching ID attribute
+---@param id string The ID to search for (e.g., "#my-id")
+---@param starting_row? integer The 1-indexed row to start searching from (defaults to cursor row)
+---@return boolean found Whether a matching element was found
+---@private
 local go_to_id = function(id, starting_row)
     starting_row = starting_row or vim.api.nvim_win_get_cursor(0)[1]
     local continue = true
@@ -260,11 +268,9 @@ local go_to_id = function(id, starting_row)
     end
 end
 
---[[
-changeHeadingLevel() changes the importance of a heading by adding or removing
-a hash symbol. Fewer hashes = more important. Accepts optional opts table with
-line1 and line2 for range operations (e.g., from visual selection).
---]]
+--- Change the heading level by adding or removing a `#` symbol
+---@param change 'increase'|'decrease' Direction to change (increase = remove `#`, decrease = add `#`)
+---@param opts? {line1?: integer, line2?: integer} Optional range for multi-line operations
 M.changeHeadingLevel = function(change, opts)
     opts = opts or {}
     local start_row = opts.line1 or vim.api.nvim_win_get_cursor(0)[1]
@@ -296,13 +302,12 @@ M.changeHeadingLevel = function(change, opts)
     end
 end
 
--- State for operator-pending heading changes (used for dot-repeat)
+--- Pending direction for operator-pending heading changes (used for dot-repeat)
+---@type 'increase'|'decrease'|nil
 M._pending_direction = nil
 
---[[
-_headingOperator() is the operatorfunc callback for g@ operations. It extracts
-the range from marks and calls changeHeadingLevel. This enables dot-repeat.
---]]
+--- Operatorfunc callback for `g@`; extracts the range from marks and calls changeHeadingLevel
+---@param motion? string The motion type passed by Vim ('v', 'V', '\22' for visual block, or char/line/block)
 M._headingOperator = function(motion)
     if not M._pending_direction then
         return
@@ -325,22 +330,19 @@ M._headingOperator = function(motion)
     M.changeHeadingLevel(M._pending_direction, { line1 = start_row, line2 = end_row })
 end
 
---[[
-setupHeadingOperator() prepares the operator for normal mode. It sets the
-operatorfunc and returns 'g@' so that Vim waits for a motion. This is used
-with expression mappings ({ expr = true }).
---]]
+--- Prepare the heading operator for normal mode (sets operatorfunc and returns `g@`)
+--- Used with `expr = true` mappings so Vim waits for a motion.
+---@param direction 'increase'|'decrease' The heading change direction
+---@return string operator_key Always returns `'g@'`
 M.setupHeadingOperator = function(direction)
     M._pending_direction = direction
     vim.o.operatorfunc = "v:lua.require'mkdnflow.cursor'._headingOperator"
     return 'g@'
 end
 
---[[
-headingOperatorVisual() handles visual mode operator calls. It uses g@ with
-a count-based motion so that dot-repeat works correctly (repeating the
-same number of lines from the new cursor position, like > and < do).
---]]
+--- Handle visual mode heading operator calls with dot-repeat support
+--- Uses `g@` with a count-based motion so dot-repeat applies to the same number of lines.
+---@param direction 'increase'|'decrease' The heading change direction
 M.headingOperatorVisual = function(direction)
     M._pending_direction = direction
     vim.o.operatorfunc = "v:lua.require'mkdnflow.cursor'._headingOperator"
@@ -354,40 +356,35 @@ M.headingOperatorVisual = function(direction)
     vim.cmd('normal! `<' .. line_count .. 'g@_')
 end
 
---[[
-toNextLink() goes to the next link according to an optional pattern passed as an
-argument. If no pattern is passed in, it looks for the default markdown link
-pattern.
---]]
+--- Jump to the next link in the buffer (using configured jump_patterns)
+---@param pattern? string|string[] Unused; jump_patterns from config are always used
 M.toNextLink = function(pattern)
     M.goTo(jump_patterns)
 end
 
---[[
-toPrevLink() goes to the previous link according to an optional pattern passed
-as an argument. If no pattern is passed in, it looks for the default markdown
-link pattern.
---]]
+--- Jump to the previous link in the buffer (using configured jump_patterns)
+---@param pattern? string|string[] Unused; jump_patterns from config are always used
 M.toPrevLink = function(pattern)
     M.goTo(jump_patterns, true)
 end
 
---[[
-toHeading() finds a particular heading in the file
---]]
+--- Jump to a heading matching the given anchor text, or to the next/previous heading
+---@param anchor_text? string The anchor link text to match; if nil, jumps to next/previous heading
+---@param reverse? boolean If true, search backward
 M.toHeading = function(anchor_text, reverse)
     go_to_heading(anchor_text, reverse)
 end
 
+--- Jump to a Pandoc-style bracketed span or heading with a matching ID attribute
+---@param id string The ID to search for
+---@param starting_row? integer The 1-indexed row to start searching from (defaults to cursor row)
+---@return boolean found Whether a matching element was found
 M.toId = function(id, starting_row)
     return go_to_id(id, starting_row)
 end
 
---[[
-yankAsAnchorLink() takes the current line, converts it into an anchor link int-
-ernally, an adds the link to the register, effectively yanking the heading as
-an anchor link. Assumes current line is a heading.
---]]
+--- Yank the current heading (or bracketed span) as a markdown anchor link into a register
+---@param full_path? boolean If true, prepend the full buffer path to the anchor (default false)
 M.yankAsAnchorLink = function(full_path)
     full_path = full_path or false
     local register = require('mkdnflow').config.cursor.yank_register or '"'

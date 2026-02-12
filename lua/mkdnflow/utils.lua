@@ -16,8 +16,11 @@
 
 local M = {}
 
--- Helper to check if a table is array-like (consecutive integer keys starting at 1)
--- Used by mergeTables to determine whether to replace or recursively merge
+--- Check if a table is array-like (consecutive integer keys starting at 1)
+--- Used by mergeTables to determine whether to replace or recursively merge
+---@param t any
+---@return boolean
+---@private
 local function isArray(t)
     if type(t) ~= 'table' then
         return false
@@ -39,8 +42,11 @@ local function isArray(t)
     return true
 end
 
--- Function to merge the user_config with the default config
--- Array-like tables are replaced entirely; dict-like tables are merged recursively
+--- Merge user_config into the default config table (in-place)
+--- Array-like tables are replaced entirely; dict-like tables are merged recursively
+---@param defaults table The default configuration table (modified in-place)
+---@param user_config table The user-provided configuration overrides
+---@return table defaults The merged table (same reference as `defaults`)
 M.mergeTables = function(defaults, user_config)
     for k, v in pairs(user_config) do
         if type(v) == 'table' then
@@ -59,7 +65,11 @@ M.mergeTables = function(defaults, user_config)
     return defaults
 end
 
--- Public function to identify root directory on a unix or Windows machine
+--- Identify the root directory by searching upward for a root indicator file/directory
+---@param dir string The directory to start searching from
+---@param root_tell string|string[] Filename(s) that indicate the project root
+---@param os? string The operating system (unused, kept for API compatibility)
+---@return string|nil root_dir The root directory path, or nil if not found
 M.getRootDir = function(dir, root_tell, os)
     local results = vim.fs.find(root_tell, { upward = true, path = dir })
     if results and results[1] then
@@ -68,6 +78,9 @@ M.getRootDir = function(dir, root_tell, os)
     return nil
 end
 
+--- Check if a Lua module is available (loadable) without actually loading it
+---@param name string The module name (e.g., "mkdnflow.links")
+---@return boolean available Whether the module can be loaded
 M.moduleAvailable = function(name)
     if package.loaded[name] then
         return true
@@ -83,6 +96,20 @@ M.moduleAvailable = function(name)
     end
 end
 
+--- Multi-line find: search for a pattern across concatenated lines
+--- Returns the match position in terms of buffer rows and columns
+---@param tbl string[] Array of line strings to search across
+---@param str string|string[] Pattern(s) to search for; if a table, performs multi-step regex search
+---@param start_row integer The buffer row corresponding to tbl[1]
+---@param init_row? integer The cursor row (defaults to 1)
+---@param init_col? integer The column to start searching from (defaults to 1)
+---@param plain? boolean Use plain string matching (defaults to false)
+---@return integer|nil match_start_row
+---@return integer|nil match_start_col
+---@return integer|nil match_end_row
+---@return integer|nil match_end_col
+---@return string|nil capture The captured group, if any
+---@return string[] match_lines The lines spanning the match
 M.mFind = function(tbl, str, start_row, init_row, init_col, plain)
     init_row = init_row or 1 -- Line where the cursor is (start_row is first line in table, including user-configurable context)
     init_col = init_col or 1 -- Where to start the search from in the line
@@ -134,6 +161,9 @@ M.mFind = function(tbl, str, start_row, init_row, init_col, plain)
     return match_start_row, match_start_col, match_end_row, match_end_col, capture, match_lines
 end
 
+--- Check if the character at a given position is a multi-byte character
+---@param args {buffer?: integer, row?: integer, start_col?: integer, opts?: table, text?: string}
+---@return {start: integer, finish: integer}|false result Byte range of the character, or false if single-byte
 M.isMultibyteChar = function(args)
     -- Extract arguments from table
     local buffer = args.buffer or 0
@@ -169,6 +199,9 @@ M.isMultibyteChar = function(args)
     end
 end
 
+--- Iterate over a table in sorted key order
+---@param tbl table<any, any> The table to iterate over
+---@return fun(): any, any iterator A stateful iterator returning (key, value) pairs in sorted order
 M.spairs = function(tbl)
     -- Get the keys and sort them
     local keys = {}
@@ -188,6 +221,11 @@ M.spairs = function(tbl)
     end
 end
 
+--- Iterator that yields match positions and captures for a pattern in text
+---@param text string|nil The text to search in
+---@param pattern string The Lua pattern to search for
+---@param start? integer The byte position to start searching from (defaults to 1)
+---@return fun(): integer|nil, integer|nil, string|nil iterator Returns (match_start, match_end, capture) or nil
 M.gmatch = function(text, pattern, start)
     start = start ~= nil and start or 1
     return function()
@@ -207,6 +245,10 @@ M.gmatch = function(text, pattern, start)
     end
 end
 
+--- Check whether the cursor is inside a fenced code block
+---@param cursor_row integer The 1-indexed row to check
+---@param reverse? boolean If true, count fences from cursor_row to end of buffer instead of from start
+---@return boolean in_code_block Whether the cursor is inside a code block
 M.cursorInCodeBlock = function(cursor_row, reverse)
     if reverse == nil or reverse == false then
         reverse = false
