@@ -1892,6 +1892,16 @@ Configuration options.
 
     Unfold the folded section the cursor is currently on.
 
+:MkdnCleanConfig                                *Mkdnflow-cmd-MkdnCleanConfig*
+
+    Open a scratch buffer showing a minimal, optimized version of your
+    Mkdnflow config. Deprecated key names are updated to their modern
+    equivalents, and values matching defaults are removed. Function values
+    cannot be serialized and are shown with a placeholder comment.
+
+    See also `:checkhealth mkdnflow` for a diagnostic report on your
+    configuration.
+
 :Mkdnflow                                              *Mkdnflow-cmd-Mkdnflow*
 
     Manually start Mkdnflow.

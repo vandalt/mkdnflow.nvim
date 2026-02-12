@@ -362,6 +362,9 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             folds.unfoldSection()
         end
     end, {})
+    user_command('MkdnCleanConfig', function()
+        require('mkdnflow.health').cleanConfig()
+    end, {})
 
     -- Return coptions to user values
     vim.o.cpoptions = save_cpo

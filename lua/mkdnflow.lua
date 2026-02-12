@@ -527,14 +527,25 @@ init.setup = function(user_config)
     init.initial_dir = (init.this_os:match('Windows') ~= nil and init.initial_buf:match('(.*)\\.-'))
         or init.initial_buf:match('(.*)/.-')
 
-    -- Store user config for potential re-setup
-    if next(user_config) then
-        init.user_config = user_config
-    end
+    -- Deep-copy the raw user config before compat mutates it (for :checkhealth)
+    init.raw_user_config = vim.deepcopy(user_config)
 
     -- Read compatibility module & pass user config through config checker
     local compat = require('mkdnflow.compat')
     user_config = compat.userConfigCheck(user_config)
+
+    -- Store a clean, independent copy of the user config (post-compat) for
+    -- health checks (:checkhealth, :MkdnCleanConfig) and potential re-setup
+    -- via forceStart(). This must be a deep copy because mergeTables assigns
+    -- array references directly into the merged config, and modules may later
+    -- mutate those shared objects (e.g. to_do adds method functions onto the
+    -- statuses array). Without a copy, init.user_config would be polluted.
+    if next(user_config) then
+        init.user_config = vim.deepcopy(user_config)
+    end
+
+    -- Deep-copy defaults before mergeTables mutates them (for :checkhealth / :MkdnCleanConfig)
+    init.default_config = vim.deepcopy(default_config)
 
     -- Merge user config with defaults
     init.config = init.utils.mergeTables(default_config, user_config)

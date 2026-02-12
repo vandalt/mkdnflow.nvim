@@ -1099,6 +1099,7 @@ Configuration options.
 | `MkdnSTab` | -- | Wrapper function which will jump to the previous cell in a table (if cursor is in a table) or de-indent an (empty) list item (if cursor is in a list item). |
 | `MkdnFoldSection` | `{ 'n', '<leader>f' }` | Fold the section the cursor is currently on/in. |
 | `MkdnUnfoldSection` | `{ 'n', '<leader>F' }` | Unfold the folded section the cursor is currently on. |
+| `MkdnCleanConfig` | -- | Open a scratch buffer showing a minimal, optimized version of your Mkdnflow config. Deprecated key names are updated to their modern equivalents, and values matching defaults are removed. Function values cannot be serialized and are shown with a placeholder comment.<br><br>See also `:checkhealth mkdnflow` for a diagnostic report on your configuration. |
 | `Mkdnflow` | -- | Manually start Mkdnflow. |
 
 > [!TIP]

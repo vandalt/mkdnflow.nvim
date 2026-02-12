@@ -27,6 +27,69 @@ if require('mkdnflow').nvim_version < 9 and not silent then
 end
 local M = {}
 
+--- Declarative deprecation registry for health check detection.
+--- Each entry has a `path` (key path in raw user config) and `new_path` (current equivalent).
+---@type {path: string[], new_path: string[]}[]
+M.deprecations = {
+    -- Top-level renames
+    { path = { 'default_bib_path' }, new_path = { 'bib', 'default_path' } },
+    { path = { 'link_style' }, new_path = { 'links', 'style' } },
+    { path = { 'links_relative_to' }, new_path = { 'path_resolution' } },
+    { path = { 'wrap_to_beginning' }, new_path = { 'wrap' } },
+    { path = { 'wrap_to_end' }, new_path = { 'wrap' } },
+    { path = { 'use_mappings_table' }, new_path = { 'modules', 'maps' } },
+    -- perspective cascade
+    { path = { 'perspective' }, new_path = { 'path_resolution' } },
+    { path = { 'path_resolution', 'priority' }, new_path = { 'path_resolution', 'primary' } },
+    { path = { 'path_resolution', 'root_tell' }, new_path = { 'path_resolution', 'root_marker' } },
+    { path = { 'path_resolution', 'nvim_wd_heel' }, new_path = { 'path_resolution', 'sync_cwd' } },
+    {
+        path = { 'path_resolution', 'update' },
+        new_path = { 'path_resolution', 'update_on_navigate' },
+    },
+    -- links renames
+    { path = { 'links', 'name_is_source' }, new_path = { 'links', 'compact' } },
+    { path = { 'links', 'context' }, new_path = { 'links', 'search_range' } },
+    { path = { 'links', 'transform_explicit' }, new_path = { 'links', 'transform_on_create' } },
+    { path = { 'links', 'transform_implicit' }, new_path = { 'links', 'transform_on_follow' } },
+    { path = { 'links', 'create_on_follow_failure' }, new_path = { 'links', 'auto_create' } },
+    -- to_do renames
+    { path = { 'to_do', 'symbols' }, new_path = { 'to_do', 'statuses' } },
+    { path = { 'to_do', 'not_started' }, new_path = { 'to_do', 'statuses' } },
+    { path = { 'to_do', 'in_progress' }, new_path = { 'to_do', 'statuses' } },
+    { path = { 'to_do', 'complete' }, new_path = { 'to_do', 'statuses' } },
+    { path = { 'to_do', 'update_parents' }, new_path = { 'to_do', 'status_propagation', 'up' } },
+    -- tables, template renames
+    {
+        path = { 'tables', 'style', 'mimic_alignment' },
+        new_path = { 'tables', 'style', 'apply_alignment' },
+    },
+    {
+        path = { 'new_file_template', 'use_template' },
+        new_path = { 'new_file_template', 'enabled' },
+    },
+    -- mappings
+    { path = { 'mappings', 'MkdnCR' }, new_path = { 'mappings', 'MkdnEnter' } },
+}
+
+--- Deprecated keys inside to_do.statuses array elements
+---@type {key: string, new_key: string}[]
+M.status_deprecations = {
+    { key = 'symbol', new_key = 'marker' },
+    { key = 'colors', new_key = 'highlight' },
+    { key = 'exclude_from_rotation', new_key = 'skip_on_toggle' },
+}
+
+--- Extension-based filetype keys that should use filetype names instead
+---@type table<string, string>
+M.extension_to_filetype = {
+    md = 'markdown',
+    mkd = 'markdown',
+    mkdn = 'markdown',
+    mdwn = 'markdown',
+    mdown = 'markdown',
+}
+
 --- Check a user config for deprecated settings and migrate them to their modern equivalents
 ---@param user_config table The raw user configuration table
 ---@return table user_config The migrated configuration table (same reference, modified in-place)
@@ -34,13 +97,7 @@ M.userConfigCheck = function(user_config)
     -- COMPAT(added=v2.8, remove=v3.0): extension-based filetypes → filetype-based
     -- Migrate old extension-based filetypes config to filetype-based
     -- Extensions like 'md' are migrated to their corresponding filetype ('markdown')
-    local extension_to_filetype = {
-        md = 'markdown',
-        mkd = 'markdown',
-        mkdn = 'markdown',
-        mdwn = 'markdown',
-        mdown = 'markdown',
-    }
+    local extension_to_filetype = M.extension_to_filetype
 
     if user_config.filetypes then
         local new_filetypes = {}
