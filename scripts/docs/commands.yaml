@@ -220,6 +220,16 @@ commands:
     description: |
       Remove alignment from the current table column, returning it to the default. Updates the separator row and reformats the table.
 
+  - name: "MkdnTablePaste (delimiter) (noh)"
+    default_mapping: null
+    description: |
+      Paste delimited data from the system clipboard as a formatted markdown table. The delimiter is auto-detected by default (supports tab, comma, semicolon, and pipe), but can be specified explicitly as the first argument. Pass `noh` to suppress the header separator row. The table is inserted below the current cursor line.
+
+  - name: "MkdnTableFromSelection (delimiter) (noh)"
+    default_mapping: null
+    description: |
+      Convert visually-selected delimited lines into a formatted markdown table, replacing the selection. The delimiter is auto-detected by default, but can be specified explicitly. Pass `noh` to suppress the header separator row. Supports CSV, TSV, and other delimited formats including quoted fields.
+
   - name: MkdnTab
     default_mapping: null
     description: |

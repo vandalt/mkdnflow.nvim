@@ -117,8 +117,8 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 - [x] Table formatting
 - [x] Pandoc grid table support
 - [x] Column alignment (left, right, center)
-- [ ] Paste delimited data as a table
-- [ ] Import delimited file into a new table
+- [x] Paste delimited data as a table
+- [x] Import delimited file into a new table
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/tables_dark.gif">
@@ -1093,6 +1093,8 @@ Configuration options.
 | `MkdnTableAlignRight` | `{ 'n', '<leader>ar' }` | Set the alignment of the current table column to right. Updates the separator row and reformats the table. |
 | `MkdnTableAlignCenter` | `{ 'n', '<leader>ac' }` | Set the alignment of the current table column to center. Updates the separator row and reformats the table. |
 | `MkdnTableAlignDefault` | `{ 'n', '<leader>ax' }` | Remove alignment from the current table column, returning it to the default. Updates the separator row and reformats the table. |
+| `MkdnTablePaste (delimiter) (noh)` | -- | Paste delimited data from the system clipboard as a formatted markdown table. The delimiter is auto-detected by default (supports tab, comma, semicolon, and pipe), but can be specified explicitly as the first argument. Pass `noh` to suppress the header separator row. The table is inserted below the current cursor line. |
+| `MkdnTableFromSelection (delimiter) (noh)` | -- | Convert visually-selected delimited lines into a formatted markdown table, replacing the selection. The delimiter is auto-detected by default, but can be specified explicitly. Pass `noh` to suppress the header separator row. Supports CSV, TSV, and other delimited formats including quoted fields. |
 | `MkdnTab` | -- | Wrapper function which will jump to the next cell in a table (if cursor is in a table) or indent an (empty) list item (if cursor is in a list item). |
 | `MkdnSTab` | -- | Wrapper function which will jump to the previous cell in a table (if cursor is in a table) or de-indent an (empty) list item (if cursor is in a list item). |
 | `MkdnFoldSection` | `{ 'n', '<leader>f' }` | Fold the section the cursor is currently on/in. |
@@ -1439,6 +1441,26 @@ Sets the alignment of the table column under the cursor and reformats the table.
 
 - **Parameters:**
     - `alignment`: (string) The alignment to set for the column. One of `'left'`, `'right'`, `'center'`, or `'default'`.
+
+`require('mkdnflow').tables.pasteTable(opts)`
+
+Pastes delimited data from the system clipboard as a formatted markdown table, inserted below the current cursor line. Auto-detects the delimiter unless one is specified.
+
+- **Parameters:**
+    - `opts`: (table) Options for pasting.
+        - `delimiter`: (string|nil) The delimiter character to use. If `nil`, the delimiter is auto-detected from the clipboard content. Supported delimiters: tab, comma, semicolon, pipe.
+        - `header`: (boolean) Whether to treat the first row as a header and insert a separator row after it. Default: `true`.
+
+`require('mkdnflow').tables.tableFromSelection(line1, line2, opts)`
+
+Converts visually-selected delimited lines into a formatted markdown table, replacing the selected lines. Auto-detects the delimiter unless one is specified. Supports CSV, TSV, and other delimited formats including RFC 4180-style quoted fields.
+
+- **Parameters:**
+    - `line1`: (integer) The start line of the selection (1-indexed).
+    - `line2`: (integer) The end line of the selection (1-indexed).
+    - `opts`: (table) Options for conversion.
+        - `delimiter`: (string|nil) The delimiter character to use. If `nil`, the delimiter is auto-detected. Supported delimiters: tab, comma, semicolon, pipe.
+        - `header`: (boolean) Whether to treat the first row as a header and insert a separator row after it. Default: `true`.
 
 `require('mkdnflow').tables.isPartOfTable(text, linenr)`
 

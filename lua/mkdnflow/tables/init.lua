@@ -428,6 +428,22 @@ function M.alignCol(alignment)
     tbl:format()
 end
 
+--- Paste delimited data from the system clipboard as a formatted markdown table.
+--- @param opts table Options: {delimiter?, header?}
+function M.pasteTable(opts)
+    local delimited = require('mkdnflow.tables.delimited')
+    delimited.pasteTable(opts.delimiter, opts.header)
+end
+
+--- Convert visually-selected delimited lines into a formatted markdown table.
+--- @param line1 integer Start line (1-indexed)
+--- @param line2 integer End line (1-indexed)
+--- @param opts table Options: {delimiter?, header?}
+function M.tableFromSelection(line1, line2, opts)
+    local delimited = require('mkdnflow.tables.delimited')
+    delimited.tableFromSelection(line1, line2, opts.delimiter, opts.header)
+end
+
 -- =============================================================================
 -- Export classes for advanced usage
 -- =============================================================================

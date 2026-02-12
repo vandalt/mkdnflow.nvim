@@ -320,6 +320,36 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             tables.alignCol('default')
         end
     end, {})
+    user_command('MkdnTablePaste', function(opts)
+        local tables = require_module('tables')
+        if tables then
+            local header = true
+            local delimiter = nil
+            for _, arg in ipairs(opts.fargs) do
+                if arg:match('noh') then
+                    header = false
+                else
+                    delimiter = arg
+                end
+            end
+            tables.pasteTable({ delimiter = delimiter, header = header })
+        end
+    end, { nargs = '*' })
+    user_command('MkdnTableFromSelection', function(opts)
+        local tables = require_module('tables')
+        if tables then
+            local header = true
+            local delimiter = nil
+            for _, arg in ipairs(opts.fargs) do
+                if arg:match('noh') then
+                    header = false
+                else
+                    delimiter = arg
+                end
+            end
+            tables.tableFromSelection(opts.line1, opts.line2, { delimiter = delimiter, header = header })
+        end
+    end, { range = true, nargs = '*' })
     user_command('MkdnFoldSection', function(opts)
         local folds = require_module('folds')
         if folds then

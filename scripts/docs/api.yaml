@@ -355,6 +355,40 @@ tablemanagement:
         type: string
         description: "The alignment to set for the column. One of `'left'`, `'right'`, `'center'`, or `'default'`."
 
+  - signature: "require('mkdnflow').tables.pasteTable(opts)"
+    description: Pastes delimited data from the system clipboard as a formatted markdown table, inserted below the current cursor line. Auto-detects the delimiter unless one is specified.
+    params:
+      - name: opts
+        type: table
+        description: Options for pasting.
+        children:
+          - name: delimiter
+            type: string|nil
+            description: "The delimiter character to use. If `nil`, the delimiter is auto-detected from the clipboard content. Supported delimiters: tab, comma, semicolon, pipe."
+          - name: header
+            type: boolean
+            description: "Whether to treat the first row as a header and insert a separator row after it. Default: `true`."
+
+  - signature: "require('mkdnflow').tables.tableFromSelection(line1, line2, opts)"
+    description: Converts visually-selected delimited lines into a formatted markdown table, replacing the selected lines. Auto-detects the delimiter unless one is specified. Supports CSV, TSV, and other delimited formats including RFC 4180-style quoted fields.
+    params:
+      - name: line1
+        type: integer
+        description: The start line of the selection (1-indexed).
+      - name: line2
+        type: integer
+        description: The end line of the selection (1-indexed).
+      - name: opts
+        type: table
+        description: Options for conversion.
+        children:
+          - name: delimiter
+            type: string|nil
+            description: "The delimiter character to use. If `nil`, the delimiter is auto-detected. Supported delimiters: tab, comma, semicolon, pipe."
+          - name: header
+            type: boolean
+            description: "Whether to treat the first row as a header and insert a separator row after it. Default: `true`."
+
   - signature: "require('mkdnflow').tables.isPartOfTable(text, linenr)"
     description: Guesses as to whether the specified text is part of a table.
     params:

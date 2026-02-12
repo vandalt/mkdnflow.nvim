@@ -127,9 +127,9 @@ sections:
               - text: Column alignment (left, right, center)
                 done: true
               - text: Paste delimited data as a table
-                done: false
+                done: true
               - text: Import delimited file into a new table
-                done: false
+                done: true
           - type: responsive_image
             light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/tables_light.gif
             dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/tables_dark.gif

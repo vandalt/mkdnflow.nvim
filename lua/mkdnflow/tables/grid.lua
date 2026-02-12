@@ -191,6 +191,58 @@ local function parse_segment_alignment(segment)
 end
 
 -- =============================================================================
+-- Build Grid Table From Data
+-- =============================================================================
+
+--- Build a formatted grid table from a 2D array of cell content.
+--- Used by the delimited data import feature.
+--- @param cell_data string[][] 2D array of cell content
+--- @param has_header boolean Whether the first row is a header
+--- @return string[] Array of formatted grid table lines
+function M.buildFromData(cell_data, has_header)
+    if #cell_data == 0 then
+        return {}
+    end
+
+    local config = get_config()
+    local padding = config.tables.style.cell_padding or 1
+    local num_cols = #cell_data[1]
+
+    -- Calculate column widths (minimum 3)
+    local col_widths = {}
+    for i = 1, num_cols do
+        col_widths[i] = 3
+    end
+    for _, row in ipairs(cell_data) do
+        for col, cell in ipairs(row) do
+            local w = width(cell)
+            if w > col_widths[col] then
+                col_widths[col] = w
+            end
+        end
+    end
+
+    local lines = {}
+
+    -- Top border
+    table.insert(lines, build_border(col_widths, padding, '-'))
+
+    for row_idx, row in ipairs(cell_data) do
+        -- Content line
+        table.insert(lines, build_content_line(row, col_widths, padding))
+
+        -- Border after this row
+        if row_idx == 1 and has_header then
+            table.insert(lines, build_border(col_widths, padding, '='))
+        else
+            table.insert(lines, build_border(col_widths, padding, '-'))
+        end
+    end
+
+    return lines
+end
+
+-- =============================================================================
 -- Grid Table Reading
 -- =============================================================================
 
