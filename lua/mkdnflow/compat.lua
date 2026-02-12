@@ -180,9 +180,13 @@ M.userConfigCheck = function(user_config)
         end
         -- COMPAT(added=v2.x, remove=v3.0): to_do.update_parents → to_do.status_propagation.up
         if user_config.to_do.update_parents ~= nil then
-            user_config.to_do['status_propagation'] = {
-                up = user_config.to_do.update_parents,
-            }
+            if not user_config.to_do.status_propagation then
+                user_config.to_do.status_propagation = {}
+            end
+            if user_config.to_do.status_propagation.up == nil then
+                user_config.to_do.status_propagation.up = user_config.to_do.update_parents
+            end
+            user_config.to_do.update_parents = nil
             warn(
                 "⬇️  The 'update_parents' key in to_do is deprecated. Use 'status_propagation.up' instead. See :h mkdnflow-configuration."
             )
