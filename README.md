@@ -1263,13 +1263,14 @@ perform different substitutions before and after a new buffer is opened.
 
 Updates the working directory after switching notebooks or notebook folders (if `nvim_wd_heel` is true).
 
-`require('mkdnflow').paths.pathType(path, anchor)`
+`require('mkdnflow').paths.pathType(path, anchor, link_type)`
 
-Determines the type of the given path (file, directory, URL, etc.).
+Determines the type of the given path. Returns `'external'` for image links, `file:`-prefixed paths, and paths with non-notebook file extensions (e.g. `.pdf`, `.docx`); `'url'` for web URLs; `'citation'` for `@`-prefixed paths; `'anchor'` for same-page anchors; `'nb_page'` for notebook pages (extensionless paths or paths with a notebook extension like `.md`); or `nil` if no path is provided.
 
 - **Parameters:**
     - `path`: (string) The path to check.
     - `anchor`: (string|nil) Optional anchor within the path.
+    - `link_type`: (string|nil) The link type from the parser (e.g. `'image_link'`).
 
 `require('mkdnflow').paths.transformPath(path)`
 

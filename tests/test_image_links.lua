@@ -143,8 +143,8 @@ T['followLink']['extracts correct path from image link'] = function()
     eq(source, './images/screenshot.png')
 end
 
--- Test that image links get 'image' path type for system_open routing
-T['followLink']['image link gets image path type'] = function()
+-- Test that image links get 'external' path type for system_open routing
+T['followLink']['image link gets external path type'] = function()
     set_lines({ '![screenshot](./images/screenshot.png)' })
     set_cursor(1, 10)
 
@@ -158,11 +158,11 @@ T['followLink']['image link gets image path type'] = function()
         require('mkdnflow.links').getLinkUnderCursor(), 'source')]])
     eq(source, './images/screenshot.png')
 
-    -- Verify pathType returns 'image' for image_link type
+    -- Verify pathType returns 'external' for image_link type
     local path_type = child.lua_get(
         "require('mkdnflow.paths').pathType('./images/screenshot.png', nil, 'image_link')"
     )
-    eq(path_type, 'image')
+    eq(path_type, 'external')
 end
 
 T['followLink']['extracts correct alt text from image link'] = function()

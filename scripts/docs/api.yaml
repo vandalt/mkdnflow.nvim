@@ -166,8 +166,13 @@ linkpathhandling:
   - signature: "require('mkdnflow').paths.updateDirs()"
     description: Updates the working directory after switching notebooks or notebook folders (if `nvim_wd_heel` is true).
 
-  - signature: "require('mkdnflow').paths.pathType(path, anchor)"
-    description: Determines the type of the given path (file, directory, URL, etc.).
+  - signature: "require('mkdnflow').paths.pathType(path, anchor, link_type)"
+    description: >
+      Determines the type of the given path. Returns `'external'` for image links,
+      `file:`-prefixed paths, and paths with non-notebook file extensions (e.g. `.pdf`,
+      `.docx`); `'url'` for web URLs; `'citation'` for `@`-prefixed paths; `'anchor'`
+      for same-page anchors; `'nb_page'` for notebook pages (extensionless paths or
+      paths with a notebook extension like `.md`); or `nil` if no path is provided.
     params:
       - name: path
         type: string
@@ -175,6 +180,9 @@ linkpathhandling:
       - name: anchor
         type: string|nil
         description: Optional anchor within the path.
+      - name: link_type
+        type: string|nil
+        description: The link type from the parser (e.g. `'image_link'`).
 
   - signature: "require('mkdnflow').paths.transformPath(path)"
     description: Transforms the given path based on the plugin's configuration and transformations.

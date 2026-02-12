@@ -399,6 +399,26 @@ local function configure(user_config)
     local filetype_patterns = resolve_filetypes(init.config.filetypes)
     init.config.resolved_filetypes = filetype_patterns
 
+    -- Build set of file extensions considered notebook-internal (for pathType)
+    local notebook_extensions = {}
+    local disabled_ft = {}
+    for key, value in pairs(init.config.filetypes) do
+        if value == false then
+            disabled_ft[extension_to_filetype[key] or key] = true
+        end
+    end
+    for ext, ft in pairs(extension_to_filetype) do
+        if not disabled_ft[ft] then
+            notebook_extensions[ext] = true
+        end
+    end
+    for key, value in pairs(init.config.filetypes) do
+        if value ~= false and not known_filetypes[key] and not extension_to_filetype[key] then
+            notebook_extensions[key] = true
+        end
+    end
+    init.config.notebook_extensions = notebook_extensions
+
     -- Compute jump patterns based on link style
     if init.config.cursor.jump_patterns == nil then
         if init.config.links.style == 'markdown' then

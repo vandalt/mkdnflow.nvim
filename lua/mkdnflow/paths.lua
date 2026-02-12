@@ -267,57 +267,6 @@ local system_open = function(path, type)
     end
 end
 
---- Handle a `file:` prefixed path by resolving it and opening with the system viewer
----@param path string The path with `file:` prefix
----@private
-local handle_external_file = function(path)
-    local this_os = mkdn().this_os
-    local path_resolution = cfg().path_resolution
-    local s = sep()
-    -- Get what's after the file: tag
-    local real_path = string.match(path, '^file:(.*)')
-    if this_os:match('Windows') then
-        real_path = real_path:gsub('/', '\\')
-        if real_path:match('^~\\') then
-            real_path = string.gsub(real_path, '^~\\', vim.loop.os_homedir() .. '\\')
-        end
-    end
-    -- Check if path provided is absolute or relative to $HOME
-    if real_path:match('^~/') or real_path:match('^/') or real_path:match('^%u:\\') then
-        if this_os:match('Windows') then
-            system_open(real_path)
-        else
-            -- If the path starts with a tilde, replace it w/ $HOME
-            if string.match(real_path, '^~/') then
-                real_path = string.gsub(real_path, '^~/', '$HOME/')
-            end
-        end
-    elseif path_resolution.primary == 'root' and mkdn().root_dir then
-        -- Paste together root directory path and path in link and escape
-        real_path = mkdn().root_dir .. s .. real_path
-    elseif
-        path_resolution.primary == 'first'
-        or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
-    then
-        -- Otherwise, links are relative to the first-opened file, so
-        -- paste together the directory of the first-opened file and the
-        -- path in the link and escape for the shell
-        real_path = mkdn().initial_dir .. s .. real_path
-    else
-        -- Get the path of the current file
-        local cur_file = vim.api.nvim_buf_get_name(0)
-        -- Get the directory the current file is in and paste together the
-        -- directory of the current file and the directory path provided in the
-        -- link, and escape for shell
-        local cur_file_dir = vim.fs.dirname(cur_file)
-        real_path = cur_file_dir .. s .. real_path
-    end
-    -- Pass to the system_open() function
-    if real_path then
-        system_open(real_path)
-    end
-end
-
 --- Update the root directory and/or working directory after navigating to a new buffer
 M.updateDirs = function()
     local this_os = mkdn().this_os
@@ -381,14 +330,14 @@ end
 ---@param path? string The path to classify
 ---@param anchor? string An anchor fragment, if present
 ---@param link_type? string The link type from the parser (e.g., 'image_link')
----@return 'image'|'file'|'url'|'citation'|'anchor'|'nb_page'|nil
+---@return 'external'|'url'|'citation'|'anchor'|'nb_page'|nil
 M.pathType = function(path, anchor, link_type)
     if not path then
         return nil
     elseif link_type == 'image_link' then
-        return 'image'
+        return 'external'
     elseif string.find(path, '^file:') then
-        return 'file'
+        return 'external'
     elseif mkdn().links.hasUrl(path) then
         return 'url'
     elseif string.find(path, '^@') then
@@ -396,6 +345,10 @@ M.pathType = function(path, anchor, link_type)
     elseif path == '' and anchor then
         return 'anchor'
     else
+        local ext = path:match('%.([^%./\\]+)$')
+        if ext and not cfg().notebook_extensions[ext:lower()] then
+            return 'external'
+        end
         return 'nb_page'
     end
 end
@@ -421,16 +374,14 @@ M.handlePath = function(path, anchor, link_type)
     path = M.transformPath(path)
     local path_type = M.pathType(path, anchor, link_type)
     -- Handle according to path type
-    if path_type == 'image' then
-        -- Resolve the path and open with system viewer
+    if path_type == 'external' then
+        path = path:gsub('^file:', '')
         local resolved_path = resolve_notebook_path(path)
         system_open(resolved_path)
     elseif path_type == 'nb_page' then
         vim_open(path, anchor)
     elseif path_type == 'url' then
         system_open(path .. (anchor or ''), 'url')
-    elseif path_type == 'file' then
-        handle_external_file(path)
     elseif path_type == 'anchor' then
         -- Send cursor to matching heading
         if not mkdn().cursor.toId(anchor, 1) then
@@ -484,10 +435,8 @@ end
 
 --- Interactively rename/move the file referenced by the link under the cursor
 M.moveSource = function()
-    local derive_path = function(source, type)
-        if type == 'file' then
-            source = source:gsub('^file:', '')
-        end
+    local derive_path = function(source, _type)
+        source = source:gsub('^file:', '')
         return resolve_notebook_path(source, true)
     end
     local confirm_and_execute = function(

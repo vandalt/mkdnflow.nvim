@@ -80,19 +80,19 @@ end
 -- File paths (external files)
 T['pathType']['identifies file: prefix'] = function()
     local result = child.lua_get([[require('mkdnflow.paths').pathType('file:document.pdf')]])
-    eq(result, 'file')
+    eq(result, 'external')
 end
 
 T['pathType']['identifies file: with absolute path'] = function()
     local result =
         child.lua_get([[require('mkdnflow.paths').pathType('file:/path/to/document.pdf')]])
-    eq(result, 'file')
+    eq(result, 'external')
 end
 
 T['pathType']['identifies file: with home path'] = function()
     local result =
         child.lua_get([[require('mkdnflow.paths').pathType('file:~/documents/file.pdf')]])
-    eq(result, 'file')
+    eq(result, 'external')
 end
 
 -- Citations
@@ -1120,6 +1120,210 @@ T['getNotebook']['returns nil when no root is set'] = new_set({
 T['getNotebook']['returns nil when no root is set']['returns nil'] = function()
     local result = child.lua_get('require("mkdnflow").getNotebook()')
     eq(result, vim.NIL)
+end
+
+-- =============================================================================
+-- Issue #188: Links to external files not working
+-- Files with non-notebook extensions (e.g., .pdf, .docx, .png) should be
+-- opened with the system's default application, not as text files in Neovim.
+-- =============================================================================
+T['external_files'] = new_set()
+
+-- pathType should recognize non-notebook extensions as needing system_open
+T['external_files']['pathType identifies .pdf as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('paper.pdf')]])
+    eq(result, 'external')
+end
+
+T['external_files']['pathType identifies .docx as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('document.docx')]])
+    eq(result, 'external')
+end
+
+T['external_files']['pathType identifies .xlsx as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('spreadsheet.xlsx')]])
+    eq(result, 'external')
+end
+
+T['external_files']['pathType identifies .pptx as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('slides.pptx')]])
+    eq(result, 'external')
+end
+
+T['external_files']['pathType identifies .png as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('image.png')]])
+    eq(result, 'external')
+end
+
+T['external_files']['pathType identifies .jpg as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('photo.jpg')]])
+    eq(result, 'external')
+end
+
+-- Notebook files should still be nb_page
+T['external_files']['pathType still identifies .md as nb_page'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('note.md')]])
+    eq(result, 'nb_page')
+end
+
+T['external_files']['pathType still identifies .markdown as nb_page'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('note.markdown')]])
+    eq(result, 'nb_page')
+end
+
+T['external_files']['pathType still identifies .rmd as nb_page'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('analysis.rmd')]])
+    eq(result, 'nb_page')
+end
+
+T['external_files']['pathType still identifies extensionless path as nb_page'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('my-note')]])
+    eq(result, 'nb_page')
+end
+
+-- External files with paths should also work
+T['external_files']['pathType identifies relative path to .pdf as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('papers/paper.pdf')]])
+    eq(result, 'external')
+end
+
+T['external_files']['pathType identifies absolute path to .pdf as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('/home/user/paper.pdf')]])
+    eq(result, 'external')
+end
+
+T['external_files']['pathType identifies home path to .pdf as external file'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('~/documents/paper.pdf')]])
+    eq(result, 'external')
+end
+
+-- file: prefix should still work as before
+T['external_files']['pathType still handles file: prefix'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('file:document.pdf')]])
+    eq(result, 'external')
+end
+
+-- Case-insensitive extension matching
+T['external_files']['pathType handles uppercase extension .PDF'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('paper.PDF')]])
+    eq(result, 'external')
+end
+
+T['external_files']['pathType handles mixed case extension .Md as nb_page'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('note.Md')]])
+    eq(result, 'nb_page')
+end
+
+-- Custom filetypes: user adds an extension to filetypes config
+T['external_files_custom_filetypes'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    filetypes = { markdown = true, txt = true },
+                    links = {
+                        transform_on_create = false,
+                        transform_on_follow = false,
+                    },
+                })
+            ]])
+        end,
+        post_once = child.stop,
+    },
+})
+
+T['external_files_custom_filetypes']['txt treated as nb_page when in filetypes'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('notes.txt')]])
+    eq(result, 'nb_page')
+end
+
+T['external_files_custom_filetypes']['pdf still treated as external'] = function()
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('paper.pdf')]])
+    eq(result, 'external')
+end
+
+-- handlePath should open external files with system_open, not vim_open
+T['external_files']['handlePath does not open .pdf in Neovim buffer'] = function()
+    child.lua([[
+        _G._tmpdir = vim.fn.tempname()
+        vim.fn.mkdir(_G._tmpdir, 'p')
+        local tmpfile = _G._tmpdir .. '/index.md'
+        vim.fn.writefile({''}, tmpfile)
+        vim.cmd('e ' .. tmpfile)
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+        -- Create a fake PDF file
+        vim.fn.writefile({'%PDF-fake'}, _G._tmpdir .. '/paper.pdf')
+    ]])
+    local buf_before = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    child.lua([[require('mkdnflow.paths').handlePath('paper.pdf')]])
+    local buf_after = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    -- Buffer should NOT change — external file should be system-opened, not vim-opened
+    eq(buf_before, buf_after)
+end
+
+T['external_files']['handlePath strips file: prefix and does not open in buffer'] = function()
+    child.lua([[
+        _G._tmpdir = vim.fn.tempname()
+        vim.fn.mkdir(_G._tmpdir, 'p')
+        local tmpfile = _G._tmpdir .. '/index.md'
+        vim.fn.writefile({''}, tmpfile)
+        vim.cmd('e ' .. tmpfile)
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+        vim.fn.writefile({'%PDF-fake'}, _G._tmpdir .. '/report.pdf')
+    ]])
+    local buf_before = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    child.lua([[require('mkdnflow.paths').handlePath('file:report.pdf')]])
+    local buf_after = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    eq(buf_before, buf_after)
+end
+
+-- E2E: <CR> on a PDF link should not switch buffers
+T['external_files_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._tmpdir = vim.fn.tempname()
+                vim.fn.mkdir(_G._tmpdir, 'p')
+                local tmpfile = _G._tmpdir .. '/index.md'
+                vim.fn.writefile({'[A paper](paper.pdf)'}, tmpfile)
+
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.cmd('e ' .. tmpfile)
+                vim.bo.filetype = 'markdown'
+
+                require('mkdnflow').setup({
+                    links = {
+                        transform_on_create = false,
+                        transform_on_follow = false,
+                    },
+                })
+
+                -- Create a fake PDF so system_open's existence check passes
+                vim.fn.writefile({'%PDF-fake'}, _G._tmpdir .. '/paper.pdf')
+
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['external_files_e2e']['<CR> on PDF link does not open in buffer'] = function()
+    set_cursor(1, 5)
+    local buf_before = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    child.type_keys('<CR>')
+    local buf_after = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    eq(buf_before, buf_after)
 end
 
 return T
