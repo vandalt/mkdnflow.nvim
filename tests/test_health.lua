@@ -311,7 +311,7 @@ end
 -- =============================================================================
 T['cleanconfig'] = new_set()
 
-T['cleanconfig']['opens scratch buffer'] = function()
+T['cleanconfig']['opens floating window'] = function()
     child.lua([[
         require('mkdnflow').setup({
             wrap = true,
@@ -322,10 +322,13 @@ T['cleanconfig']['opens scratch buffer'] = function()
         vim.cmd('runtime plugin/mkdnflow.lua')
         vim.cmd('MkdnCleanConfig')
     ]])
-    local buftype = child.lua_get('vim.bo.buftype')
-    eq(buftype, 'nofile')
     local filetype = child.lua_get('vim.bo.filetype')
     eq(filetype, 'lua')
+    -- Current window should be a floating window
+    local is_float = child.lua_get([[
+        vim.api.nvim_win_get_config(0).relative ~= ''
+    ]])
+    eq(is_float, true)
 end
 
 T['cleanconfig']['removes redundant defaults'] = function()
