@@ -18,8 +18,12 @@ docs:
 # Verify documentation is in sync with YAML sources
 docs-verify:
 	@echo "Verifying documentation..."
-	@python3 scripts/generate_docs.py
-	@if git diff --quiet README.md doc/mkdnflow.txt; then \
+	@old_readme=$$(shasum README.md) && \
+	old_vimdoc=$$(shasum doc/mkdnflow.txt) && \
+	python3 scripts/generate_docs.py && \
+	new_readme=$$(shasum README.md) && \
+	new_vimdoc=$$(shasum doc/mkdnflow.txt) && \
+	if [ "$$old_readme" = "$$new_readme" ] && [ "$$old_vimdoc" = "$$new_vimdoc" ]; then \
 		echo "✓ Documentation is in sync"; \
 	else \
 		echo "✗ Documentation out of sync. Run 'make docs' and commit the changes."; \
