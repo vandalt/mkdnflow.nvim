@@ -37,28 +37,26 @@ M.bib_paths = {
     yaml = {},
 }
 
--- =============================================================================
--- Initialize bib_paths at module load time
--- =============================================================================
+--- Initialize bib_paths from config and filesystem
+M.init = function()
+    local bib_path = require('mkdnflow').config.bib.default_path
+    local find_in_root = require('mkdnflow').config.bib.find_in_root
+    local root_dir = require('mkdnflow').root_dir
 
--- Retrieve config values
-local bib_path = require('mkdnflow').config.bib.default_path
-local find_in_root = require('mkdnflow').config.bib.find_in_root
-local root_dir = require('mkdnflow').root_dir
-
--- Find bib files in root directory
-if find_in_root and root_dir then
-    local bib_files = vim.fn.glob(root_dir .. '/*.bib', false, true)
-    for _, filepath in ipairs(bib_files) do
-        table.insert(M.bib_paths.root, filepath)
+    -- Find bib files in root directory
+    if find_in_root and root_dir then
+        local bib_files = vim.fn.glob(root_dir .. '/*.bib', false, true)
+        for _, filepath in ipairs(bib_files) do
+            table.insert(M.bib_paths.root, filepath)
+        end
     end
-end
 
--- Add the default bib path(s)
-if type(bib_path) == 'table' then
-    M.bib_paths.default = bib_path
-elseif bib_path then
-    table.insert(M.bib_paths.default, bib_path)
+    -- Add the default bib path(s)
+    if type(bib_path) == 'table' then
+        M.bib_paths.default = bib_path
+    elseif bib_path then
+        table.insert(M.bib_paths.default, bib_path)
+    end
 end
 
 -- =============================================================================

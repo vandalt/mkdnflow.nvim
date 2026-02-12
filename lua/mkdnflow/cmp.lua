@@ -14,18 +14,15 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-local mkdnflow_root_dir = require('mkdnflow').root_dir
--- Only try to load bib paths if the bib module is enabled
-local bib_paths = require('mkdnflow').bib and require('mkdnflow').bib.bib_paths or nil
 local cmp = require('cmp')
 local extension = '.md' -- Keep the '.'
-
-local transform_on_create = require('mkdnflow').config.links.transform_on_create
 
 --- Build completion items from all markdown files in the notebook root directory
 ---@return table[] items Array of nvim-cmp completion items
 ---@private
 local function get_files_items()
+    local mkdnflow_root_dir = require('mkdnflow').root_dir
+    local transform_on_create = require('mkdnflow').config.links.transform_on_create
     -- Find all markdown files recursively in the root directory
     local filepaths_in_root = vim.fs.find(function(name)
         return name:match('%' .. extension .. '$')
@@ -135,6 +132,7 @@ function source:complete(params, callback)
         return
     end
     local items = get_files_items()
+    local bib_paths = require('mkdnflow').bib and require('mkdnflow').bib.bib_paths or nil
     if bib_paths then
         -- For bib files, there are three lists (tables) in mkdnflow where we might find the paths for a bib file
         if bib_paths.default then
@@ -165,5 +163,11 @@ function source:complete(params, callback)
     callback(items)
 end
 
--- Register this as a completion source
-cmp.register_source('mkdnflow', source.new())
+local M = {}
+
+--- Initialize cmp module: register as a completion source
+M.init = function()
+    cmp.register_source('mkdnflow', source.new())
+end
+
+return M

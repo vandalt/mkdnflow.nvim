@@ -15,28 +15,31 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 local core = require('mkdnflow.yaml.core')
-local bib = require('mkdnflow').bib
-local filetype_patterns = require('mkdnflow').config.resolved_filetypes
 
 local M = {}
 
 -- Export class for advanced use
 M.YAMLFrontmatter = core.YAMLFrontmatter
 
--- Register autocmd to extract bibliography paths from YAML frontmatter
-vim.api.nvim_create_autocmd('FileType', {
-    pattern = filetype_patterns,
-    callback = function()
-        bib.bib_paths.yaml = {}
-        local start, finish = M.hasYaml()
-        if start then
-            local yaml = M.ingestYamlBlock(start, finish)
-            if yaml and yaml.bib then
-                bib.bib_paths.yaml = yaml.bib
+--- Initialize yaml module: register autocmd to extract bib paths from YAML frontmatter
+M.init = function()
+    local bib = require('mkdnflow').bib
+    local filetype_patterns = require('mkdnflow').config.resolved_filetypes
+
+    vim.api.nvim_create_autocmd('FileType', {
+        pattern = filetype_patterns,
+        callback = function()
+            bib.bib_paths.yaml = {}
+            local start, finish = M.hasYaml()
+            if start then
+                local yaml = M.ingestYamlBlock(start, finish)
+                if yaml and yaml.bib then
+                    bib.bib_paths.yaml = yaml.bib
+                end
             end
-        end
-    end,
-})
+        end,
+    })
+end
 
 --- Detect YAML frontmatter in the current buffer
 --- @return integer|nil start 0-indexed start line (always 0 if found)

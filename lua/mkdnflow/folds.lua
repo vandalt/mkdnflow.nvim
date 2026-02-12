@@ -15,8 +15,7 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 local M = {}
-local utils = require('mkdnflow').utils
-local silent = require('mkdnflow').config.silent
+local utils = require('mkdnflow.utils')
 
 --- Check if the current window's foldmethod allows manual fold creation
 ---@return boolean
@@ -106,7 +105,7 @@ M.foldSection = function()
     else -- Otherwise, create a fold
         -- Check if foldmethod allows manual fold creation
         if not can_create_manual_folds() then
-            if not silent then
+            if not require('mkdnflow').config.silent then
                 vim.api.nvim_echo({
                     {
                         "⬇️  Cannot create fold: 'foldmethod' must be 'manual' or 'marker'",

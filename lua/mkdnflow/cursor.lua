@@ -14,13 +14,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
--- Modules and config options
-local links = require('mkdnflow').links
-local wrap = require('mkdnflow').config.wrap
-local silent = require('mkdnflow').config.silent
-local search_range = require('mkdnflow').config.links.search_range
-local jump_patterns = require('mkdnflow').config.cursor.jump_patterns
-local utils = require('mkdnflow').utils
+local utils = require('mkdnflow.utils')
 
 --- Find the nearest match among multiple patterns, with support for reverse searching
 ---@param str string The string to search in
@@ -66,6 +60,8 @@ local M = {}
 ---@param pattern string|string[] One or more Lua patterns to jump to
 ---@param reverse? boolean If true, search backward instead of forward
 M.goTo = function(pattern, reverse)
+    local search_range = require('mkdnflow').config.links.search_range
+    local wrap = require('mkdnflow').config.wrap
     -- Get current position of cursor
     local position = vim.api.nvim_win_get_cursor(0)
     local row, col = position[1], position[2]
@@ -139,6 +135,9 @@ end
 ---@param reverse? boolean If true, search backward
 ---@private
 local go_to_heading = function(anchor_text, reverse)
+    local links = require('mkdnflow').links
+    local silent = require('mkdnflow').config.silent
+    local wrap = require('mkdnflow').config.wrap
     -- Record which line we're on; chances are the link goes to something later,
     -- so we'll start looking from here onwards and then circle back to the beginning
     local position = vim.api.nvim_win_get_cursor(0)
@@ -290,7 +289,7 @@ M.changeHeadingLevel = function(change, opts)
                     -- Only show warning for single-line operations
                     if start_row == end_row then
                         local message = "⬇️  Can't increase this heading any more!"
-                        if not silent then
+                        if not require('mkdnflow').config.silent then
                             vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
                         end
                     end
@@ -359,13 +358,13 @@ end
 --- Jump to the next link in the buffer (using configured jump_patterns)
 ---@param pattern? string|string[] Unused; jump_patterns from config are always used
 M.toNextLink = function(pattern)
-    M.goTo(jump_patterns)
+    M.goTo(require('mkdnflow').config.cursor.jump_patterns)
 end
 
 --- Jump to the previous link in the buffer (using configured jump_patterns)
 ---@param pattern? string|string[] Unused; jump_patterns from config are always used
 M.toPrevLink = function(pattern)
-    M.goTo(jump_patterns, true)
+    M.goTo(require('mkdnflow').config.cursor.jump_patterns, true)
 end
 
 --- Jump to a heading matching the given anchor text, or to the next/previous heading
@@ -393,6 +392,7 @@ M.yankAsAnchorLink = function(full_path)
     local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)
     -- See if the line starts with a hash
     local is_heading = string.find(line[1], '^#')
+    local links = require('mkdnflow').links
     local is_bracketed_span = links.getBracketedSpanPart()
     if is_heading then
         -- Format the line as an anchor link
@@ -421,7 +421,7 @@ M.yankAsAnchorLink = function(full_path)
         end
     else
         local message = '⬇️  The current line is not a heading or bracketed span!'
-        if not silent then
+        if not require('mkdnflow').config.silent then
             vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
         end
     end

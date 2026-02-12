@@ -15,7 +15,6 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 -- This module: To-do list related functions
-local silent = require('mkdnflow').config.silent
 local to_do_statuses = require('mkdnflow').config.to_do.statuses
 
 --- Get the vim indentation unit (spaces or tab) for the current buffer
@@ -895,7 +894,7 @@ function M.sort_to_do_list()
     local item = M.get_to_do_item()
     if item and item.valid and item.host_list then
         item.host_list:sort()
-    elseif not silent then
+    elseif not require('mkdnflow').config.silent then
         vim.api.nvim_echo({ { 'No to-do list found at cursor position', 'WarningMsg' } }, true, {})
     end
     clear_cache()

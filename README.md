@@ -298,7 +298,7 @@ the help files.
         object_count = true,
         object_count_icon_set = 'emoji',
         object_count_opts = function()
-            return require('mkdnflow').foldtext.default_count_opts
+            return require('mkdnflow').foldtext.default_count_opts()
         end,
         line_count = true,
         line_percentage = true,
@@ -498,15 +498,15 @@ require('mkdnflow').setup({
 | Option | Type | Description |
 | --- | --- | --- |
 | `modules.bib` | `boolean` | **`true`** (default): `bib` module is enabled (required for parsing `.bib` files and following citations).<br>`false`: Disable `bib` module functionality. |
-| `modules.buffers` | `boolean` | **`true`** (default): `buffers` module is enabled (required for backward and forward navigation through buffers).<br>`false`: Disable `buffers` module functionality. |
+| `modules.buffers` | `boolean` | **`true`** (default): `buffers` module is enabled (required for backward and forward navigation through buffers).<br>`false`: Suppress `buffers` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings. |
 | `modules.conceal` | `boolean` | **`true`** (default): `conceal` module is enabled (required if you wish to enable link concealing. This does not automatically enable conceal behavior; see `links.conceal`.)<br>`false`: Disable `conceal` module functionality. |
-| `modules.cursor` | `boolean` | **`true`** (default): `cursor` module is enabled (required for cursor movements: jumping to links, headings, etc.).<br>`false`: Disable `cursor` module functionality. |
+| `modules.cursor` | `boolean` | **`true`** (default): `cursor` module is enabled (required for cursor movements: jumping to links, headings, etc.).<br>`false`: Suppress `cursor` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings. |
 | `modules.folds` | `boolean` | **`true`** (default): `folds` module is enabled (required for section folding).<br>`false`: Disable `folds` module functionality. |
 | `modules.foldtext` | `boolean` | **`true`** (default): `foldtext` module is enabled (required for prettified foldtext).<br>`false`: Disable `foldtext` module functionality. |
-| `modules.links` | `boolean` | **`true`** (default): `links` module is enabled (required for creating, destroying, and following links).<br>`false`: Disable `links` module functionality. |
+| `modules.links` | `boolean` | **`true`** (default): `links` module is enabled (required for creating, destroying, and following links).<br>`false`: Suppress `links` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings. |
 | `modules.lists` | `boolean` | **`true`** (default): `lists` module is enabled (required for working in and manipulating lists, etc.).<br>`false`: Disable `lists` module functionality. |
 | `modules.to_do` | `boolean` | **`true`** (default): `to_do` module is enabled (required for manipulating to-do statuses/lists, toggling to-do items, to-do list sorting, etc.)<br>`false`: Disable `to_do` module functionality. |
-| `modules.paths` | `boolean` | **`true`** (default): `paths` module is enabled (required for link interpretation, link following, etc.).<br>`false`: Disable `paths` module functionality. |
+| `modules.paths` | `boolean` | **`true`** (default): `paths` module is enabled (required for link interpretation, link following, etc.).<br>`false`: Suppress `paths` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings. |
 | `modules.tables` | `boolean` | **`true`** (default): `tables` module is enabled (required for table management, navigation, formatting, etc.).<br>`false`: Disable `tables` module functionality. |
 | `modules.yaml` | `boolean` | `true`: `yaml` module is enabled (required for parsing yaml headers).<br>**`false`** (default): Disable `yaml` module functionality. |
 | `modules.cmp` | `boolean` | `true`: `cmp` module is enabled (required if you wish to enable completion for `nvim-cmp`).<br>**`false`** (default): Disable `cmp` module functionality. |
@@ -796,7 +796,7 @@ require('mkdnflow').setup({
         object_count = true,
         object_count_icon_set = 'emoji',
         object_count_opts = function()
-            return require('mkdnflow').foldtext.default_count_opts
+            return require('mkdnflow').foldtext.default_count_opts()
         end,
         line_count = true,
         line_percentage = true,

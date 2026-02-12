@@ -16,32 +16,18 @@
 --
 -- This module: File and link navigation functions
 
--- Get OS for use in a couple of functions
-local this_os = require('mkdnflow').this_os
--- Generic OS message
-local this_os_err = '⬇️ Function unavailable for ' .. this_os .. '. Please file an issue.'
--- Set path separator based on OS
-local sep = this_os:match('Windows') and '\\' or '/'
--- Get config setting for whether to make missing directories or not
-local create_dirs = require('mkdnflow').config.create_dirs
--- Get config setting for where links should be relative to
-local path_resolution = require('mkdnflow').config.path_resolution
--- Get directory of first-opened file
-local initial_dir = require('mkdnflow').initial_dir
-local root_dir = require('mkdnflow').root_dir
-local last_resolved_dir = nil
-local silent = require('mkdnflow').config.silent
-local links_config = require('mkdnflow').config.links
-local new_file_config = require('mkdnflow').config.new_file_template
-local implicit_extension = links_config.implicit_extension
-local link_transform = links_config.transform_on_follow
-
--- Load modules
 local utils = require('mkdnflow.utils')
-local buffers = require('mkdnflow.buffers')
-local bib = require('mkdnflow.bib')
-local cursor = require('mkdnflow.cursor')
-local links = require('mkdnflow.links')
+local last_resolved_dir = nil
+
+local function mkdn()
+    return require('mkdnflow')
+end
+local function cfg()
+    return mkdn().config
+end
+local function sep()
+    return mkdn().this_os:match('Windows') and '\\' or '/'
+end
 
 --- Check whether a file or directory exists at the given path
 ---@param path string The path to check
@@ -66,6 +52,9 @@ local M = {}
 ---@private
 local resolve_notebook_path = function(path, sub_home_var)
     sub_home_var = sub_home_var or false
+    local this_os = mkdn().this_os
+    local path_resolution = cfg().path_resolution
+    local s = sep()
     local derived_path = path
     if this_os:match('Windows') then
         derived_path = derived_path:gsub('/', '\\')
@@ -76,16 +65,16 @@ local resolve_notebook_path = function(path, sub_home_var)
     -- Decide what to pass to vim_open function
     if derived_path:match('^~/') or derived_path:match('^/') or derived_path:match('^%u:\\') then
         derived_path = sub_home_var and string.gsub(derived_path, '^~/', '$HOME/') or derived_path
-    elseif path_resolution.primary == 'root' and root_dir then
+    elseif path_resolution.primary == 'root' and mkdn().root_dir then
         -- Paste root directory and the directory in link
-        derived_path = root_dir .. sep .. derived_path
+        derived_path = mkdn().root_dir .. s .. derived_path
     -- See if the path exists
     elseif
         path_resolution.primary == 'first'
         or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
     then
         -- Paste together the dir of first-opened file & dir in link path
-        derived_path = initial_dir .. sep .. derived_path
+        derived_path = mkdn().initial_dir .. s .. derived_path
     else -- Otherwise, they want it relative to the current file
         -- Path of current file
         local cur_file = vim.api.nvim_buf_get_name(0)
@@ -93,7 +82,7 @@ local resolve_notebook_path = function(path, sub_home_var)
         local cur_file_dir = vim.fs.dirname(cur_file)
         -- Paste together dir of current file & dir path provided in link
         if cur_file_dir then
-            derived_path = cur_file_dir .. sep .. derived_path
+            derived_path = cur_file_dir .. s .. derived_path
         end
     end
     return derived_path
@@ -107,6 +96,8 @@ local enter_internal_path = function() end
 ---@return string template The template with placeholders replaced
 M.formatTemplate = function(timing, template)
     timing = timing or 'before'
+    local new_file_config = cfg().new_file_template
+    local links = mkdn().links
     template = template or new_file_config.template
     for placeholder_name, replacement in pairs(new_file_config.placeholders[timing]) do
         if replacement == 'link_title' then
@@ -126,6 +117,15 @@ end
 ---@param anchor? string An anchor to jump to after opening (heading or ID)
 ---@private
 local vim_open = function(path, anchor)
+    local this_os = mkdn().this_os
+    local create_dirs = cfg().create_dirs
+    local implicit_extension = cfg().links.implicit_extension
+    local links_config = cfg().links
+    local new_file_config = cfg().new_file_template
+    local links = mkdn().links
+    local buffers = mkdn().buffers
+    local cursor = mkdn().cursor
+
     if this_os:match('Windows') then
         path = path:gsub('/', '\\')
     end
@@ -216,14 +216,15 @@ end
 ---@param path string The directory path to start from
 ---@private
 enter_internal_path = function(path)
-    path = path:match(sep .. '$') ~= nil and path or path .. sep
+    local s = sep()
+    path = path:match(s .. '$') ~= nil and path or path .. s
     local input_opts = {
         prompt = '⬇️  Name of file in directory to open or create: ',
         default = path,
         completion = 'file',
     }
     vim.ui.input(input_opts, function(response)
-        if response ~= nil and response ~= path .. sep then
+        if response ~= nil and response ~= path .. s then
             vim_open(response)
             vim.cmd('normal! :')
         end
@@ -235,6 +236,7 @@ end
 ---@param type? string 'url' to skip existence check, nil for local files
 ---@private
 local system_open = function(path, type)
+    local this_os = mkdn().this_os
     local shell_open = function(path_)
         if this_os == 'Linux' then
             vim.fn.jobstart({ 'xdg-open', path_ }, { detach = true })
@@ -243,7 +245,8 @@ local system_open = function(path, type)
         elseif this_os:match('Windows') then
             vim.fn.jobstart({ 'cmd.exe', '/c', 'start', '', path_ }, { detach = true })
         else
-            if not silent then
+            if not cfg().silent then
+                local this_os_err = '⬇️ Function unavailable for ' .. this_os .. '. Please file an issue.'
                 vim.api.nvim_echo({ { this_os_err, 'ErrorMsg' } }, true, {})
             end
         end
@@ -252,7 +255,7 @@ local system_open = function(path, type)
     if type == 'url' then
         shell_open(path)
     elseif exists(path, 'f') == false and exists(path, 'd') == false then
-        if not silent then
+        if not cfg().silent then
             vim.api.nvim_echo(
                 { { '⬇️  ' .. path .. " doesn't seem to exist!", 'ErrorMsg' } },
                 true,
@@ -268,6 +271,9 @@ end
 ---@param path string The path with `file:` prefix
 ---@private
 local handle_external_file = function(path)
+    local this_os = mkdn().this_os
+    local path_resolution = cfg().path_resolution
+    local s = sep()
     -- Get what's after the file: tag
     local real_path = string.match(path, '^file:(.*)')
     if this_os:match('Windows') then
@@ -286,9 +292,9 @@ local handle_external_file = function(path)
                 real_path = string.gsub(real_path, '^~/', '$HOME/')
             end
         end
-    elseif path_resolution.primary == 'root' and root_dir then
+    elseif path_resolution.primary == 'root' and mkdn().root_dir then
         -- Paste together root directory path and path in link and escape
-        real_path = root_dir .. sep .. real_path
+        real_path = mkdn().root_dir .. s .. real_path
     elseif
         path_resolution.primary == 'first'
         or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
@@ -296,7 +302,7 @@ local handle_external_file = function(path)
         -- Otherwise, links are relative to the first-opened file, so
         -- paste together the directory of the first-opened file and the
         -- path in the link and escape for the shell
-        real_path = initial_dir .. sep .. real_path
+        real_path = mkdn().initial_dir .. s .. real_path
     else
         -- Get the path of the current file
         local cur_file = vim.api.nvim_buf_get_name(0)
@@ -304,7 +310,7 @@ local handle_external_file = function(path)
         -- directory of the current file and the directory path provided in the
         -- link, and escape for shell
         local cur_file_dir = vim.fs.dirname(cur_file)
-        real_path = cur_file_dir .. sep .. real_path
+        real_path = cur_file_dir .. s .. real_path
     end
     -- Pass to the system_open() function
     if real_path then
@@ -314,26 +320,29 @@ end
 
 --- Update the root directory and/or working directory after navigating to a new buffer
 M.updateDirs = function()
+    local this_os = mkdn().this_os
+    local path_resolution = cfg().path_resolution
+    local silent = cfg().silent
     local wd
     -- See if the new file is in a different root directory
     if path_resolution.update_on_navigate or path_resolution.sync_cwd then
         if path_resolution.primary == 'root' then
             local cur_file = vim.api.nvim_buf_get_name(0)
             local dir = vim.fs.dirname(cur_file)
-            if not root_dir or dir ~= last_resolved_dir then
+            if not mkdn().root_dir or dir ~= last_resolved_dir then
                 if path_resolution.update_on_navigate then
-                    local prev_root = root_dir
-                    root_dir = require('mkdnflow').utils.getRootDir(
+                    local prev_root = mkdn().root_dir
+                    local new_root = utils.getRootDir(
                         dir,
                         path_resolution.root_marker,
                         this_os
                     )
                     last_resolved_dir = dir
-                    require('mkdnflow').root_dir = root_dir
-                    if root_dir then
-                        wd = root_dir
-                        if root_dir ~= prev_root then
-                            local name = vim.fs.basename(root_dir)
+                    mkdn().root_dir = new_root
+                    if new_root then
+                        wd = new_root
+                        if new_root ~= prev_root then
+                            local name = vim.fs.basename(new_root)
                             if not silent then
                                 vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
                             end
@@ -349,7 +358,7 @@ M.updateDirs = function()
                             }, true, {})
                         end
                         if path_resolution.fallback == 'first' and path_resolution.sync_cwd then
-                            wd = initial_dir
+                            wd = mkdn().initial_dir
                         elseif path_resolution.sync_cwd then -- Otherwise, set wd to directory the current buffer is in
                             wd = dir
                         end
@@ -357,7 +366,7 @@ M.updateDirs = function()
                 end
             end
         elseif path_resolution.primary == 'first' and path_resolution.sync_cwd then
-            wd = initial_dir
+            wd = mkdn().initial_dir
         elseif path_resolution.sync_cwd then
             local cur_file = vim.api.nvim_buf_get_name(0)
             wd = vim.fs.dirname(cur_file)
@@ -380,7 +389,7 @@ M.pathType = function(path, anchor, link_type)
         return 'image'
     elseif string.find(path, '^file:') then
         return 'file'
-    elseif links.hasUrl(path) then
+    elseif mkdn().links.hasUrl(path) then
         return 'url'
     elseif string.find(path, '^@') then
         return 'citation'
@@ -395,6 +404,7 @@ end
 ---@param path string The path to transform
 ---@return string path The transformed path (or unchanged if no transform is configured)
 M.transformPath = function(path)
+    local link_transform = cfg().links.transform_on_follow
     if type(link_transform) ~= 'function' or not link_transform then
         return path
     else
@@ -423,15 +433,24 @@ M.handlePath = function(path, anchor, link_type)
         handle_external_file(path)
     elseif path_type == 'anchor' then
         -- Send cursor to matching heading
-        if not cursor.toId(anchor, 1) then
-            cursor.toHeading(anchor)
+        if not mkdn().cursor.toId(anchor, 1) then
+            mkdn().cursor.toHeading(anchor)
         end
     elseif path_type == 'citation' then
         -- Retrieve highest-priority field in bib entry (if it exists)
-        local field = bib.handleCitation(path)
-        -- Use this function to do sth with the information returned (if any)
-        if field then
-            M.handlePath(field)
+        local bib = mkdn().bib
+        if bib then
+            local field = bib.handleCitation(path)
+            -- Use this function to do sth with the information returned (if any)
+            if field then
+                M.handlePath(field)
+            end
+        elseif not cfg().silent then
+            vim.api.nvim_echo(
+                { { '⬇️  Enable the bib module to follow citations', 'WarningMsg' } },
+                true,
+                {}
+            )
         end
     end
 end
@@ -443,7 +462,7 @@ end
 ---@private
 local truncate_path = function(oldpath, newpath)
     local difference = ''
-    local last_slash = string.find(string.reverse(newpath), sep)
+    local last_slash = string.find(string.reverse(newpath), sep())
     last_slash = last_slash and #newpath - last_slash + 1 or nil
     local continue = true
     local char = 1
@@ -539,6 +558,9 @@ M.moveSource = function()
         end)
     end
     -- Retrieve source from link
+    local links = mkdn().links
+    local implicit_extension = cfg().links.implicit_extension
+    local create_dirs = cfg().create_dirs
     local source, anchor, link_type, start_row, start_col, end_row, end_col =
         links.getLinkPart(links.getLinkUnderCursor(), 'source')
     if source then

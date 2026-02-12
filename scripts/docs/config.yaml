@@ -12,7 +12,7 @@ modules:
     type: boolean
     description: |
       **`true`** (default): `buffers` module is enabled (required for backward and forward navigation through buffers).
-      `false`: Disable `buffers` module functionality.
+      `false`: Suppress `buffers` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings.
 
   - name: modules.conceal
     type: boolean
@@ -24,7 +24,7 @@ modules:
     type: boolean
     description: |
       **`true`** (default): `cursor` module is enabled (required for cursor movements: jumping to links, headings, etc.).
-      `false`: Disable `cursor` module functionality.
+      `false`: Suppress `cursor` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings.
 
   - name: modules.folds
     type: boolean
@@ -42,7 +42,7 @@ modules:
     type: boolean
     description: |
       **`true`** (default): `links` module is enabled (required for creating, destroying, and following links).
-      `false`: Disable `links` module functionality.
+      `false`: Suppress `links` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings.
 
   - name: modules.lists
     type: boolean
@@ -60,7 +60,7 @@ modules:
     type: boolean
     description: |
       **`true`** (default): `paths` module is enabled (required for link interpretation, link following, etc.).
-      `false`: Disable `paths` module functionality.
+      `false`: Suppress `paths` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings.
 
   - name: modules.tables
     type: boolean

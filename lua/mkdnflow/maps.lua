@@ -15,10 +15,6 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 -- Mkdnflow mappings
-local config = require('mkdnflow').config
-local nvim_version = require('mkdnflow').nvim_version
-local command_deps = require('mkdnflow').command_deps
-local filetype_patterns = config.resolved_filetypes
 
 -- Command descriptions for which-key compatibility
 local descriptions = {
@@ -217,30 +213,40 @@ local function setup_mapping(mode, lhs, command)
     end
 end
 
--- Enable mappings in buffers in which Mkdnflow activates
-if nvim_version >= 9 and #filetype_patterns > 0 then
-    vim.api.nvim_create_augroup('MkdnflowMappings', { clear = true })
-    vim.api.nvim_create_autocmd('FileType', {
-        pattern = filetype_patterns,
-        callback = function()
-            for command, mapping in pairs(config.mappings) do
-                local available = true
-                -- Check if the modules the command is dependent on are disabled by user
-                if command_deps[command] then
-                    for _, module in ipairs(command_deps[command]) do
-                        if not config.modules[module] then
-                            available = false
+local M = {}
+
+--- Initialize mappings: register autocommand to set up buffer-local keymaps
+M.init = function()
+    local config = require('mkdnflow').config
+    local nvim_version = require('mkdnflow').nvim_version
+    local command_deps = require('mkdnflow').command_deps
+    local filetype_patterns = config.resolved_filetypes
+    if nvim_version >= 9 and #filetype_patterns > 0 then
+        vim.api.nvim_create_augroup('MkdnflowMappings', { clear = true })
+        vim.api.nvim_create_autocmd('FileType', {
+            pattern = filetype_patterns,
+            callback = function()
+                for command, mapping in pairs(config.mappings) do
+                    local available = true
+                    -- Check if the modules the command is dependent on are disabled by user
+                    if command_deps[command] then
+                        for _, module in ipairs(command_deps[command]) do
+                            if not config.modules[module] then
+                                available = false
+                            end
                         end
                     end
-                end
-                if available and mapping and type(mapping[1]) == 'table' then
-                    for _, mode in ipairs(mapping[1]) do
-                        setup_mapping(mode, mapping[2], command)
+                    if available and mapping and type(mapping[1]) == 'table' then
+                        for _, mode in ipairs(mapping[1]) do
+                            setup_mapping(mode, mapping[2], command)
+                        end
+                    elseif available and type(mapping) == 'table' then
+                        setup_mapping(mapping[1], mapping[2], command)
                     end
-                elseif available and type(mapping) == 'table' then
-                    setup_mapping(mapping[1], mapping[2], command)
                 end
-            end
-        end,
-    })
+            end,
+        })
+    end
 end
+
+return M

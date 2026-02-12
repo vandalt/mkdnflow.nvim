@@ -112,13 +112,19 @@ local function start_link_concealing()
     )
 end
 
--- Set up autocommands to trigger the link concealing setup in Markdown files
-local conceal_augroup = vim.api.nvim_create_augroup('MkdnflowLinkConcealing', { clear = true })
+local M = {}
 
-vim.api.nvim_create_autocmd('FileType', {
-    pattern = require('mkdnflow').config.resolved_filetypes,
-    callback = function()
-        start_link_concealing()
-    end,
-    group = conceal_augroup,
-})
+--- Initialize concealing: register autocommand to set up link concealing in matching buffers
+M.init = function()
+    local conceal_augroup = vim.api.nvim_create_augroup('MkdnflowLinkConcealing', { clear = true })
+
+    vim.api.nvim_create_autocmd('FileType', {
+        pattern = require('mkdnflow').config.resolved_filetypes,
+        callback = function()
+            start_link_concealing()
+        end,
+        group = conceal_augroup,
+    })
+end
+
+return M

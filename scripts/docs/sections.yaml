@@ -621,7 +621,7 @@ sections:
                               object_count = true,
                               object_count_icon_set = 'emoji',
                               object_count_opts = function()
-                                  return require('mkdnflow').foldtext.default_count_opts
+                                  return require('mkdnflow').foldtext.default_count_opts()
                               end,
                               line_count = true,
                               line_percentage = true,

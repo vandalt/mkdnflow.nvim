@@ -14,9 +14,6 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-local silent = require('mkdnflow').config.silent
-local path_resolution = require('mkdnflow').config.path_resolution
-
 -- Table for global functions and variables
 local M = {}
 
@@ -64,7 +61,7 @@ M.goBack = function()
         -- sth else if goback isn't possible)
         return true
     else
-        if not silent then
+        if not require('mkdnflow').config.silent then
             vim.api.nvim_echo({ { "⬇️  Can't go back any further!", 'WarningMsg' } }, true, {})
         end
         -- Return a boolean if goBack fails
@@ -95,7 +92,7 @@ M.goForward = function()
         return true
     else
         -- Print out an error if there's nothing in the historical buffer stack
-        if not silent then
+        if not require('mkdnflow').config.silent then
             vim.api.nvim_echo(
                 { { "⬇️  Can't go forward any further!", 'WarningMsg' } },
                 true,

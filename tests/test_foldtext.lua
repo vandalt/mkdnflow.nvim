@@ -137,35 +137,35 @@ T['default_count_opts'] = new_set()
 
 T['default_count_opts']['has table counting'] = function()
     -- Can't serialize functions, so just check structure
-    local has_tbl = child.lua_get('require("mkdnflow.foldtext").default_count_opts.tbl ~= nil')
+    local has_tbl = child.lua_get('require("mkdnflow.foldtext").default_count_opts().tbl ~= nil')
     local has_icon =
-        child.lua_get('require("mkdnflow.foldtext").default_count_opts.tbl.icon ~= nil')
+        child.lua_get('require("mkdnflow.foldtext").default_count_opts().tbl.icon ~= nil')
     local has_method =
-        child.lua_get('require("mkdnflow.foldtext").default_count_opts.tbl.count_method ~= nil')
+        child.lua_get('require("mkdnflow.foldtext").default_count_opts().tbl.count_method ~= nil')
     eq(has_tbl, true)
     eq(has_icon, true)
     eq(has_method, true)
 end
 
 T['default_count_opts']['has unordered list counting'] = function()
-    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts.ul')
+    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts().ul')
     eq(type(opts), 'table')
     eq(opts.count_method.tally, 'blocks')
 end
 
 T['default_count_opts']['has ordered list counting'] = function()
-    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts.ol')
+    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts().ol')
     eq(type(opts), 'table')
     eq(opts.count_method.tally, 'blocks')
 end
 
 T['default_count_opts']['has todo counting'] = function()
-    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts.todo')
+    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts().todo')
     eq(type(opts), 'table')
 end
 
 T['default_count_opts']['has image counting'] = function()
-    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts.img')
+    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts().img')
     eq(type(opts), 'table')
     eq(opts.count_method.tally, 'global_matches')
 end
@@ -173,26 +173,26 @@ end
 T['default_count_opts']['has fenced block counting'] = function()
     -- Can't serialize functions, so just check structure
     local has_fncblk =
-        child.lua_get('require("mkdnflow.foldtext").default_count_opts.fncblk ~= nil')
+        child.lua_get('require("mkdnflow.foldtext").default_count_opts().fncblk ~= nil')
     local has_icon =
-        child.lua_get('require("mkdnflow.foldtext").default_count_opts.fncblk.icon ~= nil')
+        child.lua_get('require("mkdnflow.foldtext").default_count_opts().fncblk.icon ~= nil')
     eq(has_fncblk, true)
     eq(has_icon, true)
 end
 
 T['default_count_opts']['has section counting'] = function()
-    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts.sec')
+    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts().sec')
     eq(type(opts), 'table')
     eq(opts.count_method.tally, 'line_matches')
 end
 
 T['default_count_opts']['has paragraph counting'] = function()
-    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts.par')
+    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts().par')
     eq(type(opts), 'table')
 end
 
 T['default_count_opts']['has link counting'] = function()
-    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts.link')
+    local opts = child.lua_get('require("mkdnflow.foldtext").default_count_opts().link')
     eq(type(opts), 'table')
     -- Should match multiple link types
     eq(type(opts.count_method.pattern), 'table')

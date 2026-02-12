@@ -14,8 +14,10 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-local config = require('mkdnflow').config
 local ffi = require('ffi')
+local function cfg()
+    return require('mkdnflow').config
+end
 
 local M = {}
 
@@ -129,79 +131,82 @@ local count_words = function(lines, singular, plural)
     return string.format('%s %s', tostring(word_count), word_count == 1 and singular or plural)
 end
 
-local icon_set = config.foldtext.object_count_icon_set
-
-M.default_count_opts = {
-    tbl = {
-        icon = M.object_icons[icon_set].tbl,
-        count_method = {
-            prep = function(text)
-                return text:gsub('%[%[.-|.-%]%]', '')
-            end,
-            pattern = { '%s*[^\\]|.*[^\\]|%s*', '[^\\]|' },
-            tally = 'blocks',
+--- Build the default object count options table using the current icon set from config
+---@return table default_count_opts
+M.default_count_opts = function()
+    local icon_set = cfg().foldtext.object_count_icon_set
+    return {
+        tbl = {
+            icon = M.object_icons[icon_set].tbl,
+            count_method = {
+                prep = function(text)
+                    return text:gsub('%[%[.-|.-%]%]', '')
+                end,
+                pattern = { '%s*[^\\]|.*[^\\]|%s*', '[^\\]|' },
+                tally = 'blocks',
+            },
         },
-    },
-    ul = {
-        icon = M.object_icons[icon_set].ul,
-        count_method = {
-            pattern = { '^%s*[-+*]%s' },
-            tally = 'blocks',
+        ul = {
+            icon = M.object_icons[icon_set].ul,
+            count_method = {
+                pattern = { '^%s*[-+*]%s' },
+                tally = 'blocks',
+            },
         },
-    },
-    ol = {
-        icon = M.object_icons[icon_set].ol,
-        count_method = {
-            pattern = { '^%s-%d+%.' },
-            tally = 'blocks',
+        ol = {
+            icon = M.object_icons[icon_set].ol,
+            count_method = {
+                pattern = { '^%s-%d+%.' },
+                tally = 'blocks',
+            },
         },
-    },
-    todo = {
-        icon = M.object_icons[icon_set].todo,
-        count_method = {
-            pattern = { '[-+*%d]%.?%s+%[.%]' },
-            tally = 'blocks',
+        todo = {
+            icon = M.object_icons[icon_set].todo,
+            count_method = {
+                pattern = { '[-+*%d]%.?%s+%[.%]' },
+                tally = 'blocks',
+            },
         },
-    },
-    img = {
-        icon = M.object_icons[icon_set].img,
-        count_method = {
-            pattern = { '!%b[]%b()' },
-            tally = 'global_matches',
+        img = {
+            icon = M.object_icons[icon_set].img,
+            count_method = {
+                pattern = { '!%b[]%b()' },
+                tally = 'global_matches',
+            },
         },
-    },
-    fncblk = {
-        icon = M.object_icons[icon_set].fncblk,
-        count_method = {
-            prep = function(text)
-                return text:gsub('^```', '\n```')
-            end,
-            pattern = { '\n```.-\n```' },
-            tally = 'global_matches',
+        fncblk = {
+            icon = M.object_icons[icon_set].fncblk,
+            count_method = {
+                prep = function(text)
+                    return text:gsub('^```', '\n```')
+                end,
+                pattern = { '\n```.-\n```' },
+                tally = 'global_matches',
+            },
         },
-    },
-    sec = {
-        icon = M.object_icons[icon_set].sec,
-        count_method = {
-            pattern = { '^#+%s' },
-            tally = 'line_matches',
+        sec = {
+            icon = M.object_icons[icon_set].sec,
+            count_method = {
+                pattern = { '^#+%s' },
+                tally = 'line_matches',
+            },
         },
-    },
-    par = {
-        icon = M.object_icons[icon_set].par,
-        count_method = {
-            pattern = { '\n%s*\n%a' },
-            tally = 'global_matches',
+        par = {
+            icon = M.object_icons[icon_set].par,
+            count_method = {
+                pattern = { '\n%s*\n%a' },
+                tally = 'global_matches',
+            },
         },
-    },
-    link = {
-        icon = M.object_icons[icon_set].link,
-        count_method = {
-            pattern = { '%b[]%b()', '%b[]%b[]', '%[%[.-%]%]' },
-            tally = 'global_matches',
+        link = {
+            icon = M.object_icons[icon_set].link,
+            count_method = {
+                pattern = { '%b[]%b()', '%b[]%b[]', '%[%[.-%]%]' },
+                tally = 'global_matches',
+            },
         },
-    },
-}
+    }
+end
 
 --- Count contiguous blocks of each object type across lines
 ---@param line_objs string[][] Per-line arrays of matched object type names
@@ -248,7 +253,7 @@ end
 ---@return table merged The merged configuration
 ---@private
 local inject_object_count_defaults = function(user_object_count_opts)
-    return vim.tbl_deep_extend('force', M.default_count_opts, user_object_count_opts)
+    return vim.tbl_deep_extend('force', M.default_count_opts(), user_object_count_opts)
 end
 
 -- Initialize as an empty table; will be loaded once count_objects is run for the first time
@@ -261,7 +266,7 @@ local object_count_opts = {}
 local count_objects = function(lines)
     -- Load up the object count opts into the table above the first time this function is called
     if vim.tbl_isempty(object_count_opts) then
-        object_count_opts = inject_object_count_defaults(config.foldtext.object_count_opts())
+        object_count_opts = inject_object_count_defaults(cfg().foldtext.object_count_opts())
     end
     -- Organize the object counts by tally method
     local tally_methods = {
@@ -343,6 +348,7 @@ end
 --- Generate the foldtext string for a folded markdown section
 ---@return string foldtext The formatted text to display for the fold
 M.fold_text = function()
+    local config = cfg()
     local title_transformer = config.foldtext.title_transformer()
     local fold_start, fold_end = vim.v.foldstart, vim.v.foldend
     local line_count = fold_end - fold_start
@@ -403,22 +409,25 @@ M.fold_text = function()
     return left .. string.rep(mi, fill_count) .. right
 end
 
--- Global wrapper function for v:lua compatibility with older Neovim versions
--- Complex chained expressions like v:lua.require('x').y.z() fail in Neovim 0.9.x
-_G.MkdnflowFoldText = function()
-    return require('mkdnflow').foldtext.fold_text()
+--- Initialize foldtext: register global function and autocommand
+M.init = function()
+    -- Global wrapper function for v:lua compatibility with older Neovim versions
+    -- Complex chained expressions like v:lua.require('x').y.z() fail in Neovim 0.9.x
+    _G.MkdnflowFoldText = function()
+        return require('mkdnflow').foldtext.fold_text()
+    end
+
+    -- Set up autocommand to apply foldtext to markdown buffers
+    -- Using autocmd ensures foldtext is applied to the correct buffer/window context
+    local foldtext_augroup = vim.api.nvim_create_augroup('MkdnflowFoldtext', { clear = true })
+
+    vim.api.nvim_create_autocmd('FileType', {
+        pattern = require('mkdnflow').config.resolved_filetypes,
+        callback = function()
+            vim.opt_local.foldtext = 'v:lua.MkdnflowFoldText()'
+        end,
+        group = foldtext_augroup,
+    })
 end
-
--- Set up autocommand to apply foldtext to markdown buffers
--- Using autocmd ensures foldtext is applied to the correct buffer/window context
-local foldtext_augroup = vim.api.nvim_create_augroup('MkdnflowFoldtext', { clear = true })
-
-vim.api.nvim_create_autocmd('FileType', {
-    pattern = require('mkdnflow').config.resolved_filetypes,
-    callback = function()
-        vim.opt_local.foldtext = 'v:lua.MkdnflowFoldText()'
-    end,
-    group = foldtext_augroup,
-})
 
 return M

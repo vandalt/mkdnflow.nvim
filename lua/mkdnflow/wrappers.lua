@@ -13,9 +13,7 @@
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
-local config = require('mkdnflow').config
-local lists = require('mkdnflow').lists
-local utils = require('mkdnflow').utils
+local utils = require('mkdnflow.utils')
 
 local M = {}
 
@@ -53,6 +51,8 @@ end
 ---@return string|nil fallback_key The fallback key to feed, or nil if the action was handled
 M.indentListItemOrJumpTableCell = function(direction)
     -- Get the current line and line number
+    local config = require('mkdnflow').config
+    local lists = require('mkdnflow').lists
     local row, line = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_get_current_line()
     local list_type = lists.hasListType(line)
     if list_type and config.modules.lists and line:match(lists.patterns[list_type].empty) then
@@ -91,6 +91,7 @@ end
 ---@param args? {mode?: string, range?: boolean} Optional mode and range info
 M.followOrCreateLinksOrToggleFolds = function(args)
     args = args or {}
+    local config = require('mkdnflow').config
     local mode = args.mode or vim.api.nvim_get_mode()['mode']
     local range = args.range or false
     if config.modules.links and (mode == 'v' or range) then

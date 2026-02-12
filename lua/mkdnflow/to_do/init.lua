@@ -15,8 +15,11 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 local M = require('mkdnflow.to_do.core')
 
-if require('mkdnflow').config.to_do.highlight then
-    require('mkdnflow.to_do.hl').init()
+--- Initialize to-do module: set up highlighting if configured
+M.init = function()
+    if require('mkdnflow').config.to_do.highlight then
+        require('mkdnflow.to_do.hl').init()
+    end
 end
 
 return M

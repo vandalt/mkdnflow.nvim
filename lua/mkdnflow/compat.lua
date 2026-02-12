@@ -15,12 +15,11 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 local utils = require('mkdnflow').utils
-local silent = require('mkdnflow').config.silent
 local warn = function(message)
     vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
 end
--- Show a warning message if nvim < 0.9.x
-if require('mkdnflow').nvim_version < 9 and not silent then
+-- Show a warning message if nvim < 0.9.x (always shown — critical compatibility notice)
+if require('mkdnflow').nvim_version < 9 then
     warn(
         '⬇️  Not all Mkdnflow functionality will work for your current version of Neovim, including mappings. Please upgrade to Neovim >= 0.9 or make sure to set your mappings in your Neovim config.'
     )
@@ -121,7 +120,7 @@ M.userConfigCheck = function(user_config)
             end
         end
 
-        if migrated and not silent then
+        if migrated and not user_config.silent then
             warn(
                 "⬇️  Config 'filetypes' now uses Neovim filetypes. "
                     .. "Extensions like 'md' are auto-migrated to 'markdown'. "

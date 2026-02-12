@@ -50,7 +50,7 @@ local default_config = {
         object_count = true,
         object_count_icon_set = 'emoji',
         object_count_opts = function()
-            return require('mkdnflow').foldtext.default_count_opts
+            return require('mkdnflow').foldtext.default_count_opts()
         end,
         line_count = true,
         line_percentage = true,
@@ -344,6 +344,81 @@ init.user_config = {} -- For user config
 init.config = {} -- For merged configs
 init.loaded = nil -- For load status
 
+--- Load a module and call its init() if present
+---@param name string Module name under mkdnflow/
+---@param enabled boolean|nil Whether the module is enabled
+---@return table|false mod The loaded module table, or false if disabled
+---@private
+local function load_module(name, enabled)
+    if not enabled then
+        return false
+    end
+    local mod = require('mkdnflow.' .. name)
+    if type(mod) == 'table' and type(mod.init) == 'function' then
+        mod.init()
+    end
+    return mod
+end
+
+--- Pure configuration: merge user config with defaults, resolve filetypes, compute jump_patterns.
+--- No side effects beyond the idempotent vim.filetype.add() for unknown extensions.
+---@param user_config table The (post-compat) user configuration
+---@private
+local function configure(user_config)
+    -- Detect OS, nvim version, initial buffer/dir
+    init.this_os = vim.loop.os_uname().sysname
+    init.nvim_version = vim.fn.api_info().version.minor
+    init.initial_buf = vim.api.nvim_buf_get_name(0)
+    init.initial_dir = (init.this_os:match('Windows') ~= nil and init.initial_buf:match('(.*)\\.-'))
+        or init.initial_buf:match('(.*)/.-')
+
+    -- Deep-copy the raw user config before compat mutates it (for :checkhealth)
+    init.raw_user_config = vim.deepcopy(user_config)
+
+    -- Read compatibility module & pass user config through config checker
+    local compat = require('mkdnflow.compat')
+    user_config = compat.userConfigCheck(user_config)
+
+    -- Store a clean, independent copy of the user config (post-compat) for
+    -- health checks (:checkhealth, :MkdnCleanConfig) and potential re-setup
+    -- via forceStart(). This must be a deep copy because mergeTables assigns
+    -- array references directly into the merged config, and modules may later
+    -- mutate those shared objects (e.g. to_do adds method functions onto the
+    -- statuses array). Without a copy, init.user_config would be polluted.
+    if next(user_config) then
+        init.user_config = vim.deepcopy(user_config)
+    end
+
+    -- Deep-copy defaults before mergeTables mutates them (for :checkhealth / :MkdnCleanConfig)
+    init.default_config = vim.deepcopy(default_config)
+
+    -- Merge user config with defaults
+    init.config = init.utils.mergeTables(default_config, user_config)
+
+    -- Resolve filetypes (registers unknown extensions via vim.filetype.add)
+    local filetype_patterns = resolve_filetypes(init.config.filetypes)
+    init.config.resolved_filetypes = filetype_patterns
+
+    -- Compute jump patterns based on link style
+    if init.config.cursor.jump_patterns == nil then
+        if init.config.links.style == 'markdown' then
+            init.config.cursor.jump_patterns = {
+                '!%b[]%b()', -- Image links
+                '%b[]%b()',
+                '<[^<>]->',
+                '%b[] ?%b[]',
+                '%[@[^%[%]]-%]',
+            }
+        elseif init.config.links.style == 'wiki' then
+            init.config.cursor.jump_patterns = {
+                '%[%[[^%[%]]-%]%]',
+            }
+        else
+            init.config.cursor.jump_patterns = {}
+        end
+    end
+end
+
 --- Load all enabled modules and set up path resolution/root directory
 --- Called by both setup() and forceStart().
 ---@private
@@ -423,39 +498,25 @@ local function activate()
             end
         end
     end
-    -- Set jump pattern set based on user's link type
-    if init.config.cursor.jump_patterns == nil then
-        if init.config.links.style == 'markdown' then
-            init.config.cursor.jump_patterns = {
-                '!%b[]%b()', -- Image links
-                '%b[]%b()',
-                '<[^<>]->',
-                '%b[] ?%b[]',
-                '%[@[^%[%]]-%]',
-            }
-        elseif init.config.links.style == 'wiki' then
-            init.config.cursor.jump_patterns = {
-                '%[%[[^%[%]]-%]%]',
-            }
-        else
-            init.config.cursor.jump_patterns = {}
-        end
-    end
     -- Load modules
-    init.conceal = init.config.links.conceal and require('mkdnflow.conceal')
-    init.bib = init.config.modules.bib and require('mkdnflow.bib')
-    init.buffers = init.config.modules.buffers and require('mkdnflow.buffers')
-    init.folds = init.config.modules.folds and require('mkdnflow.folds')
-    init.foldtext = init.config.modules.foldtext and require('mkdnflow.foldtext')
-    init.links = init.config.modules.links and require('mkdnflow.links')
-    init.cursor = init.config.modules.cursor and require('mkdnflow.cursor')
-    init.lists = init.config.modules.lists and require('mkdnflow.lists')
-    init.maps = init.config.modules.maps and require('mkdnflow.maps')
-    init.paths = init.config.modules.paths and require('mkdnflow.paths')
-    init.tables = init.config.modules.tables and require('mkdnflow.tables')
-    init.yaml = init.config.modules.yaml and require('mkdnflow.yaml')
-    init.cmp = init.config.modules.cmp and require('mkdnflow.cmp')
-    init.to_do = init.config.modules.to_do and require('mkdnflow.to_do')
+    -- Core modules are always loaded because they have hard cross-dependencies
+    -- (e.g. paths calls into links, buffers, and cursor). Setting their modules
+    -- key to false still suppresses their keybindings via command_deps in maps.
+    init.buffers = load_module('buffers', true)
+    init.links = load_module('links', true)
+    init.cursor = load_module('cursor', true)
+    init.paths = load_module('paths', true)
+    -- Optional modules respect the user's modules config
+    init.conceal = load_module('conceal', init.config.links.conceal)
+    init.bib = load_module('bib', init.config.modules.bib)
+    init.folds = load_module('folds', init.config.modules.folds)
+    init.foldtext = load_module('foldtext', init.config.modules.foldtext)
+    init.lists = load_module('lists', init.config.modules.lists)
+    init.maps = load_module('maps', init.config.modules.maps)
+    init.tables = load_module('tables', init.config.modules.tables)
+    init.yaml = load_module('yaml', init.config.modules.yaml)
+    init.cmp = load_module('cmp', init.config.modules.cmp)
+    init.to_do = load_module('to_do', init.config.modules.to_do)
     -- Record load status
     init.loaded = true
     -- Re-trigger FileType so module autocmds (maps, conceal, foldtext, yaml) fire
@@ -521,40 +582,11 @@ init.command_deps = {
 ---@param user_config? table User configuration overrides (merged with defaults)
 init.setup = function(user_config)
     user_config = user_config or {}
-    init.this_os = vim.loop.os_uname().sysname -- Get OS
-    init.nvim_version = vim.fn.api_info().version.minor
-    -- Get first opened file/buffer path and directory
-    init.initial_buf = vim.api.nvim_buf_get_name(0)
-    -- Determine initial_dir according to OS
-    init.initial_dir = (init.this_os:match('Windows') ~= nil and init.initial_buf:match('(.*)\\.-'))
-        or init.initial_buf:match('(.*)/.-')
 
-    -- Deep-copy the raw user config before compat mutates it (for :checkhealth)
-    init.raw_user_config = vim.deepcopy(user_config)
+    -- Pure configuration: merge, resolve filetypes, compute jump_patterns
+    configure(user_config)
 
-    -- Read compatibility module & pass user config through config checker
-    local compat = require('mkdnflow.compat')
-    user_config = compat.userConfigCheck(user_config)
-
-    -- Store a clean, independent copy of the user config (post-compat) for
-    -- health checks (:checkhealth, :MkdnCleanConfig) and potential re-setup
-    -- via forceStart(). This must be a deep copy because mergeTables assigns
-    -- array references directly into the merged config, and modules may later
-    -- mutate those shared objects (e.g. to_do adds method functions onto the
-    -- statuses array). Without a copy, init.user_config would be polluted.
-    if next(user_config) then
-        init.user_config = vim.deepcopy(user_config)
-    end
-
-    -- Deep-copy defaults before mergeTables mutates them (for :checkhealth / :MkdnCleanConfig)
-    init.default_config = vim.deepcopy(default_config)
-
-    -- Merge user config with defaults
-    init.config = init.utils.mergeTables(default_config, user_config)
-
-    -- Resolve filetypes (registers unknown extensions via vim.filetype.add)
-    local filetype_patterns = resolve_filetypes(init.config.filetypes)
-    init.config.resolved_filetypes = filetype_patterns
+    local filetype_patterns = init.config.resolved_filetypes
 
     -- Re-detect current buffer's filetype if it was opened before registration
     local current_file = vim.api.nvim_buf_get_name(0)
