@@ -474,17 +474,15 @@ local function activate()
                 vim.api.nvim_set_current_dir(init.root_dir)
                 local name = init.root_dir:match('.*/(.*)') or init.root_dir
                 if not silent then
-                    vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
+                    vim.notify('⬇️  Notebook: ' .. name, vim.log.levels.INFO)
                 end
             else
                 local fallback = init.config.path_resolution.fallback
                 if not silent then
-                    vim.api.nvim_echo({
-                        {
-                            '⬇️  No notebook found. Fallback perspective: ' .. fallback,
-                            'WarningMsg',
-                        },
-                    }, true, {})
+                    vim.notify(
+                        '⬇️  No notebook found. Fallback perspective: ' .. fallback,
+                        vim.log.levels.WARN
+                    )
                 end
                 -- Set working directory according to current perspective
                 if fallback == 'first' then
@@ -500,12 +498,10 @@ local function activate()
             end
         else
             if not silent then
-                vim.api.nvim_echo({
-                    {
-                        "⬇️  No root marker was provided for the notebook's root directory. See :h mkdnflow-configuration.",
-                        'WarningMsg',
-                    },
-                }, true, {})
+                vim.notify(
+                    "⬇️  No root marker was provided for the notebook's root directory. See :h mkdnflow-configuration.",
+                    vim.log.levels.WARN
+                )
             end
             if init.config.path_resolution.fallback == 'first' then
                 vim.api.nvim_set_current_dir(init.initial_dir)
@@ -662,7 +658,7 @@ init.forceStart = function(opts)
     local silent = (opts[1] == 'silent') or (init.config and init.config.silent)
     if init.loaded then
         if not silent then
-            vim.api.nvim_echo({ { '⬇️  Mkdnflow is already running!', 'ErrorMsg' } }, true, {})
+            vim.notify('⬇️  Mkdnflow is already running!', vim.log.levels.ERROR)
         end
     else
         -- If setup() was never called, call it first
@@ -674,7 +670,7 @@ init.forceStart = function(opts)
             activate()
         end
         if not silent then
-            vim.api.nvim_echo({ { '⬇️  Mkdnflow started!', 'WarningMsg' } }, true, {})
+            vim.notify('⬇️  Mkdnflow started!', vim.log.levels.WARN)
         end
     end
 end

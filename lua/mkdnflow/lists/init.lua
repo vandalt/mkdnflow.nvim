@@ -238,26 +238,22 @@ function M.changeListType(target_type, opts)
     opts = opts or {}
 
     if not valid_types[target_type] then
-        vim.api.nvim_echo({
-            { 'Mkdnflow: ', 'WarningMsg' },
-            {
-                "Invalid list type '" .. tostring(target_type) .. "'. Use ul, ol, ultd, or oltd.",
-                'Normal',
-            },
-        }, true, {})
+        vim.notify(
+            "Mkdnflow: Invalid list type '"
+                .. tostring(target_type)
+                .. "'. Use ul, ol, ultd, or oltd.",
+            vim.log.levels.WARN
+        )
         return
     end
 
     local valid_markers = { ['-'] = true, ['*'] = true, ['+'] = true }
     local marker = opts.marker
     if marker and not valid_markers[marker] then
-        vim.api.nvim_echo({
-            { 'Mkdnflow: ', 'WarningMsg' },
-            {
-                "Invalid list marker '" .. tostring(marker) .. "'. Use -, *, or +.",
-                'Normal',
-            },
-        }, true, {})
+        vim.notify(
+            "Mkdnflow: Invalid list marker '" .. tostring(marker) .. "'. Use -, *, or +.",
+            vim.log.levels.WARN
+        )
         return
     end
 

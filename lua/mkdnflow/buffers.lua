@@ -62,7 +62,7 @@ M.goBack = function()
         return true
     else
         if not require('mkdnflow').config.silent then
-            vim.api.nvim_echo({ { "⬇️  Can't go back any further!", 'WarningMsg' } }, true, {})
+            vim.notify("⬇️  Can't go back any further!", vim.log.levels.WARN)
         end
         -- Return a boolean if goBack fails
         return false
@@ -93,11 +93,7 @@ M.goForward = function()
     else
         -- Print out an error if there's nothing in the historical buffer stack
         if not require('mkdnflow').config.silent then
-            vim.api.nvim_echo(
-                { { "⬇️  Can't go forward any further!", 'WarningMsg' } },
-                true,
-                {}
-            )
+            vim.notify("⬇️  Can't go forward any further!", vim.log.levels.WARN)
         end
         -- Return a boolean if goForward failed (for users who want <Del> to do
         -- sth else if goForward isn't possible)

@@ -813,12 +813,10 @@ M.createLink = function(args)
             -- Retain original cursor position
             vim.api.nvim_win_set_cursor(0, { row, col + 1 })
         else
-            vim.api.nvim_echo({
-                {
-                    '⬇️  Creating links from multi-line visual selection not supported',
-                    'WarningMsg',
-                },
-            }, true, {})
+            vim.notify(
+                '⬇️  Creating links from multi-line visual selection not supported',
+                vim.log.levels.WARN
+            )
         end
     end
 end
@@ -832,11 +830,7 @@ M.destroyLink = function()
         -- Replace the link with just the name
         vim.api.nvim_buf_set_text(0, link[4] - 1, link[5] - 1, link[6] - 1, link[7], { link_name })
     else
-        vim.api.nvim_echo(
-            { { "⬇️  Couldn't find a link under the cursor to destroy!", 'WarningMsg' } },
-            true,
-            {}
-        )
+        vim.notify("⬇️  Couldn't find a link under the cursor to destroy!", vim.log.levels.WARN)
     end
 end
 
@@ -878,11 +872,7 @@ M.followLink = function(args)
     if path then
         require('mkdnflow').paths.handlePath(path, anchor, link_type)
     elseif link_type == 'ref_style_link' then -- If this condition is met, no reference was found
-        vim.api.nvim_echo(
-            { { "⬇️  Couldn't find a matching reference label!", 'WarningMsg' } },
-            true,
-            {}
-        )
+        vim.notify("⬇️  Couldn't find a matching reference label!", vim.log.levels.WARN)
     elseif links.auto_create then
         M.createLink({ range = range })
     end

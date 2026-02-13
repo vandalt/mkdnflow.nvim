@@ -412,10 +412,10 @@ function M.cleanConfig()
     local mkdnflow = require('mkdnflow')
 
     if not mkdnflow.config then
-        vim.api.nvim_echo({
-            { 'Mkdnflow: ', 'WarningMsg' },
-            { "setup() has not been called. Can't generate clean config.", 'Normal' },
-        }, true, {})
+        vim.notify(
+            "Mkdnflow: setup() has not been called. Can't generate clean config.",
+            vim.log.levels.WARN
+        )
         return
     end
 
@@ -424,10 +424,10 @@ function M.cleanConfig()
 
     -- If no user config was provided, nothing to clean
     if not user_config or not next(user_config) then
-        vim.api.nvim_echo({
-            { 'Mkdnflow: ', 'Normal' },
-            { 'No user configuration overrides found. You are using all defaults.', 'Normal' },
-        }, true, {})
+        vim.notify(
+            'Mkdnflow: No user configuration overrides found. You are using all defaults.',
+            vim.log.levels.INFO
+        )
         return
     end
 

@@ -235,7 +235,7 @@ return M
 Before creating or handling issues, check the templates in `.github/ISSUE_TEMPLATE/` for the expected format (bug reports, feature requests).
 
 ## Error Handling
-- Use `vim.api.nvim_echo()` with highlight groups for user messages
+- Use `vim.notify()` with `vim.log.levels` for user messages
 - Return `nil` or `false` on failure rather than throwing errors
 - Validate inputs at public API boundaries
 

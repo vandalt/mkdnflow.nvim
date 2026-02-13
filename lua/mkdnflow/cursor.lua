@@ -183,16 +183,15 @@ local go_to_heading = function(anchor_text, reverse)
             if row == starting_row + 1 then
                 continue = nil
                 if anchor_text == nil then
-                    local message = "⬇️  Couldn't find a heading to go to!"
                     if not silent then
-                        vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
+                        vim.notify("⬇️  Couldn't find a heading to go to!", vim.log.levels.WARN)
                     end
                 else
-                    local message = "⬇️  Couldn't find a heading matching "
-                        .. anchor_text
-                        .. '!'
                     if not silent then
-                        vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
+                        vim.notify(
+                            "⬇️  Couldn't find a heading matching " .. anchor_text .. '!',
+                            vim.log.levels.WARN
+                        )
                     end
                 end
             end
@@ -205,13 +204,15 @@ local go_to_heading = function(anchor_text, reverse)
                 continue = nil
                 local place = (reverse and 'beginning') or 'end'
                 local preposition = (reverse and 'after') or 'before'
-                local message = '⬇️  There are no more headings '
-                    .. preposition
-                    .. ' the '
-                    .. place
-                    .. ' of the document!'
                 if not silent then
-                    vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
+                    vim.notify(
+                        '⬇️  There are no more headings '
+                            .. preposition
+                            .. ' the '
+                            .. place
+                            .. ' of the document!',
+                        vim.log.levels.WARN
+                    )
                 end
             end
         end
@@ -288,9 +289,11 @@ M.changeHeadingLevel = function(change, opts)
                 if not string.find(line[1], '^##') then
                     -- Only show warning for single-line operations
                     if start_row == end_row then
-                        local message = "⬇️  Can't increase this heading any more!"
                         if not require('mkdnflow').config.silent then
-                            vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
+                            vim.notify(
+                                "⬇️  Can't increase this heading any more!",
+                                vim.log.levels.WARN
+                            )
                         end
                     end
                 else
@@ -420,9 +423,11 @@ M.yankAsAnchorLink = function(full_path)
             vim.fn.setreg(register, anchor_link)
         end
     else
-        local message = '⬇️  The current line is not a heading or bracketed span!'
         if not require('mkdnflow').config.silent then
-            vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
+            vim.notify(
+                '⬇️  The current line is not a heading or bracketed span!',
+                vim.log.levels.WARN
+            )
         end
     end
 end

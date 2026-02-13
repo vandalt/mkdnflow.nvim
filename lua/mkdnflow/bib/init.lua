@@ -83,14 +83,12 @@ M.handleCitation = function(citation)
             return link
         else
             if not silent then
-                vim.api.nvim_echo({
-                    {
-                        '⬇️  Bib entry with citekey "'
-                            .. entry:get_citation_key()
-                            .. '" had no relevant content!',
-                        'WarningMsg',
-                    },
-                }, true, {})
+                vim.notify(
+                    '⬇️  Bib entry with citekey "'
+                        .. entry:get_citation_key()
+                        .. '" had no relevant content!',
+                    vim.log.levels.WARN
+                )
             end
             return nil
         end
@@ -104,20 +102,14 @@ M.handleCitation = function(citation)
         end
 
         if not M.bib_paths.yaml[1] and not M.bib_paths.default[1] and not M.bib_paths.root[1] then
-            vim.api.nvim_echo({
-                {
-                    '⬇️  Could not find a bib file. The default bib path is currently '
-                        .. tostring(M.bib_paths.default[1])
-                        .. '. Fix the path or add a default bib path by specifying a value for the "bib.default_path" key.',
-                    'ErrorMsg',
-                },
-            }, true, {})
-        else
-            vim.api.nvim_echo(
-                { { '⬇️  No entry found for "' .. citekey .. '"!', 'WarningMsg' } },
-                true,
-                {}
+            vim.notify(
+                '⬇️  Could not find a bib file. The default bib path is currently '
+                    .. tostring(M.bib_paths.default[1])
+                    .. '. Fix the path or add a default bib path by specifying a value for the "bib.default_path" key.',
+                vim.log.levels.ERROR
             )
+        else
+            vim.notify('⬇️  No entry found for "' .. citekey .. '"!', vim.log.levels.WARN)
         end
     end
     return nil

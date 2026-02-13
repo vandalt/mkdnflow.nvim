@@ -177,14 +177,12 @@ local vim_open = function(path, anchor)
                 end
             else
                 -- Unexpected return type; warn and proceed with default behavior
-                vim.api.nvim_echo({
-                    {
-                        '⬇️  on_create_new callback returned unexpected type: '
-                            .. type(result)
-                            .. ' (expected string or nil)',
-                        'WarningMsg',
-                    },
-                }, true, {})
+                vim.notify(
+                    '⬇️  on_create_new callback returned unexpected type: '
+                        .. type(result)
+                        .. ' (expected string or nil)',
+                    vim.log.levels.WARN
+                )
             end
         end
         -- Push the current buffer name onto the main buffer stack
@@ -246,8 +244,10 @@ local system_open = function(path, type)
             vim.fn.jobstart({ 'cmd.exe', '/c', 'start', '', path_ }, { detach = true })
         else
             if not cfg().silent then
-                local this_os_err = '⬇️ Function unavailable for ' .. this_os .. '. Please file an issue.'
-                vim.api.nvim_echo({ { this_os_err, 'ErrorMsg' } }, true, {})
+                local this_os_err = '⬇️ Function unavailable for '
+                    .. this_os
+                    .. '. Please file an issue.'
+                vim.notify(this_os_err, vim.log.levels.ERROR)
             end
         end
     end
@@ -256,11 +256,7 @@ local system_open = function(path, type)
         shell_open(path)
     elseif exists(path, 'f') == false and exists(path, 'd') == false then
         if not cfg().silent then
-            vim.api.nvim_echo(
-                { { '⬇️  ' .. path .. " doesn't seem to exist!", 'ErrorMsg' } },
-                true,
-                {}
-            )
+            vim.notify('⬇️  ' .. path .. " doesn't seem to exist!", vim.log.levels.ERROR)
         end
     else
         shell_open(path)
@@ -281,11 +277,7 @@ M.updateDirs = function()
             if not mkdn().root_dir or dir ~= last_resolved_dir then
                 if path_resolution.update_on_navigate then
                     local prev_root = mkdn().root_dir
-                    local new_root = utils.getRootDir(
-                        dir,
-                        path_resolution.root_marker,
-                        this_os
-                    )
+                    local new_root = utils.getRootDir(dir, path_resolution.root_marker, this_os)
                     last_resolved_dir = dir
                     mkdn().root_dir = new_root
                     if new_root then
@@ -293,18 +285,16 @@ M.updateDirs = function()
                         if new_root ~= prev_root then
                             local name = vim.fs.basename(new_root)
                             if not silent then
-                                vim.api.nvim_echo({ { '⬇️  Notebook: ' .. name } }, true, {})
+                                vim.notify('⬇️  Notebook: ' .. name, vim.log.levels.INFO)
                             end
                         end
                     else
                         if not silent then
-                            vim.api.nvim_echo({
-                                {
-                                    '⬇️  No notebook found. Fallback perspective: '
-                                        .. path_resolution.fallback,
-                                    'WarningMsg',
-                                },
-                            }, true, {})
+                            vim.notify(
+                                '⬇️  No notebook found. Fallback perspective: '
+                                    .. path_resolution.fallback,
+                                vim.log.levels.WARN
+                            )
                         end
                         if path_resolution.fallback == 'first' and path_resolution.sync_cwd then
                             wd = mkdn().initial_dir
@@ -397,11 +387,7 @@ M.handlePath = function(path, anchor, link_type)
                 M.handlePath(field)
             end
         elseif not cfg().silent then
-            vim.api.nvim_echo(
-                { { '⬇️  Enable the bib module to follow citations', 'WarningMsg' } },
-                true,
-                {}
-            )
+            vim.notify('⬇️  Enable the bib module to follow citations', vim.log.levels.WARN)
         end
     end
 end
@@ -473,9 +459,10 @@ M.moveSource = function()
             if response == 'y' then
                 local ok = vim.fn.rename(derived_source, derived_goal)
                 if ok ~= 0 then
-                    vim.api.nvim_echo({
-                        { '⬇️  Failed to move file (cross-filesystem?)', 'ErrorMsg' },
-                    }, true, {})
+                    vim.notify(
+                        '⬇️  Failed to move file (cross-filesystem?)',
+                        vim.log.levels.ERROR
+                    )
                     vim.o.cmdheight = cmdheight
                     return
                 end
@@ -492,17 +479,13 @@ M.moveSource = function()
                 -- Reset cmdheight value
                 vim.cmd('normal! :')
                 vim.o.cmdheight = cmdheight
-                vim.api.nvim_echo(
-                    { { '⬇️  Success! File moved to ' .. derived_goal } },
-                    true,
-                    {}
-                )
+                vim.notify('⬇️  Success! File moved to ' .. derived_goal, vim.log.levels.INFO)
             else
                 -- Clear the prompt & print sth
                 -- Reset cmdheight value
                 vim.cmd('normal! :')
                 vim.o.cmdheight = cmdheight
-                vim.api.nvim_echo({ { '⬇️  Aborted', 'WarningMsg' } }, true, {})
+                vim.notify('⬇️  Aborted', vim.log.levels.WARN)
             end
         end)
     end
@@ -549,12 +532,10 @@ M.moveSource = function()
                 local dir = vim.fs.dirname(derived_goal)
                 if goal_exists then -- If the goal location already exists, abort
                     vim.cmd('normal! :')
-                    vim.api.nvim_echo({
-                        {
-                            "⬇️  '" .. location .. "' already exists! Aborting.",
-                            'WarningMsg',
-                        },
-                    }, true, {})
+                    vim.notify(
+                        "⬇️  '" .. location .. "' already exists! Aborting.",
+                        vim.log.levels.WARN
+                    )
                 elseif source_exists then -- If the source location exists, proceed
                     if dir then -- If there's a directory in the goal location, ...
                         local to_dir_exists = exists(dir, 'd')
@@ -563,11 +544,10 @@ M.moveSource = function()
                                 vim.fn.mkdir(dir, 'p')
                             else
                                 vim.cmd('normal! :')
-                                vim.api.nvim_echo({
-                                    {
-                                        "⬇️  The goal directory doesn't exist. Set create_dirs to true for automatic directory creation.",
-                                    },
-                                })
+                                vim.notify(
+                                    "⬇️  The goal directory doesn't exist. Set create_dirs to true for automatic directory creation.",
+                                    vim.log.levels.WARN
+                                )
                             end
                         else
                             confirm_and_execute(
@@ -598,21 +578,15 @@ M.moveSource = function()
                 else -- Otherwise, the file we're trying to move must not exist
                     -- Clear the prompt & send a warning
                     vim.cmd('normal! :')
-                    vim.api.nvim_echo({
-                        {
-                            '⬇️  ' .. derived_source .. " doesn't seem to exist! Aborting.",
-                            'WarningMsg',
-                        },
-                    }, true, {})
+                    vim.notify(
+                        '⬇️  ' .. derived_source .. " doesn't seem to exist! Aborting.",
+                        vim.log.levels.WARN
+                    )
                 end
             end
         end)
     else
-        vim.api.nvim_echo(
-            { { "⬇️  Couldn't find a link under the cursor to rename!", 'WarningMsg' } },
-            true,
-            {}
-        )
+        vim.notify("⬇️  Couldn't find a link under the cursor to rename!", vim.log.levels.WARN)
     end
 end
 

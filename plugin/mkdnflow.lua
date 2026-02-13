@@ -29,14 +29,12 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     local function require_module(module_name)
         local module = mkdnflow[module_name]
         if not module then
-            vim.api.nvim_echo({
-                { '⬇️  Mkdnflow not initialized. ', 'WarningMsg' },
-                { 'Call ', 'Normal' },
-                { "require('mkdnflow').setup()", 'String' },
-                { ' first, or check that the ', 'Normal' },
-                { module_name, 'Identifier' },
-                { ' module is enabled.', 'Normal' },
-            }, true, {})
+            vim.notify(
+                "⬇️  Mkdnflow not initialized. Call require('mkdnflow').setup() first, or check that the "
+                    .. module_name
+                    .. ' module is enabled.',
+                vim.log.levels.WARN
+            )
             return nil
         end
         return module
@@ -374,7 +372,11 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
                     delimiter = arg
                 end
             end
-            tables.tableFromSelection(opts.line1, opts.line2, { delimiter = delimiter, header = header })
+            tables.tableFromSelection(
+                opts.line1,
+                opts.line2,
+                { delimiter = delimiter, header = header }
+            )
         end
     end, { range = true, nargs = '*' })
     user_command('MkdnFoldSection', function(opts)

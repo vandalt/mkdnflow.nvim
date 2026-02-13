@@ -16,7 +16,7 @@
 
 local utils = require('mkdnflow').utils
 local warn = function(message)
-    vim.api.nvim_echo({ { message, 'WarningMsg' } }, true, {})
+    vim.notify(message, vim.log.levels.WARN)
 end
 -- Show a warning message if nvim < 0.9.x (always shown — critical compatibility notice)
 if require('mkdnflow').nvim_version < 9 then

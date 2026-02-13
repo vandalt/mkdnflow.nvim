@@ -145,9 +145,7 @@ function M.formatTable()
         tbl:format()
     else
         if not config.silent then
-            vim.api.nvim_echo({
-                { '⬇️  Table formatting failed.', 'WarningMsg' },
-            }, true, {})
+            vim.notify('⬇️  Table formatting failed.', vim.log.levels.WARN)
         end
     end
 end

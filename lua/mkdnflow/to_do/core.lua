@@ -895,7 +895,7 @@ function M.sort_to_do_list()
     if item and item.valid and item.host_list then
         item.host_list:sort()
     elseif not require('mkdnflow').config.silent then
-        vim.api.nvim_echo({ { 'No to-do list found at cursor position', 'WarningMsg' } }, true, {})
+        vim.notify('No to-do list found at cursor position', vim.log.levels.WARN)
     end
     clear_cache()
 end

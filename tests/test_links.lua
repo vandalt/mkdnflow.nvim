@@ -2310,7 +2310,8 @@ T['citation_e2e']['normal mode <CR> on citation does not create link'] = functio
     set_lines({ 'See @smith2020 for details.' })
     set_cursor(1, 7)
     -- In normal mode, <CR> should try to follow the citation (which will fail without bib),
-    -- but should NOT create a link
+    -- but should NOT create a link. Suppress the expected error notification.
+    child.lua([[vim.notify = function() end]])
     child.type_keys('<CR>')
     local result = get_line(1)
     eq(result, 'See @smith2020 for details.')

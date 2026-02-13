@@ -106,12 +106,10 @@ M.foldSection = function()
         -- Check if foldmethod allows manual fold creation
         if not can_create_manual_folds() then
             if not require('mkdnflow').config.silent then
-                vim.api.nvim_echo({
-                    {
-                        "⬇️  Cannot create fold: 'foldmethod' must be 'manual' or 'marker'",
-                        'WarningMsg',
-                    },
-                }, true, {})
+                vim.notify(
+                    "⬇️  Cannot create fold: 'foldmethod' must be 'manual' or 'marker'",
+                    vim.log.levels.WARN
+                )
             end
             return
         end
