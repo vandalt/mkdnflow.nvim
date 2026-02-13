@@ -70,7 +70,7 @@ sections:
         content:
           - type: list
             items:
-              - text: Link creation from a visual selection or the word under the cursor
+              - text: Link creation from a visual selection or the text under the cursor
                 done: true
               - text: Link destruction
                 done: true

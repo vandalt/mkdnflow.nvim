@@ -4,7 +4,7 @@ commands:
   - name: MkdnEnter
     default_mapping: null
     description: |
-      Triggers a wrapper function which will (a) infer your editor mode, and then if in normal or visual mode, either follow a link, create a new link from the word under the cursor or visual selection, or fold a section (if cursor is on a section heading); if in insert mode, it will create a new list item (if cursor is in a list), go to the next row in a table (if cursor is in a table), or behave normally (if cursor is not in a list or a table). In visual mode, if the selection overlaps a citation (`@citekey` or `[@citekey]`), a markdown link is created from the citekey instead of following the citation.
+      Triggers a wrapper function which will (a) infer your editor mode, and then if in normal or visual mode, either follow a link, create a new link from the text under the cursor or visual selection, or fold a section (if cursor is on a section heading); if in insert mode, it will create a new list item (if cursor is in a list), go to the next row in a table (if cursor is in a table), or behave normally (if cursor is not in a list or a table). In visual mode, if the selection overlaps a citation (`@citekey` or `[@citekey]`), a markdown link is created from the citekey instead of following the citation.
 
       Note: There is no insert-mode mapping for this command by default since some may find its effects intrusive. To enable the insert-mode functionality, add to the mappings table: `MkdnEnter = {{'i', 'n', 'v'}, '<CR>'}`.
 
@@ -43,17 +43,17 @@ commands:
   - name: MkdnCreateLink
     default_mapping: null
     description: |
-      Create a link from the word under the cursor (in normal mode) or from the visual selection (in visual mode).
+      Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode).
 
   - name: MkdnCreateLinkFromClipboard
     default_mapping: "{ { 'n', 'v' }, '<leader>p' }"
     description: |
-      Create a link, using the content from the system clipboard (e.g. a URL) as the source and the word under cursor or visual selection as the link text.
+      Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text.
 
   - name: MkdnFollowLink
     default_mapping: null
     description: |
-      Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the word under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer.
+      Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the text under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer.
 
   - name: MkdnDestroyLink
     default_mapping: "{ 'n', '<M-CR>' }"

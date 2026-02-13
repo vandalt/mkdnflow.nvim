@@ -690,8 +690,14 @@ M.createLink = function(args)
             end
             vim.cmd('startinsert')
         else
-            -- Get the word under the cursor
-            local cursor_word = vim.fn.expand('<cword>')
+            -- Get the text under the cursor (WORD = contiguous non-whitespace)
+            local cursor_word = vim.fn.expand('<cWORD>')
+            -- Strip common sentence punctuation from edges, preserving
+            -- path-meaningful characters (/, -, _, ~, #, @)
+            -- Leading: strip , ; : ! ? ' " ( ) { } [ ] (NOT . — preserves dotfiles)
+            cursor_word = cursor_word:gsub('^[,;:!?\'"(){}%[%]]+', '')
+            -- Trailing: strip . , ; : ! ? ' " ( ) { } [ ]
+            cursor_word = cursor_word:gsub('[.,;:!?\'"(){}%[%]]+$', '')
             -- Make a markdown link out of the date and cursor
             local replacement
             if from_clipboard then
@@ -709,7 +715,7 @@ M.createLink = function(args)
             -- is, perform the search until a match is found whose right edge follows
             -- the cursor position
             if cursor_word ~= '' then
-                for _left, _right in utils.gmatch(line, cursor_word) do
+                for _left, _right in utils.gmatch(line, vim.pesc(cursor_word)) do
                     if _right >= col then
                         left = _left
                         right = _right

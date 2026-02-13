@@ -893,12 +893,12 @@ T['createLink']['wraps URL under cursor'] = function()
 end
 
 T['createLink']['on whitespace creates link from adjacent word'] = function()
-    -- When cursor is on whitespace, vim's <cword> typically returns adjacent word
+    -- When cursor is on whitespace, vim's <cWORD> typically returns adjacent word
     set_lines({ 'word  other' })
     set_cursor(1, 5) -- cursor on space between words
     child.lua([[require('mkdnflow.links').createLink()]])
     local result = get_line(1)
-    -- The second word gets linked because <cword> finds it
+    -- The second word gets linked because <cWORD> finds it
     eq(result, 'word  [other](other.md)')
 end
 
@@ -926,6 +926,96 @@ T['createLink']['creates link from partial visual selection with range'] = funct
     ]])
     local result = get_line(1)
     eq(result, 'prefix [ABC-123](ABC-123.md) suffix')
+end
+
+-- Issue #206: <cWORD> captures contiguous non-whitespace, including path separators
+T['createLink']['creates link from path with slashes'] = function()
+    set_lines({ 'See foo/bar for details' })
+    set_cursor(1, 6) -- cursor on 'b' in 'bar' part of 'foo/bar'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, 'See [foo/bar](foo/bar.md) for details')
+end
+
+T['createLink']['strips trailing period'] = function()
+    set_lines({ 'See word.' })
+    set_cursor(1, 4) -- cursor on 'word'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, 'See [word](word.md).')
+end
+
+T['createLink']['strips trailing comma'] = function()
+    set_lines({ 'word, rest' })
+    set_cursor(1, 0) -- cursor on 'word'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, '[word](word.md), rest')
+end
+
+T['createLink']['strips surrounding parens'] = function()
+    set_lines({ '(word) rest' })
+    set_cursor(1, 1) -- cursor on 'w' in 'word'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, '([word](word.md)) rest')
+end
+
+T['createLink']['preserves leading dot for dotfiles'] = function()
+    set_lines({ '.gitignore rest' })
+    set_cursor(1, 3) -- cursor on 'i' in 'gitignore'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, '[.gitignore](.gitignore.md) rest')
+end
+
+T['createLink']['creates link from path with trailing period'] = function()
+    set_lines({ 'See path/to/file.' })
+    set_cursor(1, 6) -- cursor on 't' in 'to'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, 'See [path/to/file](path/to/file.md).')
+end
+
+T['createLink']['creates link from file with extension'] = function()
+    set_lines({ 'See file.txt here' })
+    set_cursor(1, 4) -- cursor on 'file'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, 'See [file.txt](file.txt.md) here')
+end
+
+T['createLink']['creates link from hyphenated word'] = function()
+    set_lines({ 'See some-slug here' })
+    set_cursor(1, 8) -- cursor on 'slug' part of 'some-slug'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, 'See [some-slug](some-slug.md) here')
+end
+
+T['createLink']['pattern escaping selects correct match'] = function()
+    -- Without vim.pesc(), the pattern 'file.txt' would match 'file_txt' first
+    set_lines({ 'file_txt file.txt rest' })
+    set_cursor(1, 12) -- cursor on 'file.txt'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, 'file_txt [file.txt](file.txt.md) rest')
+end
+
+T['createLink']['strips surrounding quotes'] = function()
+    set_lines({ 'the "word" here' })
+    set_cursor(1, 5) -- cursor on 'word'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, 'the "[word](word.md)" here')
+end
+
+T['createLink']['strips multiple trailing punctuation'] = function()
+    set_lines({ '(word!)' })
+    set_cursor(1, 1) -- cursor on 'word'
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local result = get_line(1)
+    eq(result, '([word](word.md)!)')
 end
 
 -- =============================================================================

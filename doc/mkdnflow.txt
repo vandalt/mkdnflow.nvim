@@ -98,7 +98,7 @@ WITHIN-NOTEBOOK NAVIGATION~
 ------------------------------------------------------------------------------
 Link and reference handling                           *Mkdnflow-link-handling*
 
-[x] Link creation from a visual selection or the word under the cursor
+[x] Link creation from a visual selection or the text under the cursor
 [x] Link destruction
 [x] Follow links to local paths and other Markdown files
 [x] Follow external links (open using default application)
@@ -970,7 +970,7 @@ links.implicit_extension            *Mkdnflow-config-links-implicit-extension*
 
     A string that instructs the plugin (a) how to interpret links to files
     that do not have an extension, and (b) how to create new links from the
-    word under cursor or text selection.
+    text under the cursor or text selection.
 
     `nil`: (default): Extensions will be explicit when a link is created and
     must be explicit in any notebook link.
@@ -1008,7 +1008,7 @@ links.transform_on_follow          *Mkdnflow-config-links-transform-on-follow*
 links.auto_create                          *Mkdnflow-config-links-auto-create*
     Type: boolean
 
-    `true`: (default): Try to create a link from the word under the cursor if
+    `true`: (default): Try to create a link from the text under the cursor if
     there is no link under the cursor to follow.
 
     `false`: Do nothing if trying to follow a link and a link can't be found
@@ -1767,7 +1767,7 @@ Configuration options.
 
     Triggers a wrapper function which will (a) infer your editor mode, and
     then if in normal or visual mode, either follow a link, create a new link
-    from the word under the cursor or visual selection, or fold a section (if
+    from the text under the cursor or visual selection, or fold a section (if
     cursor is on a section heading); if in insert mode, it will create a new
     list item (if cursor is in a list), go to the next row in a table (if
     cursor is in a table), or behave normally (if cursor is not in a list or a
@@ -1819,19 +1819,20 @@ Configuration options.
 
 :MkdnCreateLink                                  *Mkdnflow-cmd-MkdnCreateLink*
 
-    Create a link from the word under the cursor (in normal mode) or from the
+    Create a link from the text under the cursor (in normal mode) or from the
     visual selection (in visual mode).
 
 :MkdnCreateLinkFromClipboard        *Mkdnflow-cmd-MkdnCreateLinkFromClipboard*
     Default mapping: { { 'n', 'v' }, '<leader>p' }
 
     Create a link, using the content from the system clipboard (e.g. a URL) as
-    the source and the word under cursor or visual selection as the link text.
+    the source and the text under the cursor or visual selection as the link
+    text.
 
 :MkdnFollowLink                                  *Mkdnflow-cmd-MkdnFollowLink*
 
     Open the link under the cursor, creating missing directories if desired,
-    or if there is no link under the cursor, make a link from the word under
+    or if there is no link under the cursor, make a link from the text under
     the cursor. Image links (`!alt`) are opened in the system's default
     viewer.
 
@@ -2180,7 +2181,7 @@ Link management                                      *Mkdnflow-linkmanagement*
 `require('mkdnflow').links.createLink(args)`^
 
 
-Creates a markdown link from the word under the cursor or visual selection.
+Creates a markdown link from the text under the cursor or visual selection.
 
 - **Parameters:**
     - `args`: (table) Arguments to customize link creation.

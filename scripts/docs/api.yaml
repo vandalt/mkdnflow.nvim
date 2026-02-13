@@ -28,7 +28,7 @@ initialization:
 
 linkmanagement:
   - signature: "require('mkdnflow').links.createLink(args)"
-    description: Creates a markdown link from the word under the cursor or visual selection.
+    description: Creates a markdown link from the text under the cursor or visual selection.
     params:
       - name: args
         type: table

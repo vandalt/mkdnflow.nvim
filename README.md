@@ -88,7 +88,7 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
 
 ### 🔗 Link and reference handling
 
-- [x] Link creation from a visual selection or the word under the cursor
+- [x] Link creation from a visual selection or the text under the cursor
 - [x] Link destruction
 - [x] Follow links to local paths and other Markdown files
 - [x] Follow external links (open using default application)
@@ -659,10 +659,10 @@ require('mkdnflow').setup({
 | `links.conceal` | `boolean` | `true`: Link sources and delimiters will be concealed (depending on which link style is selected).<br>**`false`** (default): Link sources and delimiters will not be concealed by mkdnflow. |
 | `links.ref_hint` | `boolean` | `true`: When the cursor is on a reference-style link (`[text][ref]` or `[label]`), the resolved URL is shown as virtual text at the end of the line. When the cursor is on a reference definition line (`[ref]: url`), a usage count is shown instead. The virtual text uses the `MkdnflowRefHint` highlight group, which is linked to `Comment` by default. To customize its appearance, override the highlight group, e.g. `vim.api.nvim_set_hl(0, 'MkdnflowRefHint', { fg = '#88aaff', italic = true })`.<br>**`false`** (default): No virtual text hints for reference links. |
 | `links.search_range` | `integer` | When following or jumping to links, consider `n` lines before and after a given line (useful if you ever permit links to be interrupted by a hard line break). Default: **`0`**.<br>Previously named `links.context`. |
-| `links.implicit_extension` | `string` | A string that instructs the plugin (a) how to interpret links to files that do not have an extension, and (b) how to create new links from the word under cursor or text selection.<br><br>**`nil`** (default): Extensions will be explicit when a link is created and must be explicit in any notebook link.<br>`'<any extension>'` (e.g. `'md'`): Links without an extension (e.g. `[Homepage](index)`) will be interpreted with the implicit extension (e.g. `index.md`), and new links will be created without an extension. |
+| `links.implicit_extension` | `string` | A string that instructs the plugin (a) how to interpret links to files that do not have an extension, and (b) how to create new links from the text under the cursor or text selection.<br><br>**`nil`** (default): Extensions will be explicit when a link is created and must be explicit in any notebook link.<br>`'<any extension>'` (e.g. `'md'`): Links without an extension (e.g. `[Homepage](index)`) will be interpreted with the implicit extension (e.g. `index.md`), and new links will be created without an extension. |
 | `links.transform_on_create` | `fun(string): string` \| `boolean` | `false`: No transformations are applied to the text to be turned into the name of the link source/path.<br>**`fun(string): string`** (default): A function that transforms the text to be inserted as the source/path of a link when a link is created. Anchor links are not currently customizable. For an example, see the sample recipes beneath this table.<br>Previously named `links.transform_explicit`. |
 | `links.transform_on_follow` | `fun(string): string` \| `boolean` | **`false`** (default): Do not perform any transformations on the link's source when following.<br>`fun(string): string`: A function that transforms the path of a link immediately before interpretation. It does not transform the actual text in the buffer but can be used to modify link interpretation. For an example, see the sample recipe below.<br>Previously named `links.transform_implicit`. |
-| `links.auto_create` | `boolean` | **`true`** (default): Try to create a link from the word under the cursor if there is no link under the cursor to follow.<br>`false`: Do nothing if trying to follow a link and a link can't be found under the cursor.<br>Previously named `links.create_on_follow_failure`. |
+| `links.auto_create` | `boolean` | **`true`** (default): Try to create a link from the text under the cursor if there is no link under the cursor to follow.<br>`false`: Do nothing if trying to follow a link and a link can't be found under the cursor.<br>Previously named `links.create_on_follow_failure`. |
 | `links.on_create_new` | `false` \| `fun(string, string\|nil): string\|nil` | A callback invoked when following a link to a file that does not yet exist,<br>allowing file creation to be delegated to an external tool (e.g. `zk`,<br>Obsidian CLI, a custom script). This callback is only invoked when the target<br>file does not yet exist. Following a link to an existing file bypasses this<br>callback entirely.<br><br>The function receives two arguments: the full resolved path (with extension)<br>that mkdnflow would create, and the link's display text (which may be `nil`).<br><br>It should return a `string` (file path for mkdnflow to open) or `nil` (if the<br>callback handled everything). If a path is returned and the file exists there,<br>mkdnflow opens it directly (skipping template injection). If the file does not<br>exist at the returned path, mkdnflow runs its normal creation flow.<br><br>**`false`** (default): Use mkdnflow's built-in file creation. |
 
 <details>
@@ -1052,16 +1052,16 @@ Configuration options.
 
 | Command | Default mapping | Description |
 | --- | --- | --- |
-| `MkdnEnter` | -- | Triggers a wrapper function which will (a) infer your editor mode, and then if in normal or visual mode, either follow a link, create a new link from the word under the cursor or visual selection, or fold a section (if cursor is on a section heading); if in insert mode, it will create a new list item (if cursor is in a list), go to the next row in a table (if cursor is in a table), or behave normally (if cursor is not in a list or a table). In visual mode, if the selection overlaps a citation (`@citekey` or `[@citekey]`), a markdown link is created from the citekey instead of following the citation.<br><br>Note: There is no insert-mode mapping for this command by default since some may find its effects intrusive. To enable the insert-mode functionality, add to the mappings table: `MkdnEnter = {{'i', 'n', 'v'}, '<CR>'}`. |
+| `MkdnEnter` | -- | Triggers a wrapper function which will (a) infer your editor mode, and then if in normal or visual mode, either follow a link, create a new link from the text under the cursor or visual selection, or fold a section (if cursor is on a section heading); if in insert mode, it will create a new list item (if cursor is in a list), go to the next row in a table (if cursor is in a table), or behave normally (if cursor is not in a list or a table). In visual mode, if the selection overlaps a citation (`@citekey` or `[@citekey]`), a markdown link is created from the citekey instead of following the citation.<br><br>Note: There is no insert-mode mapping for this command by default since some may find its effects intrusive. To enable the insert-mode functionality, add to the mappings table: `MkdnEnter = {{'i', 'n', 'v'}, '<CR>'}`. |
 | `MkdnNextLink` | `{ 'n', '<Tab>' }` | Move cursor to the beginning of the next link (if there is a next link). |
 | `MkdnPrevLink` | `{ 'n', '<S-Tab>' }` | Move the cursor to the beginning of the previous link (if there is one). |
 | `MkdnNextHeading` | `{ 'n', ']]' }` | Move the cursor to the beginning of the next heading (if there is one). |
 | `MkdnPrevHeading` | `{ 'n', '[[' }` | Move the cursor to the beginning of the previous heading (if there is one). |
 | `MkdnGoBack` | `{ 'n', '<BS>' }` | Open the historically last-active buffer in the current window.<br><br>Note: The back-end function for `:MkdnGoBack` (`require('mkdnflow').buffers.goBack()`) returns a boolean indicating the success of `goBack()`. This may be useful if you wish to remap `<BS>` such that when `goBack()` is unsuccessful, another function is performed. |
 | `MkdnGoForward` | `{ 'n', '<Del>' }` | Open the buffer that was historically navigated away from in the current window. |
-| `MkdnCreateLink` | -- | Create a link from the word under the cursor (in normal mode) or from the visual selection (in visual mode). |
-| `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the word under cursor or visual selection as the link text. |
-| `MkdnFollowLink` | -- | Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the word under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer. |
+| `MkdnCreateLink` | -- | Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). |
+| `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. |
+| `MkdnFollowLink` | -- | Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the text under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer. |
 | `MkdnDestroyLink` | `{ 'n', '<M-CR>' }` | Destroy the link under the cursor, replacing it with just the text from the link name. |
 | `MkdnTagSpan` | `{ 'v', '<M-CR>' }` | Tag a visually-selected span of text with an ID, allowing it to be linked to with an anchor link. |
 | `MkdnMoveSource` | `{ 'n', '<F2>' }` | Open a dialog where you can provide a new source for a link and the plugin will rename and move the associated file on the backend (and rename the link source). |
@@ -1162,7 +1162,7 @@ be triggered manually via the :Mkdnflow command.
 
 `require('mkdnflow').links.createLink(args)`
 
-Creates a markdown link from the word under the cursor or visual selection.
+Creates a markdown link from the text under the cursor or visual selection.
 
 - **Parameters:**
     - `args`: (table) Arguments to customize link creation.

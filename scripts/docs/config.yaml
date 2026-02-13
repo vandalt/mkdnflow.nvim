@@ -235,7 +235,7 @@ links:
   - name: links.implicit_extension
     type: string
     description: |
-      A string that instructs the plugin (a) how to interpret links to files that do not have an extension, and (b) how to create new links from the word under cursor or text selection.
+      A string that instructs the plugin (a) how to interpret links to files that do not have an extension, and (b) how to create new links from the text under the cursor or text selection.
 
       **`nil`** (default): Extensions will be explicit when a link is created and must be explicit in any notebook link.
       `'<any extension>'` (e.g. `'md'`): Links without an extension (e.g. `[Homepage](index)`) will be interpreted with the implicit extension (e.g. `index.md`), and new links will be created without an extension.
@@ -257,7 +257,7 @@ links:
   - name: links.auto_create
     type: boolean
     description: |
-      **`true`** (default): Try to create a link from the word under the cursor if there is no link under the cursor to follow.
+      **`true`** (default): Try to create a link from the text under the cursor if there is no link under the cursor to follow.
       `false`: Do nothing if trying to follow a link and a link can't be found under the cursor.
       Previously named `links.create_on_follow_failure`.
 
