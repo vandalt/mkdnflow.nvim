@@ -868,6 +868,9 @@ class VimdocFormatter(Formatter):
             name = opt.name.strip("`")
             opt_type = opt.type.strip("`")
             description = self.clean_for_vimdoc(opt.description)
+            # Treat single newlines in config descriptions as paragraph breaks,
+            # matching the <br> behavior in the README table formatter
+            description = re.sub(r'(?<!\n)\n(?!\n)', '\n\n', description)
 
             # Create tag from option name
             tag_name = "config-" + name.replace(".", "-").replace("_", "-")
@@ -890,6 +893,9 @@ class VimdocFormatter(Formatter):
             # Clean the command name
             name = cmd.name.strip("`")
             description = self.clean_for_vimdoc(cmd.description)
+            # Treat single newlines in command descriptions as paragraph breaks,
+            # matching the <br> behavior in the README table formatter
+            description = re.sub(r'(?<!\n)\n(?!\n)', '\n\n', description)
 
             # Create tag from command name
             tag_name = "cmd-" + name
