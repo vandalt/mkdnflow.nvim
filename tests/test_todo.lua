@@ -292,11 +292,11 @@ T['edge_cases']['handles to-do with special characters'] = function()
     eq(get_line(1), '- [-] task with `code` and *emphasis*')
 end
 
-T['edge_cases']['toggle_to_do does nothing on plain text'] = function()
+T['edge_cases']['toggle_to_do converts plain text to to-do'] = function()
     set_lines({ 'just plain text' })
     set_cursor(1, 0)
     child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
-    eq(get_line(1), 'just plain text') -- unchanged
+    eq(get_line(1), '- [ ] just plain text')
 end
 
 T['edge_cases']['toggle_to_do does nothing on empty buffer'] = function()
@@ -346,13 +346,6 @@ T['list_to_todo']['converts indented list item'] = function()
     eq(get_line(1), '    - [ ] indented list item')
 end
 
-T['list_to_todo']['does not affect plain text'] = function()
-    set_lines({ 'just plain text' })
-    set_cursor(1, 0)
-    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
-    eq(get_line(1), 'just plain text') -- unchanged
-end
-
 T['list_to_todo']['subsequent toggle cycles status after conversion'] = function()
     set_lines({ '- plain list item' })
     set_cursor(1, 0)
@@ -362,6 +355,134 @@ T['list_to_todo']['subsequent toggle cycles status after conversion'] = function
     -- Second toggle: cycle status
     child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
     eq(get_line(1), '- [-] plain list item')
+end
+
+-- =============================================================================
+-- Plain text to to-do conversion (#299)
+-- =============================================================================
+T['plain_text_to_todo'] = new_set()
+
+T['plain_text_to_todo']['converts plain text'] = function()
+    set_lines({ 'some text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] some text')
+end
+
+T['plain_text_to_todo']['preserves indentation'] = function()
+    set_lines({ '    some text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '    - [ ] some text')
+end
+
+T['plain_text_to_todo']['converts text with inline formatting'] = function()
+    set_lines({ '**bold task**' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] **bold task**')
+end
+
+T['plain_text_to_todo']['converts text starting with link'] = function()
+    set_lines({ '[link](url) task' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] [link](url) task')
+end
+
+T['plain_text_to_todo']['converts text starting with wikilink'] = function()
+    set_lines({ '[[page]] review' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] [[page]] review')
+end
+
+T['plain_text_to_todo']['does nothing on empty line'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '')
+end
+
+T['plain_text_to_todo']['does nothing on whitespace-only line'] = function()
+    set_lines({ '   ' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '   ')
+end
+
+T['plain_text_to_todo']['skips ATX heading'] = function()
+    set_lines({ '# Heading' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '# Heading')
+end
+
+T['plain_text_to_todo']['skips blockquote'] = function()
+    set_lines({ '> quoted text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '> quoted text')
+end
+
+T['plain_text_to_todo']['skips table row'] = function()
+    set_lines({ '| cell | cell |' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '| cell | cell |')
+end
+
+T['plain_text_to_todo']['skips code fence'] = function()
+    set_lines({ '```lua' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '```lua')
+end
+
+T['plain_text_to_todo']['skips thematic break with dashes'] = function()
+    set_lines({ '---' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '---')
+end
+
+T['plain_text_to_todo']['skips thematic break with asterisks'] = function()
+    set_lines({ '***' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '***')
+end
+
+T['plain_text_to_todo']['skips thematic break with underscores'] = function()
+    set_lines({ '___' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '___')
+end
+
+T['plain_text_to_todo']['skips HTML block tag'] = function()
+    set_lines({ '<div>' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '<div>')
+end
+
+T['plain_text_to_todo']['skips line inside code block'] = function()
+    set_lines({ '```', 'some code', '```' })
+    set_cursor(2, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(2), 'some code')
+end
+
+T['plain_text_to_todo']['subsequent toggle cycles status'] = function()
+    set_lines({ 'text' })
+    set_cursor(1, 0)
+    -- First toggle: convert to to-do
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] text')
+    -- Second toggle: cycle status
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] text')
 end
 
 -- =============================================================================
@@ -830,7 +951,7 @@ T['visual_toggle_conversion']['handles mixed plain and existing to-dos'] = funct
     eq(get_line(3), '- [ ] Task 3') -- converted
 end
 
-T['visual_toggle_conversion']['skips non-list lines'] = function()
+T['visual_toggle_conversion']['converts plain text lines too'] = function()
     set_lines({
         '- Task 1',
         'Just some text',
@@ -838,9 +959,9 @@ T['visual_toggle_conversion']['skips non-list lines'] = function()
     })
     set_cursor(1, 0)
     child.type_keys('v', '2j', '<C-Space>')
-    eq(get_line(1), '- [ ] Task 1') -- converted
-    eq(get_line(2), 'Just some text') -- unchanged
-    eq(get_line(3), '- [ ] Task 3') -- converted
+    eq(get_line(1), '- [ ] Task 1') -- converted from list item
+    eq(get_line(2), '- [ ] Just some text') -- converted from plain text
+    eq(get_line(3), '- [ ] Task 3') -- converted from list item
 end
 
 T['visual_toggle_conversion']['converts subset of plain items'] = function()
@@ -867,6 +988,32 @@ T['visual_toggle_conversion']['works with V (line visual) for plain items'] = fu
     child.type_keys('V', 'j', '<C-Space>')
     eq(get_line(1), '- [ ] Task 1')
     eq(get_line(2), '- [ ] Task 2')
+end
+
+T['visual_toggle_conversion']['converts multiple plain text lines'] = function()
+    set_lines({
+        'first task',
+        'second task',
+        'third task',
+    })
+    set_cursor(1, 0)
+    child.type_keys('v', '2j', '<C-Space>')
+    eq(get_line(1), '- [ ] first task')
+    eq(get_line(2), '- [ ] second task')
+    eq(get_line(3), '- [ ] third task')
+end
+
+T['visual_toggle_conversion']['mixed plain text, list items, and to-dos'] = function()
+    set_lines({
+        'plain text',
+        '- list item',
+        '- [ ] existing to-do',
+    })
+    set_cursor(1, 0)
+    child.type_keys('v', '2j', '<C-Space>')
+    eq(get_line(1), '- [ ] plain text') -- converted from plain text
+    eq(get_line(2), '- [ ] list item') -- converted from list item
+    eq(get_line(3), '- [-] existing to-do') -- rotated
 end
 
 -- =============================================================================

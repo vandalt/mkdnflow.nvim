@@ -1733,8 +1733,11 @@ Configuration options.
 :MkdnToggleToDo                                  *Mkdnflow-cmd-MkdnToggleToDo*
     Default mapping: { { 'n', 'v' }, '<C-Space>' }
 
-    Toggle to-do list item's completion status or convert a list item into a
-    to-do list item.
+    Toggle to-do list item's completion status, convert a list item into a to-
+    do list item, or convert a plain text line into a to-do list item. Block-
+    level markdown structures (headings, blockquotes, tables, code fences,
+    thematic breaks, HTML blocks) and lines inside fenced code blocks are not
+    converted.
 
 :MkdnSortToDoList                              *Mkdnflow-cmd-MkdnSortToDoList*
 

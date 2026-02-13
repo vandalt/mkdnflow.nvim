@@ -796,6 +796,17 @@ function M.get_to_do_list(line_nr, use_cache)
     return list
 end
 
+--- Check if a line is a thematic break (---, ***, ___)
+--- @param line string
+--- @return boolean
+local function is_thematic_break(line)
+    local stripped = line:gsub('%s', '')
+    return #stripped >= 3
+        and (stripped:match('^%-+$') or stripped:match('^%*+$') or stripped:match('^_+$'))
+        and true
+        or false
+end
+
 --- Toggle or convert a single line: rotate an existing to-do, or convert a plain list item.
 --- @param line_nr integer A (one-based) buffer line number
 local function toggle_line(line_nr)
@@ -818,6 +829,27 @@ local function toggle_line(line_nr)
                 last,
                 { ' [' .. not_started_marker .. ']' }
             )
+        elseif line:match('%S') then
+            -- Convert plain text to a to-do item (#299)
+            local utils = require('mkdnflow.utils')
+            if
+                not utils.cursorInCodeBlock(line_nr)
+                and not line:match('^%s*#+%s')
+                and not line:match('^%s*>')
+                and not line:match('^%s*|')
+                and not line:match('^%s*```')
+                and not line:match('^%s*~~~')
+                and not line:match('^%s*</?%a')
+                and not line:match('^%s*<!%-%-')
+                and not is_thematic_break(line)
+            then
+                local not_started_marker = to_do_statuses:get('not_started'):get_marker()
+                local indent = line:match('^(%s*)') or ''
+                local text = line:sub(#indent + 1)
+                vim.api.nvim_buf_set_lines(0, line_nr - 1, line_nr, false, {
+                    indent .. '- [' .. not_started_marker .. '] ' .. text,
+                })
+            end
         end
     end
 end
