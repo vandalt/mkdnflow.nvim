@@ -239,6 +239,16 @@ commands:
     description: |
       Convert visually-selected delimited lines into a formatted markdown table, replacing the selection. The delimiter is auto-detected by default, but can be specified explicitly. Pass `noh` to suppress the header separator row. Supports CSV, TSV, and other delimited formats including quoted fields.
 
+  - name: MkdnIndentListItem
+    default_mapping: "{ 'i', '<C-t>' }"
+    description: |
+      Indent the current list item and update numbering for ordered lists. Falls back to the default `<C-t>` behavior when the cursor is not on a list item.
+
+  - name: MkdnDedentListItem
+    default_mapping: "{ 'i', '<C-d>' }"
+    description: |
+      Dedent the current list item and update numbering for ordered lists. Falls back to the default `<C-d>` behavior when the cursor is not on a list item.
+
   - name: MkdnTab
     default_mapping: null
     description: |

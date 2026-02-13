@@ -46,6 +46,40 @@ M.newListItemOrNextTableRow = function()
     end
 end
 
+--- Indent/dedent a list item and update numbering for ordered lists
+---@param direction integer 1 for indent, -1 for dedent
+---@return string|nil fallback_key The fallback key to feed, or nil if the action was handled
+M.indentListItem = function(direction)
+    local lists = require('mkdnflow').lists
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    local col = vim.api.nvim_win_get_cursor(0)[2]
+    local line = vim.api.nvim_get_current_line()
+    local list_type = lists.hasListType(line)
+    if list_type and require('mkdnflow').config.modules.lists then
+        local vim_indent = get_vim_indent()
+        local indent_len = #vim_indent
+        if direction == -1 then
+            if line:match('^' .. vim_indent) then
+                local new_line = line:gsub('^' .. vim_indent, '')
+                vim.api.nvim_buf_set_text(0, row - 1, 0, row - 1, #line, { new_line })
+                vim.api.nvim_win_set_cursor(0, { row, math.max(0, col - indent_len) })
+            end
+        else
+            vim.api.nvim_buf_set_text(0, row - 1, 0, row - 1, 0, { vim_indent })
+            vim.api.nvim_win_set_cursor(0, { row, col + indent_len })
+        end
+        if list_type == 'ol' or list_type == 'oltd' then
+            lists.updateNumbering()
+            lists.updateNumbering({}, -1)
+            lists.updateNumbering({}, 1)
+        end
+        return nil -- Handled
+    else
+        local fallback_key = direction == -1 and '<C-d>' or '<C-t>'
+        return vim.keycode(fallback_key)
+    end
+end
+
 --- Indent/dedent an empty list item, or jump to the next/previous table cell
 ---@param direction integer 1 for forward (indent/next cell), -1 for backward (dedent/prev cell)
 ---@return string|nil fallback_key The fallback key to feed, or nil if the action was handled

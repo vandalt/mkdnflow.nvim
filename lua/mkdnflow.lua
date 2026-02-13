@@ -261,6 +261,8 @@ local default_config = {
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
         MkdnSTab = false,
+        MkdnIndentListItem = { 'i', '<C-t>' },
+        MkdnDedentListItem = { 'i', '<C-d>' },
         MkdnCreateLink = false,
         MkdnCreateLinkFromClipboard = { { 'n', 'v' }, '<leader>p' },
     },
@@ -596,6 +598,8 @@ init.command_deps = {
     MkdnEnter = {},
     MkdnTab = {},
     MkdnSTab = {},
+    MkdnIndentListItem = { 'lists' },
+    MkdnDedentListItem = { 'lists' },
 }
 
 --- Initialize Mkdnflow with the given user configuration

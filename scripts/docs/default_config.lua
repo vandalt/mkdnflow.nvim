@@ -197,6 +197,8 @@
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
         MkdnSTab = false,
+        MkdnIndentListItem = { 'i', '<C-t>' },
+        MkdnDedentListItem = { 'i', '<C-d>' },
         MkdnCreateLink = false,
         MkdnCreateLinkFromClipboard = { { 'n', 'v' }, '<leader>p' },
     },

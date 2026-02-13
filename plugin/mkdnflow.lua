@@ -58,6 +58,12 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     user_command('MkdnSTab', function(opts)
         require('mkdnflow.wrappers').indentListItemOrJumpTableCell(-1)
     end, {})
+    user_command('MkdnIndentListItem', function(opts)
+        require('mkdnflow.wrappers').indentListItem(1)
+    end, {})
+    user_command('MkdnDedentListItem', function(opts)
+        require('mkdnflow.wrappers').indentListItem(-1)
+    end, {})
     user_command('MkdnGoBack', function(opts)
         local buffers = require_module('buffers')
         if buffers then

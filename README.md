@@ -462,6 +462,8 @@ the help files.
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
         MkdnSTab = false,
+        MkdnIndentListItem = { 'i', '<C-t>' },
+        MkdnDedentListItem = { 'i', '<C-d>' },
         MkdnCreateLink = false,
         MkdnCreateLinkFromClipboard = { { 'n', 'v' }, '<leader>p' },
     },
@@ -991,6 +993,8 @@ require('mkdnflow').setup({
         MkdnUnfoldSection = { 'n', '<leader>F' },
         MkdnTab = false,
         MkdnSTab = false,
+        MkdnIndentListItem = { 'i', '<C-t>' },
+        MkdnDedentListItem = { 'i', '<C-d>' },
         MkdnCreateLink = false,
         MkdnCreateLinkFromClipboard = { { 'n', 'v' }, '<leader>p' },
     },
@@ -1096,6 +1100,8 @@ Configuration options.
 | `MkdnTableAlignDefault` | `{ 'n', '<leader>ax' }` | Remove alignment from the current table column, returning it to the default. Updates the separator row and reformats the table. |
 | `MkdnTablePaste (delimiter) (noh)` | -- | Paste delimited data from the system clipboard as a formatted markdown table. The delimiter is auto-detected by default (supports tab, comma, semicolon, and pipe), but can be specified explicitly as the first argument. Pass `noh` to suppress the header separator row. The table is inserted below the current cursor line. |
 | `MkdnTableFromSelection (delimiter) (noh)` | -- | Convert visually-selected delimited lines into a formatted markdown table, replacing the selection. The delimiter is auto-detected by default, but can be specified explicitly. Pass `noh` to suppress the header separator row. Supports CSV, TSV, and other delimited formats including quoted fields. |
+| `MkdnIndentListItem` | `{ 'i', '<C-t>' }` | Indent the current list item and update numbering for ordered lists. Falls back to the default `<C-t>` behavior when the cursor is not on a list item. |
+| `MkdnDedentListItem` | `{ 'i', '<C-d>' }` | Dedent the current list item and update numbering for ordered lists. Falls back to the default `<C-d>` behavior when the cursor is not on a list item. |
 | `MkdnTab` | -- | Wrapper function which will jump to the next cell in a table (if cursor is in a table) or indent an (empty) list item (if cursor is in a list item). |
 | `MkdnSTab` | -- | Wrapper function which will jump to the previous cell in a table (if cursor is in a table) or de-indent an (empty) list item (if cursor is in a list item). |
 | `MkdnFoldSection` | `{ 'n', '<leader>f' }` | Fold the section the cursor is currently on/in. |

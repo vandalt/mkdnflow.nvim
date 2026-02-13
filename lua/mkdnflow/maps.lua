@@ -63,6 +63,8 @@ local descriptions = {
     MkdnUnfoldSection = 'Unfold current section',
     MkdnTab = 'Indent list item or jump to next table cell',
     MkdnSTab = 'Dedent list item or jump to previous table cell',
+    MkdnIndentListItem = 'Indent list item and update numbering',
+    MkdnDedentListItem = 'Dedent list item and update numbering',
     MkdnCreateLink = 'Create link from word or selection',
     MkdnCreateLinkFromClipboard = 'Create link using clipboard URL',
 }
@@ -90,6 +92,8 @@ local fallback_commands = {
     MkdnTab = true,
     MkdnSTab = true,
     MkdnTableCellNewLine = true,
+    MkdnIndentListItem = true,
+    MkdnDedentListItem = true,
 }
 
 --- Set up a single buffer-local keymap for a given command
@@ -184,6 +188,28 @@ local function setup_mapping(mode, lhs, command)
                 desc = descriptions[command],
                 callback = function()
                     local fallback = require('mkdnflow.wrappers').indentListItemOrJumpTableCell(-1)
+                    if fallback then
+                        vim.api.nvim_feedkeys(fallback, 'n', true)
+                    end
+                end,
+            })
+        elseif command == 'MkdnIndentListItem' then
+            vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+                noremap = true,
+                desc = descriptions[command],
+                callback = function()
+                    local fallback = require('mkdnflow.wrappers').indentListItem(1)
+                    if fallback then
+                        vim.api.nvim_feedkeys(fallback, 'n', true)
+                    end
+                end,
+            })
+        elseif command == 'MkdnDedentListItem' then
+            vim.api.nvim_buf_set_keymap(0, mode, lhs, '', {
+                noremap = true,
+                desc = descriptions[command],
+                callback = function()
+                    local fallback = require('mkdnflow.wrappers').indentListItem(-1)
                     if fallback then
                         vim.api.nvim_feedkeys(fallback, 'n', true)
                     end

@@ -376,6 +376,176 @@ T['keymap_e2e_tab']['<Tab> indents empty list item'] = function()
 end
 
 -- =============================================================================
+-- indentListItem() - Indent/dedent any list item with renumbering
+-- =============================================================================
+T['indentListItem'] = new_set()
+
+T['indentListItem']['indents non-empty ordered list item'] = function()
+    set_lines({ '1. First', '2. Second', '3. Third' })
+    set_cursor(2, 5)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(1)]])
+    local line = get_line(2)
+    eq(line, '    1. Second')
+end
+
+T['indentListItem']['renumbers after indent'] = function()
+    set_lines({ '1. First', '2. Second', '3. Third' })
+    set_cursor(2, 5)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(1)]])
+    -- Line 3 should now be renumbered to 2
+    eq(get_line(3), '2. Third')
+end
+
+T['indentListItem']['dedents indented ordered list item'] = function()
+    set_lines({ '1. First', '    1. Nested', '2. Third' })
+    set_cursor(2, 8)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(-1)]])
+    local line = get_line(2)
+    eq(line, '2. Nested')
+end
+
+T['indentListItem']['renumbers after dedent'] = function()
+    set_lines({ '1. First', '    1. Nested', '2. Third' })
+    set_cursor(2, 8)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(-1)]])
+    -- Line 3 should now be renumbered to 3
+    eq(get_line(3), '3. Third')
+end
+
+T['indentListItem']['indents non-empty unordered list item'] = function()
+    set_lines({ '- First', '- Second' })
+    set_cursor(2, 4)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(1)]])
+    eq(get_line(2), '    - Second')
+end
+
+T['indentListItem']['dedents indented unordered list item'] = function()
+    set_lines({ '- First', '    - Nested' })
+    set_cursor(2, 8)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(-1)]])
+    eq(get_line(2), '- Nested')
+end
+
+T['indentListItem']['adjusts cursor column on indent'] = function()
+    set_lines({ '1. Item text' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(1)]])
+    local cursor = get_cursor()
+    eq(cursor[2], 9) -- 5 + 4 (shiftwidth)
+end
+
+T['indentListItem']['adjusts cursor column on dedent'] = function()
+    set_lines({ '    1. Item text' })
+    set_cursor(1, 9)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(-1)]])
+    local cursor = get_cursor()
+    eq(cursor[2], 5) -- 9 - 4 (shiftwidth)
+end
+
+T['indentListItem']['cursor column does not go below zero on dedent'] = function()
+    set_lines({ '    1. Item' })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(-1)]])
+    local cursor = get_cursor()
+    eq(cursor[2], 0)
+end
+
+T['indentListItem']['does not dedent when no leading indentation'] = function()
+    set_lines({ '1. Item' })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(-1)]])
+    eq(get_line(1), '1. Item')
+end
+
+T['indentListItem']['returns fallback on non-list line'] = function()
+    set_lines({ 'Regular text' })
+    set_cursor(1, 5)
+    local result = child.lua_get([[require('mkdnflow.wrappers').indentListItem(1)]])
+    eq(result ~= nil, true) -- Should return a fallback key
+end
+
+T['indentListItem']['returns nil on list line (handled)'] = function()
+    set_lines({ '- Item' })
+    set_cursor(1, 3)
+    local result = child.lua_get([[require('mkdnflow.wrappers').indentListItem(1)]])
+    eq(result, vim.NIL) -- nil from Lua becomes vim.NIL in lua_get
+end
+
+T['indentListItem']['works with tabs'] = function()
+    child.lua('vim.bo.expandtab = false')
+    set_lines({ '1. Item' })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.wrappers').indentListItem(1)]])
+    local line = get_line(1)
+    eq(line:sub(1, 1), '\t')
+end
+
+-- =============================================================================
+-- E2E tests for <C-t>/<C-d> keymaps
+-- =============================================================================
+T['keymap_e2e_indent'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                vim.bo.expandtab = true
+                vim.bo.shiftwidth = 4
+                require('mkdnflow').setup({
+                    modules = {
+                        lists = true,
+                    },
+                    silent = true,
+                })
+
+                vim.cmd('doautocmd FileType')
+            ]])
+        end,
+    },
+})
+
+T['keymap_e2e_indent']['<C-t> indents ordered list item and renumbers'] = function()
+    set_lines({ '1. First', '2. Second', '3. Third' })
+    set_cursor(2, 5)
+    child.type_keys('i')
+    child.type_keys('<C-t>')
+    child.type_keys('<Esc>')
+    eq(get_line(2), '    1. Second')
+    eq(get_line(3), '2. Third')
+end
+
+T['keymap_e2e_indent']['<C-d> dedents ordered list item and renumbers'] = function()
+    set_lines({ '1. First', '    1. Nested', '2. Third' })
+    set_cursor(2, 8)
+    child.type_keys('i')
+    child.type_keys('<C-d>')
+    child.type_keys('<Esc>')
+    eq(get_line(2), '2. Nested')
+    eq(get_line(3), '3. Third')
+end
+
+T['keymap_e2e_indent']['<C-t> indents unordered list item'] = function()
+    set_lines({ '- First', '- Second' })
+    set_cursor(2, 4)
+    child.type_keys('i')
+    child.type_keys('<C-t>')
+    child.type_keys('<Esc>')
+    eq(get_line(2), '    - Second')
+end
+
+T['keymap_e2e_indent']['<C-d> dedents unordered list item'] = function()
+    set_lines({ '- First', '    - Nested' })
+    set_cursor(2, 8)
+    child.type_keys('i')
+    child.type_keys('<C-d>')
+    child.type_keys('<Esc>')
+    eq(get_line(2), '- Nested')
+end
+
+-- =============================================================================
 -- Edge cases
 -- =============================================================================
 T['edge_cases'] = new_set()
