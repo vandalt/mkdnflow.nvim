@@ -111,6 +111,7 @@ local pattern_order = {
     'ref_style_link',
     'pandoc_citation',
     'citation',
+    'shortcut_ref_link', -- Must be last: matches any [text], relies on priority for disambiguation
 }
 
 local patterns = {
@@ -121,6 +122,7 @@ local patterns = {
     auto_link = '(%b<>)',
     pandoc_citation = '(%[@[^%[%]]+%])', -- Pandoc-style bracketed citation [@citekey]
     citation = "[^%a%d]-(@[%a%d_%.%-']*[%a%d]+)[%s%p%c]?",
+    shortcut_ref_link = '(%b[])', -- Shortcut reference link [label]
 }
 
 -- Part extraction patterns for each link type
@@ -132,6 +134,7 @@ local part_patterns = {
         wiki_link_no_bar = '%[%[(.-)%]%]',
         wiki_link_anchor_no_bar = '%[%[(.-)#.-%]%]',
         ref_style_link = '%[(.-)%]%s?%[',
+        shortcut_ref_link = '%[(.-)%]',
         pandoc_citation = '%[@([^%[%]]+)%]', -- Captures citekey without @ or brackets
         citation = '(@.*)',
     },
@@ -141,6 +144,7 @@ local part_patterns = {
         wiki_link = '%[%[(.-)|.-%]%]',
         wiki_link_no_bar = '%[%[(.-)%]%]',
         ref_style_link = '%]%[(.-)%]',
+        shortcut_ref_link = '%[(.-)%]', -- label IS the source lookup key
         auto_link = '<(.-)>',
         pandoc_citation = '%[(@[^%[%]]+)%]', -- Captures @citekey (without brackets)
         citation = '(@.*)',
@@ -220,7 +224,7 @@ end
 --- @class Link A class representing a detected link
 --- @field match string The raw matched text
 --- @field match_lines table The multiline context
---- @field type string The link type ('image_link'|'md_link'|'wiki_link'|'auto_link'|'ref_style_link'|'pandoc_citation'|'citation')
+--- @field type string The link type ('image_link'|'md_link'|'wiki_link'|'auto_link'|'ref_style_link'|'shortcut_ref_link'|'ref_definition'|'pandoc_citation'|'citation')
 --- @field start_row integer Start row (1-indexed)
 --- @field start_col integer Start column (1-indexed)
 --- @field end_row integer End row (1-indexed)
@@ -303,6 +307,31 @@ function Link:read(col, buffer)
 
     local utils = require('mkdnflow').utils
 
+    -- Check if cursor is on a reference definition line (e.g. [label]: url)
+    -- This must be checked before the pattern loop since mFind concatenates
+    -- lines, making ^ anchors unreliable for line-start detection.
+    local cursor_line = lines[1 + context]
+    if cursor_line then
+        local ds, de, dmatch = string.find(cursor_line, '^(%s?%s?%s?%[.-%]:%s.+)')
+        if dmatch then
+            local col_1indexed = col + 1
+            if col_1indexed >= ds and col_1indexed <= de then
+                local link = Link:new({
+                    match = dmatch,
+                    match_lines = { cursor_line },
+                    type = 'ref_definition',
+                    start_row = row,
+                    start_col = ds,
+                    end_row = row,
+                    end_col = de,
+                    valid = true,
+                })
+                cache_link(link, row, col)
+                return link
+            end
+        end
+    end
+
     -- Iterate through patterns in order to find a matching link
     for _, link_type in ipairs(pattern_order) do
         local pattern = patterns[link_type]
@@ -363,28 +392,62 @@ function Link:read(col, buffer)
 end
 
 --- Get the reference definition for a ref-style link
+--- Searches the entire buffer for a matching definition line
 --- @param refnr string The reference number/label
---- @param start_row? integer Starting row for search
+--- @param skip_row? integer Row to skip (e.g. the line containing the reference itself)
 --- @return string|nil, integer|nil, integer|nil, integer|nil The source, row, start col, end col
-local function get_ref(refnr, start_row)
+local function get_ref(refnr, skip_row)
     if not refnr then
         return nil
     end
-    start_row = start_row or vim.api.nvim_win_get_cursor(0)[1]
-    local row = start_row + 1
     local line_count = vim.api.nvim_buf_line_count(0)
+    local pat = '^(%[' .. vim.pesc(refnr) .. '%]:%s.+)'
 
-    while row <= line_count do
-        local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
-        local start, finish, match = string.find(line, '^(%[' .. refnr .. '%]: .*)')
-        if match then
-            local _, label_finish = string.find(match, '^%[.-%]: ')
-            return string.sub(match, label_finish + 1), row, label_finish + 1, finish
-        else
-            row = row + 1
+    for row = 1, line_count do
+        if row ~= skip_row then
+            local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+            local start, finish, match = string.find(line, pat)
+            if match then
+                local _, label_finish = string.find(match, '^%[.-%]:%s')
+                return string.sub(match, label_finish + 1), row, label_finish + 1, finish
+            end
         end
     end
     return nil
+end
+
+--- Parse the URL from a reference definition's value string (after [label]: )
+--- Handles optional angle brackets and optional titles
+--- @param source string The raw value portion (e.g. "https://url", "<url> \"title\"")
+--- @param source_start integer The 1-indexed column where the value starts
+--- @return string url The extracted URL
+--- @return integer s_col Start column of the URL
+--- @return integer e_col End column of the URL
+local function parse_ref_source(source, source_start)
+    local title = string.match(source, '.* (["\'%(%[].*["\'%)%]])')
+    if title then
+        local start, ref_source
+        start, _, ref_source = string.find(source, '^<(.*)> ["\'%(%[].*["\'%)%]]')
+        if not start then
+            start, _, source = string.find(source, '^(.*) ["\'%(%[].*["\'%)%]]')
+        else
+            start = start + 1
+            source = ref_source
+        end
+        local s_col = source_start + start - 1
+        return source, s_col, s_col + #source - 1
+    else
+        local start, ref_source
+        start, _, ref_source = string.find(source, '^<(.*)>')
+        if not start then
+            start, _, source = string.find(source, '^(.-)%s*$')
+        else
+            start = start + 1
+            source = ref_source
+        end
+        local s_col = source_start + start - 1
+        return source, s_col, s_col + #source - 1
+    end
 end
 
 --- Get the source part of the link (lazy, cached)
@@ -454,38 +517,42 @@ function Link:get_source()
         local pat = part_patterns.source.ref_style_link
         s_row, s_col, e_row, e_col, text = utils.mFind(self.match_lines, pat, self.start_row)
         if text then
-            local source, source_row, source_start, source_end = get_ref(text, s_row)
+            -- For collapsed reference links [label][], the extracted label is empty;
+            -- fall back to using the link name as the reference label
+            if text == '' then
+                text = string.match(self.match, '%[(.-)%]')
+            end
+            local source, source_row, source_start, _ = get_ref(text, s_row)
             if source then
-                -- Check for title
-                local title = string.match(source, '.* (["\'%(%[].*["\'%)%]])')
-                if title then
-                    local start, ref_source
-                    start, _, ref_source = string.find(source, '^<(.*)> ["\'%(%[].*["\'%)%]]')
-                    if not start then
-                        start, _, source = string.find(source, '^(.*) ["\'%(%[].*["\'%)%]]')
-                    else
-                        start = start + 1
-                        source = ref_source
-                    end
-                    s_col = source_start + start - 1
-                    e_col = s_col + #source - 1
-                else
-                    local start, ref_source
-                    start, _, ref_source = string.find(source, '^<(.*)>')
-                    if not start then
-                        start, _, source = string.find(source, '^(.-)%s*$')
-                    else
-                        start = start + 1
-                        source = ref_source
-                    end
-                    s_col = source_start + start - 1
-                    e_col = s_col + #source - 1
-                end
+                source, s_col, e_col = parse_ref_source(source, source_start)
                 s_row, e_row = source_row, source_row
                 text, anchor = extract_anchor(source)
             else
                 text = nil
             end
+        end
+    elseif self.type == 'shortcut_ref_link' then
+        local pat = part_patterns.source.shortcut_ref_link
+        s_row, s_col, e_row, e_col, text = utils.mFind(self.match_lines, pat, self.start_row)
+        if text then
+            local source, source_row, source_start, _ = get_ref(text, s_row)
+            if source then
+                source, s_col, e_col = parse_ref_source(source, source_start)
+                s_row, e_row = source_row, source_row
+                text, anchor = extract_anchor(source)
+            else
+                text = nil
+            end
+        end
+    elseif self.type == 'ref_definition' then
+        -- Extract the URL directly from the definition line
+        local _, label_finish = string.find(self.match, '^%s?%s?%s?%[.-%]:%s')
+        if label_finish then
+            local source = string.sub(self.match, label_finish + 1)
+            local source_start = self.start_col + label_finish
+            source, s_col, e_col = parse_ref_source(source, source_start)
+            s_row, e_row = self.start_row, self.start_row
+            text, anchor = extract_anchor(source)
         end
     elseif self.type == 'auto_link' then
         local pat = part_patterns.source.auto_link
@@ -561,6 +628,12 @@ function Link:get_name()
     elseif self.type == 'ref_style_link' then
         local pat = part_patterns.name.ref_style_link
         s_row, s_col, e_row, e_col, text = utils.mFind(self.match_lines, pat, self.start_row)
+    elseif self.type == 'shortcut_ref_link' then
+        local pat = part_patterns.name.shortcut_ref_link
+        s_row, s_col, e_row, e_col, text = utils.mFind(self.match_lines, pat, self.start_row)
+    elseif self.type == 'ref_definition' then
+        s_col, e_col, text = string.find(self.match, '%[(.-)%]')
+        s_row, e_row = self.start_row, self.start_row
     elseif self.type == 'citation' then
         local pat = part_patterns.name.citation
         s_col, e_col, text = string.find(self.match, pat)

@@ -870,7 +870,7 @@ M.followLink = function(args)
         M.createLink({ range = range, from_citation = true, citation_bounds = citation_bounds })
         return
     end
-    if path then
+    if (path and path ~= '') or (anchor and anchor ~= '') then
         require('mkdnflow').paths.handlePath(path, anchor, link_type)
     elseif link_type == 'ref_style_link' then -- If this condition is met, no reference was found
         vim.notify("⬇️  Couldn't find a matching reference label!", vim.log.levels.WARN)

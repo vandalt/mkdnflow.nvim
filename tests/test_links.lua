@@ -2346,4 +2346,204 @@ T['citation_e2e']['visual select on email creates plain link not citation link']
     eq(result, 'Contact me at [jakewvincent@gmail.com](jakewvincent@gmail.com.md) please.')
 end
 
+-- =============================================================================
+-- Shortcut reference links [label] (Issue #208)
+-- =============================================================================
+T['shortcut_ref'] = new_set()
+
+T['shortcut_ref']['detects shortcut reference link'] = function()
+    set_lines({ 'See [gh] for details.', '', '[gh]: https://github.com/' })
+    set_cursor(1, 5) -- on 'g' inside [gh]
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'shortcut_ref_link')
+end
+
+T['shortcut_ref']['resolves source from definition below'] = function()
+    set_lines({ 'See [gh] for details.', '', '[gh]: https://github.com/' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://github.com/')
+end
+
+T['shortcut_ref']['resolves source from definition above'] = function()
+    set_lines({ '[gh]: https://github.com/', '', 'See [gh] for details.' })
+    set_cursor(3, 5) -- on 'g' inside [gh] on line 3
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://github.com/')
+end
+
+T['shortcut_ref']['returns empty source when no definition exists'] = function()
+    set_lines({ 'See [orphan] for details.' })
+    set_cursor(1, 6)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, '')
+end
+
+T['shortcut_ref']['extracts name'] = function()
+    set_lines({ 'See [gh] for details.', '', '[gh]: https://github.com/' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local name = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'name')]])
+    eq(name, 'gh')
+end
+
+T['shortcut_ref']['not detected when cursor is on md_link'] = function()
+    set_lines({ '[text](https://example.com)' })
+    set_cursor(1, 3) -- on 'x' in 'text'
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'md_link')
+end
+
+T['shortcut_ref']['not detected when cursor is on ref_style_link'] = function()
+    set_lines({ '[text][ref]', '', '[ref]: https://example.com' })
+    set_cursor(1, 3) -- on 'x' in 'text'
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'ref_style_link')
+end
+
+T['shortcut_ref']['resolves definition with angle brackets'] = function()
+    set_lines({ 'See [gh].', '', '[gh]: <https://github.com/path with spaces>' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://github.com/path with spaces')
+end
+
+T['shortcut_ref']['resolves definition with title'] = function()
+    set_lines({ 'See [gh].', '', '[gh]: https://github.com/ "GitHub"' })
+    set_cursor(1, 5)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://github.com/')
+end
+
+-- =============================================================================
+-- Reference definition lines [label]: url
+-- =============================================================================
+T['ref_definition'] = new_set()
+
+T['ref_definition']['detects reference definition line'] = function()
+    set_lines({ '[ref]: https://example.com' })
+    set_cursor(1, 3)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'ref_definition')
+end
+
+T['ref_definition']['extracts source URL'] = function()
+    set_lines({ '[ref]: https://example.com' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://example.com')
+end
+
+T['ref_definition']['extracts source with angle brackets'] = function()
+    set_lines({ '[ref]: <https://example.com/path with spaces>' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://example.com/path with spaces')
+end
+
+T['ref_definition']['extracts source with title'] = function()
+    set_lines({ '[ref]: https://example.com "Example Site"' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://example.com')
+end
+
+T['ref_definition']['extracts name (label)'] = function()
+    set_lines({ '[my-ref]: https://example.com' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local name = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'name')]])
+    eq(name, 'my-ref')
+end
+
+T['ref_definition']['detects with leading whitespace (up to 3 spaces)'] = function()
+    set_lines({ '   [ref]: https://example.com' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'ref_definition')
+end
+
+T['ref_definition']['not detected with 4+ spaces indent'] = function()
+    set_lines({ '    [ref]: https://example.com' })
+    set_cursor(1, 6)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    -- Should NOT be detected as ref_definition (4 spaces = code block in GFM)
+    eq(result ~= 'ref_definition', true)
+end
+
+T['ref_definition']['extracts source with anchor'] = function()
+    set_lines({ '[ref]: https://example.com#section' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua([[
+        _G.path, _G.anchor = require('mkdnflow.links').getLinkPart(_G.link, 'source')
+    ]])
+    eq(child.lua_get('_G.path'), 'https://example.com')
+    eq(child.lua_get('_G.anchor'), '#section')
+end
+
+-- =============================================================================
+-- Collapsed reference links [label][]
+-- =============================================================================
+T['collapsed_ref'] = new_set()
+
+T['collapsed_ref']['detected as ref_style_link'] = function()
+    set_lines({ '[label][]', '', '[label]: https://example.com' })
+    set_cursor(1, 3)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    local result = child.lua_get('_G.test_link and _G.test_link[3] or nil')
+    eq(result, 'ref_style_link')
+end
+
+T['collapsed_ref']['resolves source using label as reference'] = function()
+    set_lines({ '[label][]', '', '[label]: https://example.com' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://example.com')
+end
+
+T['collapsed_ref']['resolves with definition above'] = function()
+    set_lines({ '[label]: https://example.com', '', 'See [label][].' })
+    set_cursor(3, 6)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://example.com')
+end
+
+-- =============================================================================
+-- get_ref() whole-buffer search
+-- =============================================================================
+T['get_ref_whole_buffer'] = new_set()
+
+T['get_ref_whole_buffer']['full ref_style_link resolves definition above'] = function()
+    set_lines({ '[ref]: https://example.com', '', '[text][ref]' })
+    set_cursor(3, 3) -- on 'x' in 'text'
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://example.com')
+end
+
+T['get_ref_whole_buffer']['full ref_style_link resolves definition below'] = function()
+    set_lines({ '[text][ref]', '', '[ref]: https://example.com' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local path = child.lua_get([[require('mkdnflow.links').getLinkPart(_G.link, 'source')]])
+    eq(path, 'https://example.com')
+end
+
 return T
