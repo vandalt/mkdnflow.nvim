@@ -42,7 +42,7 @@ M.newListItemOrNextTableRow = function()
         return nil -- Handled
     else
         -- Return the fallback key for expression mapping
-        return vim.keycode('<CR>')
+        return utils.keycode('<CR>')
     end
 end
 
@@ -76,7 +76,7 @@ M.indentListItem = function(direction)
         return nil -- Handled
     else
         local fallback_key = direction == -1 and '<C-d>' or '<C-t>'
-        return vim.keycode(fallback_key)
+        return utils.keycode(fallback_key)
     end
 end
 
@@ -117,7 +117,7 @@ M.indentListItemOrJumpTableCell = function(direction)
     else
         -- Return the fallback key for expression mapping
         local fallback_key = direction == -1 and '<S-Tab>' or '<Tab>'
-        return vim.keycode(fallback_key)
+        return utils.keycode(fallback_key)
     end
 end
 

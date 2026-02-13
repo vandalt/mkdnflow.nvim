@@ -16,6 +16,11 @@
 
 local M = {}
 
+-- TODO: Remove when dropping Neovim 0.9 support
+M.keycode = vim.keycode or function(str)
+    return vim.api.nvim_replace_termcodes(str, true, false, true)
+end
+
 --- Check if a table is array-like (consecutive integer keys starting at 1)
 --- Used by mergeTables to determine whether to replace or recursively merge
 ---@param t any

@@ -17,6 +17,7 @@
 -- This module: Link management public API
 
 local core = require('mkdnflow.links.core')
+local utils = require('mkdnflow.utils')
 local Link = core.Link
 local LinkPart = core.LinkPart
 
@@ -809,7 +810,7 @@ M.createLink = function(args)
             -- Replace the visual selection w/ the formatted link replacement
             vim.api.nvim_buf_set_text(0, start_row, start_col, end_row, end_col, replacement)
             -- Leave visual mode
-            vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'x', true)
+            vim.api.nvim_feedkeys(utils.keycode('<Esc>'), 'x', true)
             -- Retain original cursor position
             vim.api.nvim_win_set_cursor(0, { row, col + 1 })
         else
@@ -909,7 +910,7 @@ M.tagSpan = function()
         -- Replace the visual selection w/ the formatted link replacement
         vim.api.nvim_buf_set_text(0, start_row, start_col, end_row, end_col, { replacement })
         -- Leave visual mode
-        vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'x', true)
+        vim.api.nvim_feedkeys(utils.keycode('<Esc>'), 'x', true)
         -- Retain original cursor position
         vim.api.nvim_win_set_cursor(0, { row, col + 1 })
     end

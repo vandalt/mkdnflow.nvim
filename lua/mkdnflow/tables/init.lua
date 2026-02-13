@@ -19,6 +19,7 @@
 -- architecture (TableCell, TableRow, MarkdownTable).
 
 local core = require('mkdnflow.tables.core')
+local utils = require('mkdnflow.utils')
 
 -- Import classes for direct access
 local TableCell = core.TableCell
@@ -185,10 +186,10 @@ function M.moveToCell(row_offset, cell_offset)
             -- Incomplete table (no separator row), pass through the keypress
             if row_offset ~= 0 then
                 -- Moving vertically (Enter key) - insert newline
-                vim.api.nvim_feedkeys(vim.keycode('<CR>'), 'n', true)
+                vim.api.nvim_feedkeys(utils.keycode('<CR>'), 'n', true)
             else
                 -- Moving horizontally (Tab key) - insert tab
-                vim.api.nvim_feedkeys(vim.keycode('<C-I>'), 'n', true)
+                vim.api.nvim_feedkeys(utils.keycode('<C-I>'), 'n', true)
             end
             return
         end
@@ -306,7 +307,7 @@ function M.moveToCell(row_offset, cell_offset)
     else
         -- Target line is not part of a table
         if position[1] == row then
-            vim.api.nvim_feedkeys(vim.keycode('<C-I>'), 'n', true)
+            vim.api.nvim_feedkeys(utils.keycode('<C-I>'), 'n', true)
         elseif row_offset == 1 and cell_offset == 0 then
             if config.tables.auto_extend_rows then
                 M.addRow()
@@ -362,7 +363,7 @@ function M.cellNewLine()
     local line = vim.api.nvim_get_current_line()
 
     if not MarkdownTable.isPartOfTable(line, position[1]) then
-        return vim.keycode('<S-CR>')
+        return utils.keycode('<S-CR>')
     end
 
     -- Check if on a continuation line; use primary row for context

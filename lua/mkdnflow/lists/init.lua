@@ -17,6 +17,7 @@
 -- This module: List management public API
 
 local core = require('mkdnflow.lists.core')
+local utils = require('mkdnflow.utils')
 local ListItem = core.ListItem
 local List = core.List
 
@@ -438,7 +439,7 @@ function M.newListItem(carry, above, cursor_moves, mode_after, alt, line)
         end
     elseif alt then
         -- Feed the requested keys
-        vim.api.nvim_feedkeys(vim.keycode(alt), 'n', true)
+        vim.api.nvim_feedkeys(utils.keycode(alt), 'n', true)
     end
 end
 

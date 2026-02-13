@@ -121,6 +121,11 @@ end
 T['checkhealth'] = new_set()
 
 T['checkhealth']['reports OK for clean default config'] = function()
+    -- TODO: Remove guard when dropping Neovim 0.9 support
+    -- vim.health.start() only works outside :checkhealth on 0.10+
+    if child.lua_get([[vim.fn.has('nvim-0.10')]]) == 0 then
+        return
+    end
     child.lua([[require('mkdnflow').setup({ silent = true })]])
     child.lua([[require('mkdnflow.health').check()]])
     -- No errors should have been raised

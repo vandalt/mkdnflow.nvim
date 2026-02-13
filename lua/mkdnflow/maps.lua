@@ -16,6 +16,8 @@
 
 -- Mkdnflow mappings
 
+local utils = require('mkdnflow.utils')
+
 -- Command descriptions for which-key compatibility
 local descriptions = {
     MkdnEnter = 'Follow link, toggle to-do, or create link from selection',
@@ -124,7 +126,7 @@ local function setup_mapping(mode, lhs, command)
                 desc = descriptions[command],
                 callback = function()
                     -- Exit visual mode first so marks are set
-                    vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'nx', false)
+                    vim.api.nvim_feedkeys(utils.keycode('<Esc>'), 'nx', false)
                     require('mkdnflow.cursor').headingOperatorVisual(is_operator)
                 end,
             })
@@ -138,7 +140,7 @@ local function setup_mapping(mode, lhs, command)
             desc = descriptions[command],
             callback = function()
                 -- Exit visual mode first so marks are set
-                vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'nx', false)
+                vim.api.nvim_feedkeys(utils.keycode('<Esc>'), 'nx', false)
                 require('mkdnflow.cursor').headingOperatorVisual(direction)
             end,
         })
