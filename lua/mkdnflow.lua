@@ -80,6 +80,7 @@ local default_config = {
         style = 'markdown',
         compact = false,
         conceal = false,
+        ref_hint = false,
         search_range = 0,
         implicit_extension = nil,
         transform_on_follow = false,
@@ -526,6 +527,7 @@ local function activate()
     init.paths = load_module('paths', true)
     -- Optional modules respect the user's modules config
     init.conceal = load_module('conceal', init.config.links.conceal)
+    init.ref_hint = load_module('links.hints', init.config.links.ref_hint)
     init.bib = load_module('bib', init.config.modules.bib)
     init.folds = load_module('folds', init.config.modules.folds)
     init.foldtext = load_module('foldtext', init.config.modules.foldtext)

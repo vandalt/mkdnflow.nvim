@@ -869,6 +869,18 @@ links.conceal                                  *Mkdnflow-config-links-conceal*
     link style is selected). `false`: (default): Link sources and delimiters
     will not be concealed by mkdnflow.
 
+links.ref_hint                                *Mkdnflow-config-links-ref-hint*
+    Type: boolean
+
+    `true`: When the cursor is on a reference-style link (`[text][ref]` or
+    `[label]`), the resolved URL is shown as virtual text at the end of the
+    line. When the cursor is on a reference definition line (`[ref]: url`), a
+    usage count is shown instead. The virtual text uses the `MkdnflowRefHint`
+    highlight group, which is linked to `Comment` by default. To customize its
+    appearance, override the highlight group, e.g. `vim.api.nvim_set_hl(0,
+    'MkdnflowRefHint', { fg = '#88aaff', italic = true })`. `false`:
+    (default): No virtual text hints for reference links.
+
 links.search_range                        *Mkdnflow-config-links-search-range*
     Type: integer
 
