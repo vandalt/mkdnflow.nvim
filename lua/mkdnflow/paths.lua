@@ -91,25 +91,17 @@ end
 local enter_internal_path = function() end
 
 --- Fill in placeholders in the new-file template string
+---@deprecated Use require('mkdnflow.templates').formatTemplate() instead
 ---@param timing? string 'before' or 'after' buffer creation (defaults to 'before')
 ---@param template? string The template string to fill (defaults to config template)
 ---@return string template The template with placeholders replaced
 M.formatTemplate = function(timing, template)
-    timing = timing or 'before'
-    local new_file_config = cfg().new_file_template
-    local links = mkdn().links
-    template = template or new_file_config.template
-    for placeholder_name, replacement in pairs(new_file_config.placeholders[timing]) do
-        if replacement == 'link_title' then
-            replacement = links.getLinkPart(links.getLinkUnderCursor(), 'name')
-        elseif replacement == 'os_date' then
-            replacement = os.date('%Y-%m-%d')
-        end
-        -- Use empty string if replacement is nil (e.g., no link under cursor)
-        replacement = replacement or ''
-        template = string.gsub(template, '{{%s?' .. placeholder_name .. '%s?}}', replacement)
+    local templates = mkdn().templates
+    if templates then
+        return templates.formatTemplate(timing, template)
     end
-    return template
+    -- Fallback: if templates module is disabled, return template unchanged
+    return template or cfg().new_file_template.template
 end
 
 --- Open a notebook-internal file in Neovim, creating directories and applying templates as needed
@@ -189,18 +181,17 @@ local vim_open = function(path, anchor)
         buffers.push(buffers.main, vim.api.nvim_win_get_buf(0))
         -- Prepare to inject the filled-out template at the top of the new file
         local template
-        if new_file_config.enabled then
+        local templates = mkdn().templates
+        if templates and new_file_config.enabled then
             if not exists(path_w_ext, 'f') then
-                template = M.formatTemplate('before')
+                template = templates.formatTemplate('before')
             end
         end
         vim.cmd.edit(vim.fn.fnameescape(path_w_ext))
         M.updateDirs()
         -- Inject the template
-        if new_file_config.enabled and template then
-            template = M.formatTemplate('after', template)
-            local lines = vim.split(template, '\n', { plain = true })
-            vim.api.nvim_buf_set_lines(0, 0, #template, false, lines)
+        if templates and new_file_config.enabled and template then
+            templates.apply(template)
         end
         if anchor and anchor ~= '' then
             if not cursor.toId(anchor) then

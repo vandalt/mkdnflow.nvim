@@ -11,6 +11,7 @@
         maps = true,
         paths = true,
         tables = true,
+        templates = true,
         to_do = true,
         yaml = false,
         cmp = false,

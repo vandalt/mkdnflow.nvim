@@ -68,6 +68,12 @@ modules:
       **`true`** (default): `tables` module is enabled (required for table management, navigation, formatting, etc.).
       `false`: Disable `tables` module functionality.
 
+  - name: modules.templates
+    type: boolean
+    description: |
+      **`true`** (default): `templates` module is enabled (required for new-file template formatting and injection when following links to non-existent files).
+      `false`: Disable `templates` module functionality. Template injection will be skipped even if `new_file_template.enabled` is `true`.
+
   - name: modules.yaml
     type: boolean
     description: |

@@ -31,6 +31,7 @@ local default_config = {
         maps = true,
         paths = true,
         tables = true,
+        templates = true,
         to_do = true,
         yaml = false,
         cmp = false,
@@ -534,6 +535,7 @@ local function activate()
     init.lists = load_module('lists', init.config.modules.lists)
     init.maps = load_module('maps', init.config.modules.maps)
     init.tables = load_module('tables', init.config.modules.tables)
+    init.templates = load_module('templates', init.config.modules.templates)
     init.yaml = load_module('yaml', init.config.modules.yaml)
     init.cmp = load_module('cmp', init.config.modules.cmp)
     init.to_do = load_module('to_do', init.config.modules.to_do)

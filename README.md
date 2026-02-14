@@ -34,6 +34,7 @@
     1. [Initialization](#initialization)
     1. [Link management](#link-management)
     1. [Link and path handling](#link-and-path-handling)
+    1. [Templates](#templates)
     1. [Buffer navigation](#buffer-navigation)
     1. [Cursor movement](#cursor-movement)
     1. [Cursor-aware manipulations](#cursor-aware-manipulations)
@@ -277,6 +278,7 @@ the help files.
         maps = true,
         paths = true,
         tables = true,
+        templates = true,
         to_do = true,
         yaml = false,
         cmp = false,
@@ -511,6 +513,7 @@ require('mkdnflow').setup({
 | `modules.to_do` | `boolean` | **`true`** (default): `to_do` module is enabled (required for manipulating to-do statuses/lists, toggling to-do items, to-do list sorting, etc.)<br>`false`: Disable `to_do` module functionality. |
 | `modules.paths` | `boolean` | **`true`** (default): `paths` module is enabled (required for link interpretation, link following, etc.).<br>`false`: Suppress `paths` keybindings. Note: This is a core module and is always loaded internally because other modules depend on it. Setting this to `false` only disables its keybindings. |
 | `modules.tables` | `boolean` | **`true`** (default): `tables` module is enabled (required for table management, navigation, formatting, etc.).<br>`false`: Disable `tables` module functionality. |
+| `modules.templates` | `boolean` | **`true`** (default): `templates` module is enabled (required for new-file template formatting and injection when following links to non-existent files).<br>`false`: Disable `templates` module functionality. Template injection will be skipped even if `new_file_template.enabled` is `true`. |
 | `modules.yaml` | `boolean` | `true`: `yaml` module is enabled (required for parsing yaml headers).<br>**`false`** (default): Disable `yaml` module functionality. |
 | `modules.cmp` | `boolean` | `true`: `cmp` module is enabled (required if you wish to enable completion for `nvim-cmp`).<br>**`false`** (default): Disable `cmp` module functionality. |
 
@@ -1130,16 +1133,17 @@ Below are the primary functions available:
 1. Initialization ([Initialization](#initialization))
 2. Link management ([Link management](#link-management))
 3. Link & path handling ([Link and path handling](#link-and-path-handling))
-4. Buffer navigation ([Buffer navigation](#buffer-navigation))
-5. Cursor movement ([Cursor movement](#cursor-movement))
-6. Cursor-aware manipulations ([Cursor-aware manipulations](#cursor-aware-manipulations))
-7. List management ([List management](#list-management))
-8. To-do list management ([To-do list management](#to-do-list-management))
-9. Table management ([Table management](#table-management))
-10. Folds ([Folds](#folds))
-11. Yaml blocks ([Yaml blocks](#yaml-blocks))
-12. Bibliography ([Bibliography](#bibliography))
-13. Statusline components ([Statusline components](#statusline-components))
+4. Templates ([Templates](#templates))
+5. Buffer navigation ([Buffer navigation](#buffer-navigation))
+6. Cursor movement ([Cursor movement](#cursor-movement))
+7. Cursor-aware manipulations ([Cursor-aware manipulations](#cursor-aware-manipulations))
+8. List management ([List management](#list-management))
+9. To-do list management ([To-do list management](#to-do-list-management))
+10. Table management ([Table management](#table-management))
+11. Folds ([Folds](#folds))
+12. Yaml blocks ([Yaml blocks](#yaml-blocks))
+13. Bibliography ([Bibliography](#bibliography))
+14. Statusline components ([Statusline components](#statusline-components))
 
 ### Initialization
 
@@ -1272,15 +1276,12 @@ Handles all 'following' behavior for a given path, potentially opening it or per
 
 `require('mkdnflow').paths.formatTemplate(timing, template)`
 
-Formats the new file template based on the specified timing (before or
-after buffer creation). If this is called once with 'before' timing,
-the output can be captured and passed back in with 'after' timing to
-perform different substitutions before and after a new buffer is opened.
+**Deprecated:** Use `require('mkdnflow').templates.formatTemplate()` instead.
+This function is a backward-compatible shim that delegates to the templates
+module. It will be removed in a future major version.
 
 - **Parameters:**
     - `timing`: (string) "before" or "after" specifying when to perform the formatting.
-        - `'before'`: () Perform the template formatting before the new buffer is opened.
-        - `'after'`: () Perform the template formatting after the new buffer is opened.
     - `template`: (string|nil) The template to format. If not provided, the default new file template is used.
 
 `require('mkdnflow').paths.updateDirs()`
@@ -1302,6 +1303,30 @@ Transforms the given path based on the plugin's configuration and transformation
 
 - **Parameters:**
     - `path`: (string) The path to transform.
+
+### Templates
+
+`require('mkdnflow').templates.formatTemplate(timing, template)`
+
+Formats the new file template based on the specified timing (before or
+after buffer creation). If this is called once with 'before' timing,
+the output can be captured and passed back in with 'after' timing to
+perform different substitutions before and after a new buffer is opened.
+
+- **Parameters:**
+    - `timing`: (string) "before" or "after" specifying when to perform the formatting.
+        - `'before'`: () Perform the template formatting before the new buffer is opened.
+        - `'after'`: () Perform the template formatting after the new buffer is opened.
+    - `template`: (string|nil) The template to format. If not provided, the default new file template is used.
+
+`require('mkdnflow').templates.apply(template)`
+
+Performs the 'after' timing substitutions on a template string and injects
+the result into the current buffer (at the top). This is typically called
+after a new file buffer has been opened.
+
+- **Parameters:**
+    - `template`: (string) The template string produced by `formatTemplate('before')`.
 
 ### Buffer navigation
 

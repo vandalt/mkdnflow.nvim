@@ -40,6 +40,7 @@ API ........................................................... |Mkdnflow-api|
   Initialization ................................... |Mkdnflow-initialization|
   Link management .................................. |Mkdnflow-linkmanagement|
   Link and path handling ......................... |Mkdnflow-linkpathhandling|
+  Templates ............................................. |Mkdnflow-templates|
   Buffer navigation .............................. |Mkdnflow-buffernavigation|
   Cursor movement .................................. |Mkdnflow-cursormovement|
   Cursor-aware manipulations ............. |Mkdnflow-cursorawaremanipulations|
@@ -275,6 +276,7 @@ the documentation for the configuration options below or in the help files.
             maps = true,
             paths = true,
             tables = true,
+            templates = true,
             to_do = true,
             yaml = false,
             cmp = false,
@@ -593,6 +595,16 @@ modules.tables                                *Mkdnflow-config-modules-tables*
     management, navigation, formatting, etc.).
 
     `false`: Disable `tables` module functionality.
+
+modules.templates                          *Mkdnflow-config-modules-templates*
+    Type: boolean
+
+    `true`: (default): `templates` module is enabled (required for new-file
+    template formatting and injection when following links to non-existent
+    files).
+
+    `false`: Disable `templates` module functionality. Template injection will
+    be skipped even if `new_file_template.enabled` is `true`.
 
 modules.yaml                                    *Mkdnflow-config-modules-yaml*
     Type: boolean
@@ -2202,16 +2214,17 @@ Below are the primary functions available:
 1. Initialization (see |Mkdnflow-initialization|)
 2. Link management (see |Mkdnflow-linkmanagement|)
 3. Link & path handling (see |Mkdnflow-linkpathhandling|)
-4. Buffer navigation (see |Mkdnflow-buffernavigation|)
-5. Cursor movement (see |Mkdnflow-cursormovement|)
-6. Cursor-aware manipulations (see |Mkdnflow-cursorawaremanipulations|)
-7. List management (see |Mkdnflow-listmanagement|)
-8. To-do list management (see |Mkdnflow-todolistmanagement|)
-9. Table management (see |Mkdnflow-tablemanagement|)
-10. Folds (see |Mkdnflow-folds|)
-11. Yaml blocks (see |Mkdnflow-yamlblocks|)
-12. Bibliography (see |Mkdnflow-bibliography|)
-13. Statusline components (see |Mkdnflow-statusline|)
+4. Templates (see |Mkdnflow-templates|)
+5. Buffer navigation (see |Mkdnflow-buffernavigation|)
+6. Cursor movement (see |Mkdnflow-cursormovement|)
+7. Cursor-aware manipulations (see |Mkdnflow-cursorawaremanipulations|)
+8. List management (see |Mkdnflow-listmanagement|)
+9. To-do list management (see |Mkdnflow-todolistmanagement|)
+10. Table management (see |Mkdnflow-tablemanagement|)
+11. Folds (see |Mkdnflow-folds|)
+12. Yaml blocks (see |Mkdnflow-yamlblocks|)
+13. Bibliography (see |Mkdnflow-bibliography|)
+14. Statusline components (see |Mkdnflow-statusline|)
 
 
 ------------------------------------------------------------------------------
@@ -2379,15 +2392,12 @@ performing other actions based on the type.
 `require('mkdnflow').paths.formatTemplate(timing, template)`^
 
 
-Formats the new file template based on the specified timing (before or after
-buffer creation). If this is called once with 'before' timing, the output can
-be captured and passed back in with 'after' timing to perform different
-substitutions before and after a new buffer is opened.
+Deprecated: Use `require('mkdnflow').templates.formatTemplate()` instead. This
+function is a backward-compatible shim that delegates to the templates module.
+It will be removed in a future major version.
 
 - **Parameters:**
     - `timing`: (string) "before" or "after" specifying when to perform the formatting.
-        - `'before'`: () Perform the template formatting before the new buffer is opened.
-        - `'after'`: () Perform the template formatting after the new buffer is opened.
     - `template`: (string|nil) The template to format. If not provided, the default new file template is used.
 
 `require('mkdnflow').paths.updateDirs()`^
@@ -2419,6 +2429,34 @@ transformations.
 
 - **Parameters:**
     - `path`: (string) The path to transform.
+
+
+------------------------------------------------------------------------------
+Templates                                                 *Mkdnflow-templates*
+
+`require('mkdnflow').templates.formatTemplate(timing, template)`^
+
+
+Formats the new file template based on the specified timing (before or after
+buffer creation). If this is called once with 'before' timing, the output can
+be captured and passed back in with 'after' timing to perform different
+substitutions before and after a new buffer is opened.
+
+- **Parameters:**
+    - `timing`: (string) "before" or "after" specifying when to perform the formatting.
+        - `'before'`: () Perform the template formatting before the new buffer is opened.
+        - `'after'`: () Perform the template formatting after the new buffer is opened.
+    - `template`: (string|nil) The template to format. If not provided, the default new file template is used.
+
+`require('mkdnflow').templates.apply(template)`^
+
+
+Performs the 'after' timing substitutions on a template string and injects the
+result into the current buffer (at the top). This is typically called after a
+new file buffer has been opened.
+
+- **Parameters:**
+    - `template`: (string) The template string produced by `formatTemplate('before')`.
 
 
 ------------------------------------------------------------------------------

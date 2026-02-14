@@ -889,6 +889,7 @@ sections:
           - text: Initialization (see `initialization`)
           - text: Link management (see `linkmanagement`)
           - text: Link & path handling (see `linkpathhandling`)
+          - text: Templates (see `templates`)
           - text: Buffer navigation (see `buffernavigation`)
           - text: Cursor movement (see `cursormovement`)
           - text: Cursor-aware manipulations (see `cursorawaremanipulations`)
@@ -917,6 +918,12 @@ sections:
         content:
           - type: api_section
             ref: linkpathhandling
+
+      - title: Templates
+        tag: templates
+        content:
+          - type: api_section
+            ref: templates
 
       - title: Buffer navigation
         tag: buffernavigation

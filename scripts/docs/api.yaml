@@ -161,21 +161,13 @@ linkpathhandling:
 
   - signature: "require('mkdnflow').paths.formatTemplate(timing, template)"
     description: |
-      Formats the new file template based on the specified timing (before or
-      after buffer creation). If this is called once with 'before' timing,
-      the output can be captured and passed back in with 'after' timing to
-      perform different substitutions before and after a new buffer is opened.
+      **Deprecated:** Use `require('mkdnflow').templates.formatTemplate()` instead.
+      This function is a backward-compatible shim that delegates to the templates
+      module. It will be removed in a future major version.
     params:
       - name: timing
         type: string
         description: '"before" or "after" specifying when to perform the formatting.'
-        children:
-          - name: "'before'"
-            type: ""
-            description: Perform the template formatting before the new buffer is opened.
-          - name: "'after'"
-            type: ""
-            description: Perform the template formatting after the new buffer is opened.
       - name: template
         type: string|nil
         description: The template to format. If not provided, the default new file template is used.
@@ -207,6 +199,38 @@ linkpathhandling:
       - name: path
         type: string
         description: The path to transform.
+
+templates:
+  - signature: "require('mkdnflow').templates.formatTemplate(timing, template)"
+    description: |
+      Formats the new file template based on the specified timing (before or
+      after buffer creation). If this is called once with 'before' timing,
+      the output can be captured and passed back in with 'after' timing to
+      perform different substitutions before and after a new buffer is opened.
+    params:
+      - name: timing
+        type: string
+        description: '"before" or "after" specifying when to perform the formatting.'
+        children:
+          - name: "'before'"
+            type: ""
+            description: Perform the template formatting before the new buffer is opened.
+          - name: "'after'"
+            type: ""
+            description: Perform the template formatting after the new buffer is opened.
+      - name: template
+        type: string|nil
+        description: The template to format. If not provided, the default new file template is used.
+
+  - signature: "require('mkdnflow').templates.apply(template)"
+    description: |
+      Performs the 'after' timing substitutions on a template string and injects
+      the result into the current buffer (at the top). This is typically called
+      after a new file buffer has been opened.
+    params:
+      - name: template
+        type: string
+        description: The template string produced by `formatTemplate('before')`.
 
 buffernavigation:
   - signature: "require('mkdnflow').buffers.goBack()"
