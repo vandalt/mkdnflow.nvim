@@ -304,17 +304,19 @@ function Link:read(col, buffer)
     -- Get config
     local config = require('mkdnflow').config or {}
     local links_config = config.links or {}
-    local context = links_config.context or 0
+    local context = links_config.search_range or 0
 
-    -- Get lines with context
-    local lines = vim.api.nvim_buf_get_lines(buffer, row - 1 - context, row + context, false)
+    -- Get lines with context (clamp start to beginning of buffer)
+    local buf_start = math.max(0, row - 1 - context)
+    local actual_context = row - 1 - buf_start
+    local lines = vim.api.nvim_buf_get_lines(buffer, buf_start, row + context, false)
 
     local utils = require('mkdnflow').utils
 
     -- Check if cursor is on a reference definition line (e.g. [label]: url)
     -- This must be checked before the pattern loop since mFind concatenates
     -- lines, making ^ anchors unreliable for line-start detection.
-    local cursor_line = lines[1 + context]
+    local cursor_line = lines[1 + actual_context]
     if cursor_line then
         local ds, de, dmatch = string.find(cursor_line, '^(%s?%s?%s?%[.-%]:%s.+)')
         if dmatch then
@@ -347,13 +349,13 @@ function Link:read(col, buffer)
 
         while continue do
             local start_row, start_col, end_row, end_col, capture, match_lines =
-                utils.mFind(lines, pattern, row - context, init_row, init_col)
+                utils.mFind(lines, pattern, row - actual_context, init_row, init_col)
 
             if start_row and link_type == 'citation' then
                 -- Skip if @ is preceded by an alphanumeric character (e.g. email
                 -- addresses like user@domain.com are not citations)
                 if start_col > 1 then
-                    local line_idx = start_row - (row - context) + 1
+                    local line_idx = start_row - (row - actual_context) + 1
                     local preceding_char = lines[line_idx]:sub(start_col - 1, start_col - 1)
                     if preceding_char:match('[%a%d]') then
                         init_row, init_col = end_row, end_col

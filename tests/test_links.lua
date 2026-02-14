@@ -1849,6 +1849,116 @@ T['multiline']['destroyLink works correctly on single-line link'] = function()
     eq(result, 'link')
 end
 
+-- Multi-line link detection with search_range > 0
+-- These tests verify the feature from issue #85: following links split across
+-- lines (e.g. by hard-wrapping with `gq`).
+T['multiline']['search_range'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    links = {
+                        search_range = 1,
+                        transform_on_create = false,
+                    },
+                })
+            ]])
+        end,
+    },
+})
+
+T['multiline']['search_range']['detects md_link split after link text'] = function()
+    -- [some link
+    -- text](https://example.com)
+    set_lines({ '[some link', 'text](https://example.com)' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'https://example.com')
+end
+
+T['multiline']['search_range']['detects md_link with cursor on second line'] = function()
+    -- [long link text on first
+    -- line](file.md)
+    set_lines({ '[long link text on first', 'line](file.md)' })
+    set_cursor(2, 0)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'file.md')
+end
+
+T['multiline']['search_range']['detects md_link with inline text before link'] = function()
+    -- Words before the link [here it
+    -- is](short-url.md)
+    set_lines({ 'Words before the link [here it', 'is](short-url.md)' })
+    set_cursor(1, 25)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'short-url.md')
+end
+
+T['multiline']['search_range']['reports correct start/end rows for split link'] = function()
+    set_lines({ '[split', 'link](url.md)' })
+    set_cursor(1, 2)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local start_row = child.lua_get('_G.link and _G.link[4]')
+    local end_row = child.lua_get('_G.link and _G.link[6]')
+    eq(start_row, 1)
+    eq(end_row, 2)
+end
+
+T['multiline']['search_range']['does not detect link beyond search_range'] = function()
+    -- With search_range = 1, a link that spans 3 lines should not be found
+    -- when cursor is on the first line
+    set_lines({ '[link text', 'that spans', 'many lines](url.md)' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link = child.lua_get('_G.link')
+    eq(link, vim.NIL)
+end
+
+T['multiline']['search_range']['detects wiki_link split across lines'] = function()
+    set_lines({ '[[some long', 'page name]]' })
+    set_cursor(1, 4)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'wiki_link')
+end
+
+T['multiline']['search_range']['detects image_link split across lines'] = function()
+    set_lines({ '![alt', 'text](image.png)' })
+    set_cursor(1, 2)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'image_link')
+    child.lua('_G.source = require("mkdnflow.links").getLinkPart(_G.link, "source")')
+    local source = child.lua_get('_G.source')
+    eq(source, 'image.png')
+end
+
+T['multiline']['search_range']['adjacent brackets and parens form link across lines'] = function()
+    -- With search_range > 0, adjacent [text] and (url) on separate lines
+    -- are concatenated and matched as a link. This is a known trade-off of
+    -- multi-line detection (and why search_range defaults to 0).
+    set_lines({ '[link text]', '(url.md)' })
+    set_cursor(1, 3)
+    child.lua('_G.link = require("mkdnflow.links").getLinkUnderCursor()')
+    local link_type = child.lua_get('_G.link and _G.link[3]')
+    eq(link_type, 'md_link')
+end
+
 -- =============================================================================
 -- Pattern export tests (for advanced users)
 -- =============================================================================
