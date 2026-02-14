@@ -1063,6 +1063,8 @@ Configuration options.
 | `MkdnCreateLink` | -- | Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). |
 | `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. |
 | `MkdnCreateFootnote` | -- | Create a footnote reference (`[^N]`) at the cursor position and a corresponding definition (`[^N]: `) at the end of the document. The reference is placed after the current word and any trailing punctuation (e.g., `word.[^1]` rather than `word[^1].`). The cursor jumps to the definition line in insert mode so the footnote text can be filled in immediately. After filling in the definition, use `MkdnFollowLink` (`<CR>`) on the definition to jump back to the reference (or use ` `` `/`''` via the jumplist).<br><br>Auto-numbering increments from the highest existing numeric footnote label. An optional argument specifies an explicit string label instead (e.g., `:MkdnCreateFootnote myref` creates `[^myref]`).<br><br>If no footnote definitions exist in the buffer and `footnotes.heading` is configured, the heading is appended to the end of the document before the definition. If definitions already exist, the new definition is placed after the last one. |
+| `MkdnRenumberFootnotes` | -- | Renumber all footnote references and definitions in the current buffer so they form a sequential series (1, 2, 3, ...) based on order of first appearance in the document. Both references (`[^label]`) and definitions (`[^label]: ...`) are updated. String-labeled footnotes (e.g., `[^myref]`) are converted to numeric labels. Multiple references to the same footnote are all updated consistently.<br><br>Definitions are consolidated under the configured `footnotes.heading` (default: `## Footnotes`) in appearance order. Multi-line definitions (with indented continuation lines) are moved as a block. If the heading doesn't exist, it is appended to the end of the document.<br><br>Aborts with a warning if duplicate definitions are found (same label defined more than once). If footnotes are already up to date, a message is shown and no changes are made. |
+| `MkdnRefreshFootnotes` | -- | Refresh footnote numbering and consolidate definitions. Like `MkdnRenumberFootnotes`, but only renumbers footnotes that already have numeric labels — string-labeled footnotes (e.g., `[^myref]`) are preserved as-is.<br><br>Definitions are reordered by first appearance in the document and consolidated under the configured `footnotes.heading`. This is useful for documents that mix numbered and named footnotes, or for reordering a disorganized definition list.<br><br>Aborts with a warning if duplicate definitions are found. If footnotes are already up to date, a message is shown and no changes are made. |
 | `MkdnFollowLink` | -- | Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the text under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer.<br><br>For footnotes, this command jumps bidirectionally: pressing `<CR>` on a footnote reference (`[^1]`) jumps to its definition (`[^1]: ...`), and pressing `<CR>` on a definition jumps back to the reference. |
 | `MkdnDestroyLink` | `{ 'n', '<M-CR>' }` | Destroy the link under the cursor, replacing it with just the text from the link name. |
 | `MkdnTagSpan` | `{ 'v', '<M-CR>' }` | Tag a visually-selected span of text with an ID, allowing it to be linked to with an anchor link. |
@@ -1177,6 +1179,14 @@ Creates a footnote reference at the cursor position and a definition at the end 
 - **Parameters:**
     - `args`: (table) Arguments to customize footnote creation.
         - `label`: (string|nil) If provided, uses this string as the footnote label (e.g., `'myref'` creates `[^myref]`). If nil, auto-increments from the highest existing numeric footnote.
+
+`require('mkdnflow').links.renumberFootnotes()`
+
+Renumbers all footnote references and definitions (including string-labeled) to form a sequential integer series based on order of first appearance. Consolidates definitions under the configured heading. Warns and aborts if duplicate definitions are found.
+
+`require('mkdnflow').links.refreshFootnotes()`
+
+Refreshes footnote numbering (numeric labels only) and consolidates definitions under the configured heading in appearance order. String-labeled footnotes are preserved. Warns and aborts if duplicate definitions are found.
 
 `require('mkdnflow').links.followLink(args)`
 

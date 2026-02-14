@@ -70,6 +70,8 @@ local descriptions = {
     MkdnCreateLink = 'Create link from word or selection',
     MkdnCreateLinkFromClipboard = 'Create link using clipboard URL',
     MkdnCreateFootnote = 'Create footnote reference and definition',
+    MkdnRenumberFootnotes = 'Renumber footnotes sequentially by order of appearance',
+    MkdnRefreshFootnotes = 'Refresh footnote numbering and consolidate definitions',
 }
 
 -- Operator commands that need special handling (expression mappings for dot-repeat)

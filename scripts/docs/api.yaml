@@ -49,6 +49,12 @@ linkmanagement:
             type: string|nil
             description: If provided, uses this string as the footnote label (e.g., `'myref'` creates `[^myref]`). If nil, auto-increments from the highest existing numeric footnote.
 
+  - signature: "require('mkdnflow').links.renumberFootnotes()"
+    description: Renumbers all footnote references and definitions (including string-labeled) to form a sequential integer series based on order of first appearance. Consolidates definitions under the configured heading. Warns and aborts if duplicate definitions are found.
+
+  - signature: "require('mkdnflow').links.refreshFootnotes()"
+    description: Refreshes footnote numbering (numeric labels only) and consolidates definitions under the configured heading in appearance order. String-labeled footnotes are preserved. Warns and aborts if duplicate definitions are found.
+
   - signature: "require('mkdnflow').links.followLink(args)"
     description: Follows the link under the cursor, opening the corresponding file, URL, or directory. Image links are opened in the system's default image viewer.
     params:

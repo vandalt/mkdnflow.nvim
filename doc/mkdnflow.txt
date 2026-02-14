@@ -1856,6 +1856,39 @@ Configuration options.
     definition. If definitions already exist, the new definition is placed
     after the last one.
 
+:MkdnRenumberFootnotes                    *Mkdnflow-cmd-MkdnRenumberFootnotes*
+
+    Renumber all footnote references and definitions in the current buffer so
+    they form a sequential series (1, 2, 3, ...) based on order of first
+    appearance in the document. Both references (`[^label]`) and definitions
+    (`[^label]: ...`) are updated. String-labeled footnotes (e.g., `[^myref]`)
+    are converted to numeric labels. Multiple references to the same footnote
+    are all updated consistently.
+
+    Definitions are consolidated under the configured `footnotes.heading`
+    (default: `## Footnotes`) in appearance order. Multi-line definitions
+    (with indented continuation lines) are moved as a block. If the heading
+    doesn't exist, it is appended to the end of the document.
+
+    Aborts with a warning if duplicate definitions are found (same label
+    defined more than once). If footnotes are already up to date, a message is
+    shown and no changes are made.
+
+:MkdnRefreshFootnotes                      *Mkdnflow-cmd-MkdnRefreshFootnotes*
+
+    Refresh footnote numbering and consolidate definitions. Like
+    `MkdnRenumberFootnotes`, but only renumbers footnotes that already have
+    numeric labels — string-labeled footnotes (e.g., `[^myref]`) are preserved
+    as-is.
+
+    Definitions are reordered by first appearance in the document and
+    consolidated under the configured `footnotes.heading`. This is useful for
+    documents that mix numbered and named footnotes, or for reordering a
+    disorganized definition list.
+
+    Aborts with a warning if duplicate definitions are found. If footnotes are
+    already up to date, a message is shown and no changes are made.
+
 :MkdnFollowLink                                  *Mkdnflow-cmd-MkdnFollowLink*
 
     Open the link under the cursor, creating missing directories if desired,
@@ -2227,6 +2260,21 @@ end of the document. Jumps to the definition line in insert mode.
 - **Parameters:**
     - `args`: (table) Arguments to customize footnote creation.
         - `label`: (string|nil) If provided, uses this string as the footnote label (e.g., `'myref'` creates `[^myref]`). If nil, auto-increments from the highest existing numeric footnote.
+
+`require('mkdnflow').links.renumberFootnotes()`^
+
+
+Renumbers all footnote references and definitions (including string-labeled)
+to form a sequential integer series based on order of first appearance.
+Consolidates definitions under the configured heading. Warns and aborts if
+duplicate definitions are found.
+
+`require('mkdnflow').links.refreshFootnotes()`^
+
+
+Refreshes footnote numbering (numeric labels only) and consolidates
+definitions under the configured heading in appearance order. String-labeled
+footnotes are preserved. Warns and aborts if duplicate definitions are found.
 
 `require('mkdnflow').links.followLink(args)`^
 

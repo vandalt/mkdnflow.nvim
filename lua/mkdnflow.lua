@@ -270,6 +270,8 @@ local default_config = {
         MkdnCreateLink = false,
         MkdnCreateLinkFromClipboard = { { 'n', 'v' }, '<leader>p' },
         MkdnCreateFootnote = false,
+        MkdnRenumberFootnotes = false,
+        MkdnRefreshFootnotes = false,
     },
 }
 
@@ -540,6 +542,8 @@ init.command_deps = {
     MkdnCreateLink = { 'links' },
     MkdnCreateLinkFromClipboard = { 'links' },
     MkdnCreateFootnote = { 'links' },
+    MkdnRenumberFootnotes = { 'links' },
+    MkdnRefreshFootnotes = { 'links' },
     MkdnTagSpan = { 'links' },
     MkdnFollowLink = { 'links', 'paths' },
     MkdnDestroyLink = { 'links' },

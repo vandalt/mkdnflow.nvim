@@ -751,4 +751,479 @@ T['create_e2e'][':MkdnCreateFootnote with explicit label'] = function()
     eq(get_line(1), 'Some text[^myref] here.')
 end
 
+-- =============================================================================
+-- Renumber footnotes (renumber_all=true): integration tests
+-- =============================================================================
+
+T['renumber'] = new_set()
+
+T['renumber']['basic sequential renumbering'] = function()
+    set_lines({
+        'Text[^1] and more text[^3] and also[^7].',
+        '',
+        '[^1]: First',
+        '[^3]: Second',
+        '[^7]: Third',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] and more text[^2] and also[^3].')
+    -- Definitions consolidated under heading
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(4), '')
+    eq(get_line(5), '[^1]: First')
+    eq(get_line(6), '[^2]: Second')
+    eq(get_line(7), '[^3]: Third')
+end
+
+T['renumber']['mixed integer and string labels'] = function()
+    set_lines({
+        'Text[^1] and[^a] and also[^note].',
+        '',
+        '[^1]: First',
+        '[^a]: Second',
+        '[^note]: Third',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] and[^2] and also[^3].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: First')
+    eq(get_line(6), '[^2]: Second')
+    eq(get_line(7), '[^3]: Third')
+end
+
+T['renumber']['multiple references to same footnote'] = function()
+    set_lines({
+        'Text[^1] and also[^3].',
+        'More[^1] text.',
+        '',
+        '[^1]: First',
+        '[^3]: Second',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] and also[^2].')
+    eq(get_line(2), 'More[^1] text.')
+    eq(get_line(4), '## Footnotes')
+    eq(get_line(6), '[^1]: First')
+    eq(get_line(7), '[^2]: Second')
+end
+
+T['renumber']['duplicate definitions aborts with warning'] = function()
+    set_lines({
+        'Text[^1] here.',
+        '',
+        '[^1]: First definition',
+        '[^1]: Duplicate definition',
+    })
+    child.lua([[
+        _G._notify_msg = nil
+        _G._notify_level = nil
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+            _G._notify_msg = msg
+            _G._notify_level = level
+        end
+        require('mkdnflow.links').renumberFootnotes()
+        vim.notify = orig
+    ]])
+    local msg = child.lua_get('_G._notify_msg')
+    eq(msg ~= nil and msg:find('Duplicate') ~= nil, true)
+    -- Buffer should be unchanged
+    eq(get_line(3), '[^1]: First definition')
+    eq(get_line(4), '[^1]: Duplicate definition')
+end
+
+T['renumber']['already up to date shows message'] = function()
+    set_lines({
+        'Text[^1] and[^2].',
+        '',
+        '## Footnotes',
+        '',
+        '[^1]: First',
+        '[^2]: Second',
+    })
+    child.lua([[
+        _G._notify_msg = nil
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+            _G._notify_msg = msg
+        end
+        require('mkdnflow.links').renumberFootnotes()
+        vim.notify = orig
+    ]])
+    local msg = child.lua_get('_G._notify_msg')
+    eq(msg ~= nil and msg:find('already') ~= nil, true)
+end
+
+T['renumber']['no footnotes shows message'] = function()
+    set_lines({ 'Just some text.', 'No footnotes here.' })
+    child.lua([[
+        _G._notify_msg = nil
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+            _G._notify_msg = msg
+        end
+        require('mkdnflow.links').renumberFootnotes()
+        vim.notify = orig
+    ]])
+    local msg = child.lua_get('_G._notify_msg')
+    eq(msg ~= nil and msg:find('No footnotes') ~= nil, true)
+end
+
+T['renumber']['reverse order corrected by appearance'] = function()
+    set_lines({
+        'Text[^3] and[^1].',
+        '',
+        '[^1]: Was first def',
+        '[^3]: Was third def',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] and[^2].')
+    -- Definitions reordered by appearance: [^3] appeared first → [^1]
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: Was third def')
+    eq(get_line(6), '[^2]: Was first def')
+end
+
+T['renumber']['scattered definitions consolidated under heading'] = function()
+    set_lines({
+        'Text[^2] here.',
+        '[^2]: Inline definition',
+        '',
+        'More text[^5].',
+        '[^5]: Another inline def',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] here.')
+    eq(get_line(3), 'More text[^2].')
+    eq(get_line(5), '## Footnotes')
+    eq(get_line(7), '[^1]: Inline definition')
+    eq(get_line(8), '[^2]: Another inline def')
+end
+
+T['renumber']['orphan definition renumbered at end of order'] = function()
+    set_lines({
+        'Text[^2] here.',
+        '',
+        '[^1]: Orphan (no ref)',
+        '[^2]: Has a ref',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    -- [^2] appears first as reference → [^1]
+    -- [^1] is orphan → [^2] (appended to end of order)
+    eq(get_line(1), 'Text[^1] here.')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: Has a ref')
+    eq(get_line(6), '[^2]: Orphan (no ref)')
+end
+
+T['renumber']['single undo step'] = function()
+    set_lines({
+        'Text[^3] and[^7].',
+        '',
+        '[^3]: First',
+        '[^7]: Second',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] and[^2].')
+    eq(get_line(3), '## Footnotes')
+    -- Undo should restore the entire original state
+    child.type_keys('u')
+    eq(get_line(1), 'Text[^3] and[^7].')
+    eq(get_line(3), '[^3]: First')
+    eq(get_line(4), '[^7]: Second')
+end
+
+T['renumber']['preserves non-footnote content'] = function()
+    set_lines({
+        '# Heading',
+        '',
+        'Paragraph with[^5] footnotes[^10].',
+        '',
+        '- List item',
+        '- Another item',
+        '',
+        '## Footnotes',
+        '',
+        '[^5]: Note one',
+        '[^10]: Note two',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), '# Heading')
+    eq(get_line(3), 'Paragraph with[^1] footnotes[^2].')
+    eq(get_line(5), '- List item')
+    eq(get_line(6), '- Another item')
+    eq(get_line(8), '## Footnotes')
+    eq(get_line(10), '[^1]: Note one')
+    eq(get_line(11), '[^2]: Note two')
+end
+
+T['renumber']['cross-references in definitions already up to date'] = function()
+    set_lines({
+        'Text[^1] and[^2].',
+        '',
+        '## Footnotes',
+        '',
+        '[^1]: See also [^2].',
+        '[^2]: Contradicts [^1].',
+    })
+    child.lua([[
+        _G._notify_msg = nil
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+            _G._notify_msg = msg
+        end
+        require('mkdnflow.links').renumberFootnotes()
+        vim.notify = orig
+    ]])
+    local msg = child.lua_get('_G._notify_msg')
+    eq(msg ~= nil and msg:find('already') ~= nil, true)
+end
+
+T['renumber']['cross-references affect ordering'] = function()
+    set_lines({
+        'Text[^a] here.',
+        '',
+        '[^a]: See [^b] for more.',
+        '[^b]: Additional info.',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] here.')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: See [^2] for more.')
+    eq(get_line(6), '[^2]: Additional info.')
+end
+
+T['renumber']['multi-line definitions preserved'] = function()
+    set_lines({
+        'Text[^2] and[^1].',
+        '',
+        '[^1]: First note',
+        '    with continuation.',
+        '[^2]: Second note.',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    -- [^2] appeared first → [^1], [^1] appeared second → [^2]
+    eq(get_line(1), 'Text[^1] and[^2].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: Second note.')
+    eq(get_line(6), '[^2]: First note')
+    eq(get_line(7), '    with continuation.')
+end
+
+T['renumber']['multi-line definition with blank continuation'] = function()
+    set_lines({
+        'Text[^1].',
+        '',
+        '[^1]: First paragraph.',
+        '',
+        '    Second paragraph.',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: First paragraph.')
+    eq(get_line(6), '')
+    eq(get_line(7), '    Second paragraph.')
+end
+
+T['renumber']['heading false disables heading insertion'] = function()
+    child.restart({ '-u', 'scripts/minimal_init.lua' })
+    child.lua([[
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({
+            links = { transform_on_create = false },
+            footnotes = { heading = false },
+        })
+    ]])
+    set_lines({
+        'Text[^3] and[^7].',
+        '',
+        '[^3]: First',
+        '[^7]: Second',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] and[^2].')
+    eq(get_line(3), '[^1]: First')
+    eq(get_line(4), '[^2]: Second')
+end
+
+-- =============================================================================
+-- Refresh footnotes (renumber_all=false): integration tests
+-- =============================================================================
+
+T['refresh'] = new_set()
+
+T['refresh']['only renumbers numeric labels'] = function()
+    set_lines({
+        'Text[^3] and[^note] and also[^7].',
+        '',
+        '[^3]: Third',
+        '[^note]: A note',
+        '[^7]: Seventh',
+    })
+    child.lua([[require('mkdnflow.links').refreshFootnotes()]])
+    eq(get_line(1), 'Text[^1] and[^note] and also[^2].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: Third')
+    eq(get_line(6), '[^note]: A note')
+    eq(get_line(7), '[^2]: Seventh')
+end
+
+T['refresh']['only string labels reorders without renumbering'] = function()
+    set_lines({
+        'Text[^b] and[^a].',
+        '',
+        '[^a]: Alpha def',
+        '[^b]: Beta def',
+    })
+    child.lua([[require('mkdnflow.links').refreshFootnotes()]])
+    -- No numeric labels to renumber; definitions reordered by appearance
+    eq(get_line(1), 'Text[^b] and[^a].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^b]: Beta def')
+    eq(get_line(6), '[^a]: Alpha def')
+end
+
+T['refresh']['only numeric labels same as renumber'] = function()
+    set_lines({
+        'Text[^3] and[^7].',
+        '',
+        '[^3]: First',
+        '[^7]: Second',
+    })
+    child.lua([[require('mkdnflow.links').refreshFootnotes()]])
+    eq(get_line(1), 'Text[^1] and[^2].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: First')
+    eq(get_line(6), '[^2]: Second')
+end
+
+T['refresh']['consolidates scattered definitions'] = function()
+    set_lines({
+        'Text[^1] here.',
+        '[^1]: Inline def.',
+        '',
+        'More text[^note].',
+        '[^note]: Named note.',
+    })
+    child.lua([[require('mkdnflow.links').refreshFootnotes()]])
+    eq(get_line(1), 'Text[^1] here.')
+    eq(get_line(3), 'More text[^note].')
+    eq(get_line(5), '## Footnotes')
+    eq(get_line(7), '[^1]: Inline def.')
+    eq(get_line(8), '[^note]: Named note.')
+end
+
+T['refresh']['multi-line definitions preserved'] = function()
+    set_lines({
+        'Text[^note] and[^5].',
+        '',
+        '[^5]: Numeric note',
+        '    with continuation.',
+        '[^note]: A string-labeled note.',
+    })
+    child.lua([[require('mkdnflow.links').refreshFootnotes()]])
+    -- [^note] appeared first (stays), [^5] appeared second → [^1]
+    eq(get_line(1), 'Text[^note] and[^1].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^note]: A string-labeled note.')
+    eq(get_line(6), '[^1]: Numeric note')
+    eq(get_line(7), '    with continuation.')
+end
+
+T['refresh']['duplicate definitions aborts'] = function()
+    set_lines({
+        'Text[^a] here.',
+        '',
+        '[^a]: First',
+        '[^a]: Duplicate',
+    })
+    child.lua([[
+        _G._notify_msg = nil
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+            _G._notify_msg = msg
+        end
+        require('mkdnflow.links').refreshFootnotes()
+        vim.notify = orig
+    ]])
+    local msg = child.lua_get('_G._notify_msg')
+    eq(msg ~= nil and msg:find('Duplicate') ~= nil, true)
+    eq(get_line(3), '[^a]: First')
+    eq(get_line(4), '[^a]: Duplicate')
+end
+
+T['refresh']['already up to date shows message'] = function()
+    set_lines({
+        'Text[^1] and[^note] and[^2].',
+        '',
+        '## Footnotes',
+        '',
+        '[^1]: First',
+        '[^note]: Named',
+        '[^2]: Second',
+    })
+    child.lua([[
+        _G._notify_msg = nil
+        local orig = vim.notify
+        vim.notify = function(msg, level)
+            _G._notify_msg = msg
+        end
+        require('mkdnflow.links').refreshFootnotes()
+        vim.notify = orig
+    ]])
+    local msg = child.lua_get('_G._notify_msg')
+    eq(msg ~= nil and msg:find('already') ~= nil, true)
+end
+
+-- =============================================================================
+-- E2E command tests
+-- =============================================================================
+
+T['renumber_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    links = { transform_on_create = false },
+                })
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['renumber_e2e'][':MkdnRenumberFootnotes works'] = function()
+    set_lines({
+        'Text[^1] and[^5].',
+        '',
+        '[^1]: First',
+        '[^5]: Second',
+    })
+    child.lua([[vim.cmd('MkdnRenumberFootnotes')]])
+    eq(get_line(1), 'Text[^1] and[^2].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: First')
+    eq(get_line(6), '[^2]: Second')
+end
+
+T['renumber_e2e'][':MkdnRefreshFootnotes works'] = function()
+    set_lines({
+        'Text[^3] and[^note].',
+        '',
+        '[^3]: Numeric',
+        '[^note]: Named',
+    })
+    child.lua([[vim.cmd('MkdnRefreshFootnotes')]])
+    eq(get_line(1), 'Text[^1] and[^note].')
+    eq(get_line(3), '## Footnotes')
+    eq(get_line(5), '[^1]: Numeric')
+    eq(get_line(6), '[^note]: Named')
+end
+
 return T

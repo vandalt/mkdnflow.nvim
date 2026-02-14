@@ -127,6 +127,20 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
         end
         links.createFootnote({ label = opts.fargs[1] })
     end, { nargs = '?' })
+    user_command('MkdnRenumberFootnotes', function(opts)
+        local links = require_module('links')
+        if not links then
+            return
+        end
+        links.renumberFootnotes()
+    end, {})
+    user_command('MkdnRefreshFootnotes', function(opts)
+        local links = require_module('links')
+        if not links then
+            return
+        end
+        links.refreshFootnotes()
+    end, {})
     user_command('MkdnDestroyLink', function(opts)
         local links = require_module('links')
         if links then

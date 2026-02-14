@@ -59,6 +59,24 @@ commands:
 
       If no footnote definitions exist in the buffer and `footnotes.heading` is configured, the heading is appended to the end of the document before the definition. If definitions already exist, the new definition is placed after the last one.
 
+  - name: MkdnRenumberFootnotes
+    default_mapping: null
+    description: |
+      Renumber all footnote references and definitions in the current buffer so they form a sequential series (1, 2, 3, ...) based on order of first appearance in the document. Both references (`[^label]`) and definitions (`[^label]: ...`) are updated. String-labeled footnotes (e.g., `[^myref]`) are converted to numeric labels. Multiple references to the same footnote are all updated consistently.
+
+      Definitions are consolidated under the configured `footnotes.heading` (default: `## Footnotes`) in appearance order. Multi-line definitions (with indented continuation lines) are moved as a block. If the heading doesn't exist, it is appended to the end of the document.
+
+      Aborts with a warning if duplicate definitions are found (same label defined more than once). If footnotes are already up to date, a message is shown and no changes are made.
+
+  - name: MkdnRefreshFootnotes
+    default_mapping: null
+    description: |
+      Refresh footnote numbering and consolidate definitions. Like `MkdnRenumberFootnotes`, but only renumbers footnotes that already have numeric labels — string-labeled footnotes (e.g., `[^myref]`) are preserved as-is.
+
+      Definitions are reordered by first appearance in the document and consolidated under the configured `footnotes.heading`. This is useful for documents that mix numbered and named footnotes, or for reordering a disorganized definition list.
+
+      Aborts with a warning if duplicate definitions are found. If footnotes are already up to date, a message is shown and no changes are made.
+
   - name: MkdnFollowLink
     default_mapping: null
     description: |

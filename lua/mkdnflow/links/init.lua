@@ -946,6 +946,260 @@ M.createFootnote = function(args)
     vim.cmd('startinsert!')
 end
 
+--- Find the end row of a multi-line footnote definition
+--- Continuation lines are indented by 4+ spaces or a tab. Blank lines followed
+--- by indented continuation are part of the same definition.
+---@param lines string[] Buffer lines
+---@param start_row integer 1-indexed row where the definition starts
+---@return integer end_row 1-indexed inclusive end row
+local function find_def_end(lines, start_row)
+    local i = start_row + 1
+    while i <= #lines do
+        local line = lines[i]
+        if line == '' then
+            -- Blank line: check if next non-blank line is an indented continuation
+            local j = i + 1
+            while j <= #lines and lines[j] == '' do
+                j = j + 1
+            end
+            if j <= #lines and (lines[j]:match('^    ') or lines[j]:match('^\t')) then
+                i = j + 1
+            else
+                return i - 1
+            end
+        elseif line:match('^    ') or line:match('^\t') then
+            i = i + 1
+        elseif line:match('^%s?%s?%s?%[%^(.-)%]:%s') then
+            return i - 1
+        else
+            return i - 1
+        end
+    end
+    return #lines
+end
+
+--- Core implementation for both MkdnRenumberFootnotes and MkdnRefreshFootnotes.
+--- Scans the buffer for footnotes, optionally renumbers labels, and consolidates
+--- definitions under the configured heading in order of first appearance.
+---@param opts {renumber_all: boolean} renumber_all=true converts all labels to
+---  sequential integers; renumber_all=false only renumbers numeric labels.
+local function refreshFootnotes(opts)
+    local renumber_all = opts.renumber_all
+    local config = require('mkdnflow').config
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local def_pat = '^%s?%s?%s?%[%^(.-)%]:%s'
+    local heading_text = config.footnotes and config.footnotes.heading
+
+    -- Phase 1: Find definitions with multi-line support, detect duplicates
+    local definitions = {} -- label -> { start_row, end_row }
+    local def_labels_ordered = {} -- preserve discovery order for stable orphan handling
+    local heading_row = nil
+
+    local i = 1
+    while i <= #lines do
+        local label = string.match(lines[i], def_pat)
+        if label then
+            if definitions[label] then
+                vim.notify(
+                    '⬇️  Duplicate footnote definition [^'
+                        .. label
+                        .. '] on lines '
+                        .. definitions[label].start_row
+                        .. ' and '
+                        .. i
+                        .. '. Aborting.',
+                    vim.log.levels.WARN
+                )
+                return
+            end
+            local end_row = find_def_end(lines, i)
+            definitions[label] = { start_row = i, end_row = end_row }
+            table.insert(def_labels_ordered, label)
+            i = end_row + 1
+        else
+            if heading_text and lines[i] == heading_text then
+                heading_row = i
+            end
+            i = i + 1
+        end
+    end
+
+    -- Phase 2: Build first-appearance order from references.
+    -- On definition lines for label X, skip only the self-label [^X] but still
+    -- scan for cross-references to other footnotes on the same line.
+    local order = {} -- sequential list of labels
+    local seen = {} -- label -> true
+    for idx, line in ipairs(lines) do
+        local def_label = string.match(line, def_pat)
+        for label in string.gmatch(line, '%[%^(.-)%]') do
+            local is_self_def = (def_label and label == def_label)
+            if not is_self_def and not seen[label] then
+                table.insert(order, label)
+                seen[label] = true
+            end
+        end
+    end
+
+    -- Phase 3: Append orphan definitions (defined but never referenced)
+    for _, label in ipairs(def_labels_ordered) do
+        if not seen[label] then
+            table.insert(order, label)
+            seen[label] = true
+        end
+    end
+
+    if #order == 0 then
+        vim.notify('⬇️  No footnotes found in buffer.', vim.log.levels.INFO)
+        return
+    end
+
+    -- Phase 4: Build label mapping
+    local label_map = {} -- old_label -> new_label (only for labels that change)
+    if renumber_all then
+        for idx, old_label in ipairs(order) do
+            label_map[old_label] = tostring(idx)
+        end
+    else
+        local num_counter = 0
+        for _, old_label in ipairs(order) do
+            if tonumber(old_label) then
+                num_counter = num_counter + 1
+                label_map[old_label] = tostring(num_counter)
+            end
+        end
+    end
+
+    -- Phase 5: Replace labels in all lines via gsub
+    local new_lines = {}
+    for idx, line in ipairs(lines) do
+        new_lines[idx] = string.gsub(line, '%[%^(.-)%]', function(label)
+            local new_label = label_map[label]
+            if new_label then
+                return '[^' .. new_label .. ']'
+            end
+            return '[^' .. label .. ']'
+        end)
+    end
+
+    -- Phase 6: Extract definition blocks (from new_lines, post-replacement)
+    -- and collect them in appearance order
+    local ordered_def_blocks = {} -- array of { lines[] }
+    for _, old_label in ipairs(order) do
+        local def = definitions[old_label]
+        if def then
+            local block = {}
+            for r = def.start_row, def.end_row do
+                table.insert(block, new_lines[r])
+            end
+            table.insert(ordered_def_blocks, block)
+        end
+    end
+
+    -- Phase 7: Build body (all lines except definitions and heading)
+    local is_def_row = {}
+    for _, def in pairs(definitions) do
+        for r = def.start_row, def.end_row do
+            is_def_row[r] = true
+        end
+    end
+
+    local body = {}
+    for idx, line in ipairs(new_lines) do
+        if not is_def_row[idx] and idx ~= heading_row then
+            table.insert(body, line)
+        end
+    end
+
+    -- Strip trailing blank lines
+    while #body > 0 and body[#body] == '' do
+        table.remove(body)
+    end
+
+    -- Collapse consecutive blank lines (left behind by removed definitions)
+    local cleaned = {}
+    for _, line in ipairs(body) do
+        if not (line == '' and #cleaned > 0 and cleaned[#cleaned] == '') then
+            table.insert(cleaned, line)
+        end
+    end
+    body = cleaned
+
+    -- Phase 8: Build footnotes section
+    local footnotes_section = {}
+    if #ordered_def_blocks > 0 then
+        if heading_text then
+            table.insert(footnotes_section, heading_text)
+            table.insert(footnotes_section, '')
+        end
+        for _, block in ipairs(ordered_def_blocks) do
+            for _, line in ipairs(block) do
+                table.insert(footnotes_section, line)
+            end
+        end
+    end
+
+    -- Phase 9: Assemble result
+    local result = {}
+    for _, line in ipairs(body) do
+        table.insert(result, line)
+    end
+    if #footnotes_section > 0 then
+        table.insert(result, '')
+        for _, line in ipairs(footnotes_section) do
+            table.insert(result, line)
+        end
+    end
+
+    -- Phase 10: No-op detection (compare result with original)
+    if #result == #lines then
+        local changed = false
+        for idx = 1, #result do
+            if result[idx] ~= lines[idx] then
+                changed = true
+                break
+            end
+        end
+        if not changed then
+            vim.notify('⬇️  Footnotes are already up to date.', vim.log.levels.INFO)
+            return
+        end
+    end
+
+    -- Phase 11: Atomic buffer update (single undo step)
+    local pos = vim.api.nvim_win_get_cursor(0)
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, result)
+    if pos[1] > #result then
+        pos[1] = #result
+    end
+    vim.api.nvim_win_set_cursor(0, pos)
+
+    local relabeled = 0
+    for old, new in pairs(label_map) do
+        if old ~= new then
+            relabeled = relabeled + 1
+        end
+    end
+    if relabeled > 0 then
+        vim.notify('⬇️  Refreshed footnotes (renumbered ' .. relabeled .. ').', vim.log.levels.INFO)
+    else
+        vim.notify('⬇️  Refreshed footnote definitions.', vim.log.levels.INFO)
+    end
+end
+
+--- Renumber all footnotes sequentially by order of first appearance.
+--- Both numeric and string-labeled footnotes are converted to sequential integers.
+--- Definitions are consolidated under the configured heading.
+M.renumberFootnotes = function()
+    refreshFootnotes({ renumber_all = true })
+end
+
+--- Refresh footnote numbering and definition order.
+--- Only numeric labels are renumbered; string labels are preserved.
+--- Definitions are consolidated under the configured heading in appearance order.
+M.refreshFootnotes = function()
+    refreshFootnotes({ renumber_all = false })
+end
+
 --- Follow the link under the cursor, or create a new link if none exists
 ---@param args? {path?: string, anchor?: string, range?: boolean}
 M.followLink = function(args)
