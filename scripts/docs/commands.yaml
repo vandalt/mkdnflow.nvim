@@ -156,7 +156,7 @@ commands:
   - name: MkdnNewListItem
     default_mapping: null
     description: |
-      Add a new ordered list item, unordered list item, or (uncompleted) to-do list item.
+      Add a new ordered list item, unordered list item, or (uncompleted) to-do list item. When adding a to-do item and `to_do.status_propagation.up` is enabled, ancestor to-do statuses are updated accordingly (e.g. a completed parent reverts to in-progress).
 
   - name: MkdnNewListItemBelowInsert
     default_mapping: "{ 'n', 'o' }"

@@ -390,6 +390,19 @@ function M.newListItem(carry, above, cursor_moves, mode_after, alt, line)
             -- Set the next line and move the cursor
             vim.api.nvim_buf_set_lines(0, row, row, false, { next_line })
 
+            -- If the new item is a to-do, propagate status upward so that a
+            -- completed parent reverts to in_progress (see #146)
+            if li_type == 'oltd' or li_type == 'ultd' then
+                local cfg = require('mkdnflow').config.to_do
+                if cfg.status_propagation and cfg.status_propagation.up then
+                    local to_do_core = require('mkdnflow.to_do.core')
+                    local new_item = to_do_core.get_to_do_item(row + 1)
+                    if new_item and new_item.valid and new_item:has_parent() then
+                        new_item:propagate_status(true, 'up')
+                    end
+                end
+            end
+
             if cursor_moves then
                 vim.api.nvim_win_set_cursor(0, { row + 1, next_col })
             end

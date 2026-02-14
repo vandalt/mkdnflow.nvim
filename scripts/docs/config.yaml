@@ -338,8 +338,8 @@ to_do:
   - name: to_do.status_propagation.up
     type: boolean
     description: |
-      **`true`** (default): Update ancestor statuses (recursively) when a descendant status is changed. Updated according to logic provided in `to_do.statuses[*].propagate.up`.
-      `false`: Ancestor statuses are not affected by descendant status changes.
+      **`true`** (default): Update ancestor statuses (recursively) when a descendant status is changed or when a new to-do item is added to a list (e.g. a completed parent reverts to in-progress when a new uncompleted child is added). Updated according to logic provided in `to_do.statuses[*].propagate.up`.
+      `false`: Ancestor statuses are not affected by descendant status changes or new item creation.
 
   - name: to_do.status_propagation.down
     type: boolean

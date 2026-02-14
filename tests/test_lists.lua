@@ -332,6 +332,110 @@ T['newListItem']['does nothing on non-list line without alt'] = function()
 end
 
 -- =============================================================================
+-- newListItem() + to-do parent propagation (#146)
+-- When a new child to-do is created under a completed parent, the parent
+-- should revert to in_progress if status_propagation.up is enabled.
+-- =============================================================================
+T['newListItem_propagation'] = new_set()
+
+T['newListItem_propagation']['completed parent becomes in_progress when child added below'] = function()
+    set_lines({
+        '- [x] Parent',
+        '    - [x] Child 1',
+        '    - [x] Child 2',
+    })
+    set_cursor(3, 10)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    eq(get_line(1), '- [-] Parent')
+    eq(get_line(4), '    - [ ] ')
+end
+
+T['newListItem_propagation']['completed parent becomes in_progress when child added above'] = function()
+    set_lines({
+        '- [x] Parent',
+        '    - [x] Child 1',
+        '    - [x] Child 2',
+    })
+    set_cursor(2, 10)
+    child.lua([[require('mkdnflow.lists').newListItem(false, true, true, 'n')]])
+    eq(get_line(1), '- [-] Parent')
+    eq(get_line(2), '    - [ ] ')
+end
+
+T['newListItem_propagation']['not_started parent stays not_started when child added'] = function()
+    set_lines({
+        '- [ ] Parent',
+        '    - [ ] Child 1',
+    })
+    set_cursor(2, 10)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    eq(get_line(1), '- [ ] Parent')
+end
+
+T['newListItem_propagation']['in_progress parent stays in_progress when child added'] = function()
+    set_lines({
+        '- [-] Parent',
+        '    - [x] Child 1',
+        '    - [ ] Child 2',
+    })
+    set_cursor(3, 10)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    eq(get_line(1), '- [-] Parent')
+end
+
+T['newListItem_propagation']['no propagation when status_propagation.up is false'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = { status_propagation = { up = false, down = false } },
+        })
+    ]])
+    set_lines({
+        '- [x] Parent',
+        '    - [x] Child 1',
+        '    - [x] Child 2',
+    })
+    set_cursor(3, 10)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    eq(get_line(1), '- [x] Parent')
+end
+
+T['newListItem_propagation']['propagates through grandparent'] = function()
+    set_lines({
+        '- [x] Grandparent',
+        '    - [x] Parent',
+        '        - [x] Child 1',
+    })
+    set_cursor(3, 14)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    eq(get_line(1), '- [-] Grandparent')
+    eq(get_line(2), '    - [-] Parent')
+    eq(get_line(4), '        - [ ] ')
+end
+
+T['newListItem_propagation']['works with ordered to-do lists'] = function()
+    set_lines({
+        '1. [x] Parent',
+        '    1. [x] Child 1',
+        '    2. [x] Child 2',
+    })
+    set_cursor(3, 12)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    eq(get_line(1), '1. [-] Parent')
+    eq(get_line(4), '    3. [ ] ')
+end
+
+T['newListItem_propagation']['plain list does not trigger propagation'] = function()
+    set_lines({
+        '- Parent',
+        '    - Child 1',
+    })
+    set_cursor(2, 8)
+    child.lua([[require('mkdnflow.lists').newListItem(false, false, true, 'n')]])
+    eq(get_line(1), '- Parent')
+    eq(#get_lines(), 3)
+end
+
+-- =============================================================================
 -- updateNumbering() - Fix ordered list numbering
 -- =============================================================================
 T['updateNumbering'] = new_set()

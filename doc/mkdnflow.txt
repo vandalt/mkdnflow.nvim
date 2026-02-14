@@ -1220,10 +1220,13 @@ to_do.status_propagation.up      *Mkdnflow-config-to-do-status-propagation-up*
     Type: boolean
 
     `true`: (default): Update ancestor statuses (recursively) when a
-    descendant status is changed. Updated according to logic provided in
+    descendant status is changed or when a new to-do item is added to a list
+    (e.g. a completed parent reverts to in-progress when a new uncompleted
+    child is added). Updated according to logic provided in
     `to_do.statuses[*].propagate.up`.
 
-    `false`: Ancestor statuses are not affected by descendant status changes.
+    `false`: Ancestor statuses are not affected by descendant status changes
+    or new item creation.
 
 to_do.status_propagation.down  *Mkdnflow-config-to-do-status-propagation-down*
     Type: boolean
@@ -2025,7 +2028,9 @@ Configuration options.
 :MkdnNewListItem                                *Mkdnflow-cmd-MkdnNewListItem*
 
     Add a new ordered list item, unordered list item, or (uncompleted) to-do
-    list item.
+    list item. When adding a to-do item and `to_do.status_propagation.up` is
+    enabled, ancestor to-do statuses are updated accordingly (e.g. a completed
+    parent reverts to in-progress).
 
 :MkdnNewListItemBelowInsert          *Mkdnflow-cmd-MkdnNewListItemBelowInsert*
     Default mapping: { 'n', 'o' }
