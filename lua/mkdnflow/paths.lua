@@ -184,7 +184,7 @@ local vim_open = function(path, anchor)
         local templates = mkdn().templates
         if templates and new_file_config.enabled then
             if not exists(path_w_ext, 'f') then
-                template = templates.formatTemplate('before')
+                template = templates.formatTemplate('before', nil, { target_path = path_w_ext })
             end
         end
         vim.cmd.edit(vim.fn.fnameescape(path_w_ext))

@@ -80,7 +80,7 @@ T['formatTemplate']['handles template with both placeholders'] = function()
     eq(has_date, true)
 end
 
-T['formatTemplate']['after timing uses after placeholders'] = function()
+T['formatTemplate']['after timing uses same placeholders (flat)'] = function()
     set_lines({ '[Title](note.md)' })
     set_cursor(1, 5)
     local result =
@@ -132,10 +132,7 @@ T['formatTemplate_functions']['function placeholder receives ctx with link_title
             new_file_template = {
                 enabled = true,
                 placeholders = {
-                    before = {
-                        title = function(ctx) return ctx.link_title:upper() end,
-                    },
-                    after = {},
+                    title = function(ctx) return ctx.link_title:upper() end,
                 },
                 template = '# {{ title }}',
             },
@@ -154,10 +151,7 @@ T['formatTemplate_functions']['function placeholder receives ctx with os_date'] 
             new_file_template = {
                 enabled = true,
                 placeholders = {
-                    before = {
-                        date = function(ctx) return ctx.os_date:gsub('-', '/') end,
-                    },
-                    after = {},
+                    date = function(ctx) return ctx.os_date:gsub('-', '/') end,
                 },
                 template = 'Date: {{ date }}',
             },
@@ -177,10 +171,7 @@ T['formatTemplate_functions']['function returning nil uses empty string'] = func
             new_file_template = {
                 enabled = true,
                 placeholders = {
-                    before = {
-                        title = function() return nil end,
-                    },
-                    after = {},
+                    title = function() return nil end,
                 },
                 template = '# {{ title }}',
             },
@@ -199,11 +190,8 @@ T['formatTemplate_functions']['function and magic string coexist'] = function()
             new_file_template = {
                 enabled = true,
                 placeholders = {
-                    before = {
-                        title = function(ctx) return ctx.link_title:upper() end,
-                        date = 'os_date',
-                    },
-                    after = {},
+                    title = function(ctx) return ctx.link_title:upper() end,
+                    date = 'os_date',
                 },
                 template = '# {{ title }}\nDate: {{ date }}',
             },
@@ -225,10 +213,7 @@ T['formatTemplate_functions']['plain string literals still work'] = function()
             new_file_template = {
                 enabled = true,
                 placeholders = {
-                    before = {
-                        author = 'Jake',
-                    },
-                    after = {},
+                    author = 'Jake',
                 },
                 template = 'Author: {{ author }}',
             },
@@ -236,6 +221,129 @@ T['formatTemplate_functions']['plain string literals still work'] = function()
     ]])
     local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
     eq(result, 'Author: Jake')
+end
+
+-- =============================================================================
+-- formatTemplate() - New ctx fields (source_file, filename, heading_context)
+-- =============================================================================
+T['formatTemplate_ctx_fields'] = new_set()
+
+T['formatTemplate_ctx_fields']['source_file returns current buffer basename'] = function()
+    child.lua([[vim.api.nvim_buf_set_name(0, '/notes/source.md')]])
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    src = function(ctx) return ctx.source_file end,
+                },
+                template = 'From: {{ src }}',
+            },
+        })
+    ]])
+    set_lines({ '[Link](target.md)' })
+    set_cursor(1, 3)
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, 'From: source.md')
+end
+
+T['formatTemplate_ctx_fields']['filename from opts.target_path'] = function()
+    set_lines({ '[Link](target.md)' })
+    set_cursor(1, 3)
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    fname = function(ctx) return ctx.filename end,
+                },
+                template = 'File: {{ fname }}',
+            },
+        })
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.templates').formatTemplate('before', nil, { target_path = '/notes/my-page.md' })]]
+    )
+    eq(result, 'File: my-page')
+end
+
+T['formatTemplate_ctx_fields']['filename falls back to current buffer stem'] = function()
+    child.lua([[vim.api.nvim_buf_set_name(0, '/notes/current-note.md')]])
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    fname = function(ctx) return ctx.filename end,
+                },
+                template = 'File: {{ fname }}',
+            },
+        })
+    ]])
+    set_lines({ 'no link here' })
+    set_cursor(1, 0)
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, 'File: current-note')
+end
+
+T['formatTemplate_ctx_fields']['heading_context finds nearest heading'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    heading = function(ctx) return ctx.heading_context end,
+                },
+                template = 'Section: {{ heading }}',
+            },
+        })
+    ]])
+    set_lines({ '# Top', '## Research', 'some text here' })
+    set_cursor(3, 0)
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, 'Section: Research')
+end
+
+T['formatTemplate_ctx_fields']['heading_context returns empty when no heading above'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    heading = function(ctx) return ctx.heading_context end,
+                },
+                template = 'Section: {{ heading }}',
+            },
+        })
+    ]])
+    set_lines({ 'no heading here', 'just text' })
+    set_cursor(1, 0)
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, 'Section: ')
+end
+
+T['formatTemplate_ctx_fields']['heading_context skips headings in code blocks'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    heading = function(ctx) return ctx.heading_context end,
+                },
+                template = 'Section: {{ heading }}',
+            },
+        })
+    ]])
+    set_lines({ '# Real Heading', '```', '## Fake Heading', '```', 'text here' })
+    set_cursor(5, 0)
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, 'Section: Real Heading')
 end
 
 -- =============================================================================
@@ -273,6 +381,54 @@ T['compat']['paths.formatTemplate delegates to templates module'] = function()
     set_cursor(1, 5)
     local via_templates = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
     eq(via_paths, via_templates)
+end
+
+-- =============================================================================
+-- Backward compat: old placeholders.before/after format is migrated
+-- =============================================================================
+T['compat_placeholders'] = new_set()
+
+T['compat_placeholders']['old before/after format is flattened'] = function()
+    set_lines({ '[Title](page.md)' })
+    set_cursor(1, 3)
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = { title = 'link_title' },
+                    after = {},
+                },
+                template = '# {{ title }}',
+            },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, '# Title')
+end
+
+T['compat_placeholders']['after entries are merged into flat'] = function()
+    set_lines({ '[Title](page.md)' })
+    set_cursor(1, 3)
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = { title = 'link_title' },
+                    after = { date = 'os_date' },
+                },
+                template = '# {{ title }}\nDate: {{ date }}',
+            },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    local has_title = result:match('^# Title\n') ~= nil
+    eq(has_title, true)
+    local has_date = result:match('Date: %d%d%d%d%-%d%d%-%d%d$') ~= nil
+    eq(has_date, true)
 end
 
 -- =============================================================================

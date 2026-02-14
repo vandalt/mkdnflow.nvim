@@ -100,11 +100,8 @@ local default_config = {
     new_file_template = {
         enabled = false,
         placeholders = {
-            before = {
-                title = 'link_title',
-                date = 'os_date',
-            },
-            after = {},
+            title = 'link_title',
+            date = 'os_date',
         },
         template = '# {{title}}',
     },

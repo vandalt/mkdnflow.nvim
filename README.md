@@ -740,8 +740,7 @@ require('mkdnflow').setup({
 | Option | Type | Description |
 | --- | --- | --- |
 | `new_file_template.enabled` | `boolean` | `true`: Use the new-file template when opening a new file by following a link.<br>**`false`** (default): Don't use the new-file template when opening a new file by following a link.<br>Previously named `new_file_template.use_template`. |
-| `new_file_template.placeholders.before` | `table<string, string\|fun(ctx: table): string>` | A table whose keys are placeholder names mapped to one of:<br><br>- A **function** `fun(ctx): string` — called with a context table containing all resolved built-in values. Available fields in `ctx`: `link_title` (the display text of the link under the cursor, or `''`), `os_date` (today's date as `YYYY-MM-DD`). Example: `title = function(ctx) return ctx.link_title:upper() end`.<br>- A **magic string shorthand** — one of `'link_title'` or `'os_date'`, which resolves to the corresponding `ctx` value.<br>- A **plain string literal** — used as-is (e.g., `author = 'Jake'`).<br><br>Default: `{ title = 'link_title', date = 'os_date' }` |
-| `new_file_template.placeholders.after` | `table<string, string\|fun(ctx: table): string>` | A table whose keys are placeholder names mapped to a function, magic string shorthand, or plain string literal (see `placeholders.before` above). Evaluated immediately after the buffer is opened in the current window. Default: `{}` |
+| `new_file_template.placeholders` | `table<string, string\|fun(ctx: table): string>` | A flat table whose keys are placeholder names mapped to one of:<br><br>- A **function** `fun(ctx): string` — called with a context table containing all resolved built-in values. Available fields in `ctx`:<br>  - `link_title` — the display text of the link under the cursor, or `''`<br>  - `os_date` — today's date as `YYYY-MM-DD`<br>  - `source_file` — basename of the source file (e.g. `'index.md'`)<br>  - `filename` — stem of the new file being created, without extension (e.g. `'my-page'`)<br>  - `heading_context` — text of the nearest heading above the cursor (without `#` prefix), or `''`<br>- A **magic string shorthand** — one of `'link_title'` or `'os_date'`, which resolves to the corresponding `ctx` value.<br>- A **plain string literal** — used as-is (e.g., `author = 'Jake'`).<br><br>All placeholders are resolved in a single pass before the new buffer is opened.<br><br>Default: `{ title = 'link_title', date = 'os_date' }`<br><br>**Deprecated:** The old nested format `{ before = {...}, after = {} }` is auto-migrated to this flat format. `placeholders.after` entries are merged in but all placeholders now resolve before the buffer switch. |
 | `new_file_template.template` | `string` | A string, optionally containing placeholder names, that will be inserted into a new file. Default: `'# {{ title }}'` |
 
 ##### to_do
@@ -1306,29 +1305,27 @@ Transforms the given path based on the plugin's configuration and transformation
 
 ### Templates
 
-`require('mkdnflow').templates.formatTemplate(timing, template)`
+`require('mkdnflow').templates.formatTemplate(timing, template, opts)`
 
-Formats the new file template based on the specified timing (before or
-after buffer creation). If this is called once with 'before' timing,
-the output can be captured and passed back in with 'after' timing to
-perform different substitutions before and after a new buffer is opened.
-Function placeholders receive a `ctx` table with resolved built-in
-values (`link_title`, `os_date`).
+Formats the new file template by resolving all placeholders in a single
+pass. Function placeholders receive a `ctx` table with resolved built-in
+values: `link_title`, `os_date`, `source_file`, `filename`, and
+`heading_context`.
 
 - **Parameters:**
-    - `timing`: (string) "before" or "after" specifying when to perform the formatting.
-        - `'before'`: () Perform the template formatting before the new buffer is opened.
-        - `'after'`: () Perform the template formatting after the new buffer is opened.
+    - `timing`: (string|nil) Kept for API compatibility; no longer affects behavior. Previously distinguished "before" and "after" buffer creation.
     - `template`: (string|nil) The template to format. If not provided, the default new file template is used.
+    - `opts`: (table|nil) Optional parameters.
+        - `target_path`: (string|nil) The path of the new file being created. Used to derive the `filename` field in the `ctx` table. If not provided, the current buffer name is used as fallback.
 
 `require('mkdnflow').templates.apply(template)`
 
-Performs the 'after' timing substitutions on a template string and injects
-the result into the current buffer (at the top). This is typically called
-after a new file buffer has been opened.
+Injects a formatted template string into the current buffer (replacing
+all content). This is typically called after a new file buffer has been
+opened.
 
 - **Parameters:**
-    - `template`: (string) The template string produced by `formatTemplate('before')`.
+    - `template`: (string) The template string produced by `formatTemplate()`.
 
 ### Buffer navigation
 

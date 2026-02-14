@@ -303,21 +303,25 @@ new_file_template:
       **`false`** (default): Don't use the new-file template when opening a new file by following a link.
       Previously named `new_file_template.use_template`.
 
-  - name: new_file_template.placeholders.before
+  - name: new_file_template.placeholders
     type: "table<string, string|fun(ctx: table): string>"
     description: |
-      A table whose keys are placeholder names mapped to one of:
+      A flat table whose keys are placeholder names mapped to one of:
 
-      - A **function** `fun(ctx): string` — called with a context table containing all resolved built-in values. Available fields in `ctx`: `link_title` (the display text of the link under the cursor, or `''`), `os_date` (today's date as `YYYY-MM-DD`). Example: `title = function(ctx) return ctx.link_title:upper() end`.
+      - A **function** `fun(ctx): string` — called with a context table containing all resolved built-in values. Available fields in `ctx`:
+        - `link_title` — the display text of the link under the cursor, or `''`
+        - `os_date` — today's date as `YYYY-MM-DD`
+        - `source_file` — basename of the source file (e.g. `'index.md'`)
+        - `filename` — stem of the new file being created, without extension (e.g. `'my-page'`)
+        - `heading_context` — text of the nearest heading above the cursor (without `#` prefix), or `''`
       - A **magic string shorthand** — one of `'link_title'` or `'os_date'`, which resolves to the corresponding `ctx` value.
       - A **plain string literal** — used as-is (e.g., `author = 'Jake'`).
 
+      All placeholders are resolved in a single pass before the new buffer is opened.
+
       Default: `{ title = 'link_title', date = 'os_date' }`
 
-  - name: new_file_template.placeholders.after
-    type: "table<string, string|fun(ctx: table): string>"
-    description: |
-      A table whose keys are placeholder names mapped to a function, magic string shorthand, or plain string literal (see `placeholders.before` above). Evaluated immediately after the buffer is opened in the current window. Default: `{}`
+      **Deprecated:** The old nested format `{ before = {...}, after = {} }` is auto-migrated to this flat format. `placeholders.after` entries are merged in but all placeholders now resolve before the buffer switch.
 
   - name: new_file_template.template
     type: string

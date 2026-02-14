@@ -67,6 +67,14 @@ M.deprecations = {
         path = { 'new_file_template', 'use_template' },
         new_path = { 'new_file_template', 'enabled' },
     },
+    {
+        path = { 'new_file_template', 'placeholders', 'before' },
+        new_path = { 'new_file_template', 'placeholders' },
+    },
+    {
+        path = { 'new_file_template', 'placeholders', 'after' },
+        new_path = { 'new_file_template', 'placeholders' },
+    },
     -- mappings
     { path = { 'mappings', 'MkdnCR' }, new_path = { 'mappings', 'MkdnEnter' } },
 }
@@ -363,6 +371,33 @@ M.userConfigCheck = function(user_config)
         if nft.use_template ~= nil and nft.enabled == nil then
             nft.enabled = nft.use_template
             nft.use_template = nil
+        end
+    end
+
+    -- COMPAT(added=v2.12, remove=v3.0): placeholders.before/after → flat placeholders
+    if user_config.new_file_template and user_config.new_file_template.placeholders then
+        local ph = user_config.new_file_template.placeholders
+        if type(ph.before) == 'table' or type(ph.after) == 'table' then
+            local flat = {}
+            if type(ph.before) == 'table' then
+                for k, v in pairs(ph.before) do
+                    flat[k] = v
+                end
+            end
+            if type(ph.after) == 'table' then
+                if next(ph.after) then
+                    warn(
+                        "⬇️  'new_file_template.placeholders.after' is deprecated. "
+                            .. 'Move entries into placeholders directly. '
+                            .. 'All placeholders are now resolved before the new buffer is opened. '
+                            .. 'See :h mkdnflow-configuration.'
+                    )
+                end
+                for k, v in pairs(ph.after) do
+                    flat[k] = v
+                end
+            end
+            user_config.new_file_template.placeholders = flat
         end
     end
 

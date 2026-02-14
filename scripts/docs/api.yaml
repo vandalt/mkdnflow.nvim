@@ -201,38 +201,36 @@ linkpathhandling:
         description: The path to transform.
 
 templates:
-  - signature: "require('mkdnflow').templates.formatTemplate(timing, template)"
+  - signature: "require('mkdnflow').templates.formatTemplate(timing, template, opts)"
     description: |
-      Formats the new file template based on the specified timing (before or
-      after buffer creation). If this is called once with 'before' timing,
-      the output can be captured and passed back in with 'after' timing to
-      perform different substitutions before and after a new buffer is opened.
-      Function placeholders receive a `ctx` table with resolved built-in
-      values (`link_title`, `os_date`).
+      Formats the new file template by resolving all placeholders in a single
+      pass. Function placeholders receive a `ctx` table with resolved built-in
+      values: `link_title`, `os_date`, `source_file`, `filename`, and
+      `heading_context`.
     params:
       - name: timing
-        type: string
-        description: '"before" or "after" specifying when to perform the formatting.'
-        children:
-          - name: "'before'"
-            type: ""
-            description: Perform the template formatting before the new buffer is opened.
-          - name: "'after'"
-            type: ""
-            description: Perform the template formatting after the new buffer is opened.
+        type: string|nil
+        description: Kept for API compatibility; no longer affects behavior. Previously distinguished "before" and "after" buffer creation.
       - name: template
         type: string|nil
         description: The template to format. If not provided, the default new file template is used.
+      - name: opts
+        type: table|nil
+        description: Optional parameters.
+        children:
+          - name: target_path
+            type: string|nil
+            description: The path of the new file being created. Used to derive the `filename` field in the `ctx` table. If not provided, the current buffer name is used as fallback.
 
   - signature: "require('mkdnflow').templates.apply(template)"
     description: |
-      Performs the 'after' timing substitutions on a template string and injects
-      the result into the current buffer (at the top). This is typically called
-      after a new file buffer has been opened.
+      Injects a formatted template string into the current buffer (replacing
+      all content). This is typically called after a new file buffer has been
+      opened.
     params:
       - name: template
         type: string
-        description: The template string produced by `formatTemplate('before')`.
+        description: The template string produced by `formatTemplate()`.
 
 buffernavigation:
   - signature: "require('mkdnflow').buffers.goBack()"
