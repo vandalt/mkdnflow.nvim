@@ -43,6 +43,14 @@ local exists = function(path, unit_type)
     end
 end
 
+--- Extract a URI scheme from a path string (e.g. 'phd' from 'phd://path/to/file')
+---@param path string The path to check
+---@return string|nil scheme The scheme name, or nil if no scheme found
+---@private
+local function extractScheme(path)
+    return path:match('^(%a[%w%.%+%-]*)://')
+end
+
 local M = {}
 
 --- Resolve a relative link path to an absolute path using the configured path resolution strategy
@@ -339,7 +347,7 @@ end
 ---@param path? string The path to classify
 ---@param anchor? string An anchor fragment, if present
 ---@param link_type? string The link type from the parser (e.g., 'image_link')
----@return 'external'|'url'|'citation'|'anchor'|'nb_page'|nil
+---@return 'external'|'url'|'uri_handler'|'citation'|'anchor'|'nb_page'|nil
 M.pathType = function(path, anchor, link_type)
     if not path then
         return nil
@@ -347,7 +355,16 @@ M.pathType = function(path, anchor, link_type)
         return 'external'
     elseif string.find(path, '^file:') then
         return 'external'
-    elseif mkdn().links.hasUrl(path) then
+    else
+        local scheme = extractScheme(path)
+        if scheme then
+            local handler = cfg().links.uri_handlers[scheme]
+            if handler then
+                return 'uri_handler'
+            end
+        end
+    end
+    if mkdn().links.hasUrl(path) then
         return 'url'
     elseif string.find(path, '^@') then
         return 'citation'
@@ -383,7 +400,16 @@ M.handlePath = function(path, anchor, link_type)
     path = M.transformPath(path)
     local path_type = M.pathType(path, anchor, link_type)
     -- Handle according to path type
-    if path_type == 'external' then
+    if path_type == 'uri_handler' then
+        local scheme = extractScheme(path)
+        local handler = cfg().links.uri_handlers[scheme]
+        local full_uri = path .. (anchor or '')
+        if handler == 'system' then
+            system_open(full_uri, 'url')
+        elseif type(handler) == 'function' then
+            handler(full_uri, scheme, path, anchor or nil)
+        end
+    elseif path_type == 'external' then
         path = path:gsub('^file:', '')
         local resolved_path = resolve_notebook_path(path)
         system_open(resolved_path)

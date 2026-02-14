@@ -1402,4 +1402,230 @@ T['relativeToBase']['handles file directly in base directory'] = function()
     eq(result, 'index.md')
 end
 
+-- =============================================================================
+-- Custom URI scheme handlers (links.uri_handlers) — Issue #167
+-- =============================================================================
+T['uri_handlers'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._handler_calls = {}
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+            ]])
+        end,
+    },
+})
+
+T['uri_handlers']['pathType returns uri_handler for registered scheme'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = { phd = function() end },
+            },
+        })
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.paths').pathType('phd://path/to/paper.pdf')]]
+    )
+    eq(result, 'uri_handler')
+end
+
+T['uri_handlers']['pathType falls through for unregistered scheme'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = {},
+            },
+        })
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.paths').pathType('https://example.com')]]
+    )
+    eq(result, 'url')
+end
+
+T['uri_handlers']['pathType skips handler when value is false'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = { phd = false },
+            },
+        })
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.paths').pathType('phd://path/to/paper.pdf')]]
+    )
+    -- false handler means fall through; phd:// won't match hasUrl or other checks
+    eq(result ~= 'uri_handler', true)
+end
+
+T['uri_handlers']['handlePath calls function handler with correct args'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = {
+                    phd = function(uri, scheme, path, anchor)
+                        table.insert(_G._handler_calls, {
+                            uri = uri, scheme = scheme, path = path, anchor = anchor
+                        })
+                    end,
+                },
+            },
+        })
+    ]])
+    child.lua([[require('mkdnflow.paths').handlePath('phd://papers/paper.pdf', '#page3')]])
+    local calls = child.lua_get('_G._handler_calls')
+    eq(#calls, 1)
+    eq(calls[1].scheme, 'phd')
+    eq(calls[1].path, 'phd://papers/paper.pdf')
+    eq(calls[1].anchor, '#page3')
+    eq(calls[1].uri, 'phd://papers/paper.pdf#page3')
+end
+
+T['uri_handlers']['handlePath with system shorthand does not error'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = { zotero = 'system' },
+            },
+        })
+    ]])
+    local ok = child.lua_get([[({pcall(function()
+        require('mkdnflow.paths').handlePath('zotero://select/items/ABC123')
+    end)})[1] ]])
+    eq(ok, true)
+end
+
+T['uri_handlers']['handler receives nil anchor when none present'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = {
+                    phd = function(uri, scheme, path, anchor)
+                        table.insert(_G._handler_calls, { anchor = anchor })
+                    end,
+                },
+            },
+        })
+    ]])
+    child.lua([[require('mkdnflow.paths').handlePath('phd://papers/paper.pdf')]])
+    local calls = child.lua_get('_G._handler_calls')
+    eq(#calls, 1)
+    -- nil table values are absent when retrieved via lua_get
+    eq(calls[1].anchor, nil)
+end
+
+T['uri_handlers']['http URLs still handled as url type'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = { phd = function() end },
+            },
+        })
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.paths').pathType('https://example.com')]]
+    )
+    eq(result, 'url')
+end
+
+T['uri_handlers']['file: prefix still handled as external even if registered'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = { file = function() end },
+            },
+        })
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.paths').pathType('file:document.pdf')]]
+    )
+    eq(result, 'external')
+end
+
+T['uri_handlers']['can override http scheme'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                uri_handlers = {
+                    https = function(uri, scheme, path, anchor)
+                        table.insert(_G._handler_calls, { uri = uri })
+                    end,
+                },
+            },
+        })
+    ]])
+    local result = child.lua_get(
+        [[require('mkdnflow.paths').pathType('https://example.com')]]
+    )
+    eq(result, 'uri_handler')
+end
+
+-- E2E: <CR> on custom URI scheme link calls handler
+T['uri_handlers_e2e'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._handler_calls = {}
+                _G._tmpdir = vim.fn.tempname()
+                vim.fn.mkdir(_G._tmpdir, 'p')
+                local tmpfile = _G._tmpdir .. '/index.md'
+                vim.fn.writefile({''}, tmpfile)
+
+                vim.cmd('runtime plugin/mkdnflow.lua')
+
+                vim.cmd('e ' .. tmpfile)
+                vim.bo.filetype = 'markdown'
+
+                require('mkdnflow').setup({
+                    links = {
+                        transform_on_create = false,
+                        transform_on_follow = false,
+                        uri_handlers = {
+                            phd = function(uri, scheme, path, anchor)
+                                table.insert(_G._handler_calls, {
+                                    uri = uri, scheme = scheme, path = path, anchor = anchor
+                                })
+                            end,
+                        },
+                    },
+                })
+
+                vim.cmd('doautocmd BufEnter')
+            ]])
+        end,
+    },
+})
+
+T['uri_handlers_e2e']['<CR> on custom scheme link calls handler'] = function()
+    set_lines({ '[My Paper](phd://papers/linguistics.pdf#3)' })
+    set_cursor(1, 15)
+    child.type_keys('<CR>')
+    local calls = child.lua_get('_G._handler_calls')
+    eq(#calls, 1)
+    eq(calls[1].scheme, 'phd')
+    eq(calls[1].uri, 'phd://papers/linguistics.pdf#3')
+end
+
 return T

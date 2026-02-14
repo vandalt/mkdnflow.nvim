@@ -122,6 +122,7 @@ M.schema = {
         transform_on_follow = { types = { 'boolean', 'function' } },
         transform_on_create = { types = { 'function' } },
         on_create_new = { types = { 'boolean', 'function' } },
+        uri_handlers = { dynamic = true },
     },
     footnotes = {
         heading = { types = { 'boolean', 'string', 'table' } },

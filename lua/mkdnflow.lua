@@ -93,6 +93,7 @@ local default_config = {
         end,
         auto_create = true,
         on_create_new = false,
+        uri_handlers = {},
     },
     footnotes = {
         heading = '## Footnotes',

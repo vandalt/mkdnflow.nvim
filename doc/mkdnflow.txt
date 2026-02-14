@@ -1070,6 +1070,61 @@ links.on_create_new                      *Mkdnflow-config-links-on-create-new*
 
     `false`: (default): Use mkdnflow's built-in file creation.
 
+links.uri_handlers                        *Mkdnflow-config-links-uri-handlers*
+    Type: table<string, fun(uri: string, scheme: string, path: string, anchor: string|nil)|'system'>
+
+    A table of custom URI scheme handlers, keyed by scheme name (without
+    `://`).
+
+    When following a link whose path starts with `://`, the registered
+
+    handler is called instead of the normal path classification. This is
+    useful
+
+    for custom protocols like `phd://`, `zotero://`, `obsidian://`, etc.
+
+    Each value can be:
+
+    - A function `fun(uri, scheme, path, anchor)` receiving the full URI
+
+    (with anchor reattached), the scheme name, the path (without anchor), and
+
+    the anchor (e.g. `'#section'`) or `nil`. The function has full control
+
+    over what happens when the link is followed.
+
+    - The string `'system'`: to open the URI with the OS default handler
+
+    (same as how `http://` URLs are opened).
+
+    Standard schemes like `http` and `https` can also be overridden by
+
+    registering a handler for them.
+
+    `{}`: (default): No custom URI scheme handlers are registered.
+
+    Example:
+
+    ```lua
+
+    links = {
+
+    uri_handlers = {
+
+    phd = function(uri, scheme, path, anchor)
+
+    vim.fn.jobstart({ 'xdg-open', uri }, { detach = true })
+
+    end,
+
+    zotero = 'system',
+
+    },
+
+    }
+
+    ```
+
 
 SAMPLE LINKS RECIPES~
 
