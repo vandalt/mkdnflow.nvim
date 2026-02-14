@@ -164,6 +164,55 @@ T['path_extraction']['handles paths with spaces'] = function()
 end
 
 -- =============================================================================
+-- parse_bib (via source:complete) with mock cmp
+-- =============================================================================
+T['parse_bib'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                -- Mock nvim-cmp so cmp.lua can be loaded without the real dependency.
+                -- Capture the registered source so we can call :complete directly.
+                _G._registered_source = nil
+                package.loaded['cmp'] = {
+                    lsp = {
+                        CompletionItemKind = { File = 17, Reference = 18 },
+                        MarkupKind = { Markdown = 'markdown' },
+                    },
+                    register_source = function(_, src)
+                        _G._registered_source = src
+                    end,
+                }
+
+                vim.api.nvim_buf_set_name(0, 'test.md')
+                vim.bo.filetype = 'markdown'
+            ]])
+        end,
+    },
+})
+
+T['parse_bib']['nonexistent bib path does not error'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            modules = { bib = true, cmp = true },
+            bib = {
+                default_path = '/tmp/nonexistent_' .. vim.fn.getpid() .. '.bib',
+                find_in_root = false,
+            },
+            silent = true,
+        })
+
+        local params = { context = { cursor_before_line = '@cite' } }
+        _G._complete_ok, _G._complete_err = pcall(function()
+            _G._registered_source:complete(params, function(items)
+                _G._complete_items = items
+            end)
+        end)
+    ]])
+    eq(child.lua_get('_G._complete_ok'), true)
+end
+
+-- =============================================================================
 -- Integration with mkdnflow setup
 -- =============================================================================
 T['integration'] = new_set()

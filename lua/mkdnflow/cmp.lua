@@ -88,6 +88,9 @@ end
 local function parse_bib(filename)
     local items = {}
     local file = io.open(filename, 'rb')
+    if not file then
+        return items
+    end
     local bibentries = file:read('*all')
     file:close()
     for bibentry in bibentries:gmatch('@.-\n}\n') do
