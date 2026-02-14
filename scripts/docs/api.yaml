@@ -207,6 +207,8 @@ templates:
       after buffer creation). If this is called once with 'before' timing,
       the output can be captured and passed back in with 'after' timing to
       perform different substitutions before and after a new buffer is opened.
+      Function placeholders receive a `ctx` table with resolved built-in
+      values (`link_title`, `os_date`).
     params:
       - name: timing
         type: string

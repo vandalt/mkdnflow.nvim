@@ -34,14 +34,24 @@ M.formatTemplate = function(timing, template)
     local new_file_config = cfg().new_file_template
     local links = mkdn().links
     template = template or new_file_config.template
-    for placeholder_name, replacement in pairs(new_file_config.placeholders[timing]) do
-        if replacement == 'link_title' then
-            replacement = links.getLinkPart(links.getLinkUnderCursor(), 'name')
-        elseif replacement == 'os_date' then
-            replacement = os.date('%Y-%m-%d')
+    -- Build context table with all resolved built-in values
+    local link_under_cursor = links.getLinkUnderCursor()
+    local ctx = {
+        link_title = links.getLinkPart(link_under_cursor, 'name') or '',
+        os_date = os.date('%Y-%m-%d'),
+    }
+    for placeholder_name, value in pairs(new_file_config.placeholders[timing]) do
+        local replacement
+        if type(value) == 'function' then
+            replacement = value(ctx)
+        elseif ctx[value] ~= nil then
+            -- Magic string shorthand: 'link_title', 'os_date'
+            replacement = ctx[value]
+        else
+            -- Plain string literal (e.g., author = 'Jake')
+            replacement = value
         end
-        -- Use empty string if replacement is nil (e.g., no link under cursor)
-        replacement = replacement or ''
+        replacement = replacement ~= nil and tostring(replacement) or ''
         template = string.gsub(template, '{{%s?' .. placeholder_name .. '%s?}}', replacement)
     end
     return template

@@ -119,6 +119,126 @@ T['formatTemplate']['os_date still works when no link'] = function()
 end
 
 -- =============================================================================
+-- formatTemplate() - Function placeholders
+-- =============================================================================
+T['formatTemplate_functions'] = new_set()
+
+T['formatTemplate_functions']['function placeholder receives ctx with link_title'] = function()
+    set_lines({ '[My Page Title](my-page.md)' })
+    set_cursor(1, 5)
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = {
+                        title = function(ctx) return ctx.link_title:upper() end,
+                    },
+                    after = {},
+                },
+                template = '# {{ title }}',
+            },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, '# MY PAGE TITLE')
+end
+
+T['formatTemplate_functions']['function placeholder receives ctx with os_date'] = function()
+    set_lines({ 'No link here' })
+    set_cursor(1, 0)
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = {
+                        date = function(ctx) return ctx.os_date:gsub('-', '/') end,
+                    },
+                    after = {},
+                },
+                template = 'Date: {{ date }}',
+            },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    local matches = result:match('^Date: %d%d%d%d/%d%d/%d%d$') ~= nil
+    eq(matches, true)
+end
+
+T['formatTemplate_functions']['function returning nil uses empty string'] = function()
+    set_lines({ '[Title](page.md)' })
+    set_cursor(1, 3)
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = {
+                        title = function() return nil end,
+                    },
+                    after = {},
+                },
+                template = '# {{ title }}',
+            },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, '# ')
+end
+
+T['formatTemplate_functions']['function and magic string coexist'] = function()
+    set_lines({ '[My Note](note.md)' })
+    set_cursor(1, 5)
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = {
+                        title = function(ctx) return ctx.link_title:upper() end,
+                        date = 'os_date',
+                    },
+                    after = {},
+                },
+                template = '# {{ title }}\nDate: {{ date }}',
+            },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    local has_title = result:match('^# MY NOTE\n') ~= nil
+    eq(has_title, true)
+    local has_date = result:match('Date: %d%d%d%d%-%d%d%-%d%d$') ~= nil
+    eq(has_date, true)
+end
+
+T['formatTemplate_functions']['plain string literals still work'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    child.lua([[
+        require('mkdnflow').setup({
+            links = { transform_on_create = false, transform_on_follow = false },
+            new_file_template = {
+                enabled = true,
+                placeholders = {
+                    before = {
+                        author = 'Jake',
+                    },
+                    after = {},
+                },
+                template = 'Author: {{ author }}',
+            },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.templates').formatTemplate('before')]])
+    eq(result, 'Author: Jake')
+end
+
+-- =============================================================================
 -- apply() - Template injection into buffer
 -- =============================================================================
 T['apply'] = new_set()

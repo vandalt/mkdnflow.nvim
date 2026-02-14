@@ -740,8 +740,8 @@ require('mkdnflow').setup({
 | Option | Type | Description |
 | --- | --- | --- |
 | `new_file_template.enabled` | `boolean` | `true`: Use the new-file template when opening a new file by following a link.<br>**`false`** (default): Don't use the new-file template when opening a new file by following a link.<br>Previously named `new_file_template.use_template`. |
-| `new_file_template.placeholders.before` | `table<string, string\|fun(): string>` | A table whose keys are placeholder names mapped either to a function (to be evaluated immediately before the buffer is opened in the current window) or to one of a limited set of recognized strings:<br><br>`'link_title'`: The title of the link that was followed to get to the just-opened file.<br>`'os_date'`: The current date, according to the OS.<br><br>Default: `{ title = 'link_title', date = 'os_date' }` |
-| `new_file_template.placeholders.after` | `table<string, string\|fun(): string>` | A table whose keys are placeholder names mapped either to a function (to be evaluated immediately after the buffer is opened in the current window) or to one of a limited set of recognized strings (see above). Default: `{}` |
+| `new_file_template.placeholders.before` | `table<string, string\|fun(ctx: table): string>` | A table whose keys are placeholder names mapped to one of:<br><br>- A **function** `fun(ctx): string` — called with a context table containing all resolved built-in values. Available fields in `ctx`: `link_title` (the display text of the link under the cursor, or `''`), `os_date` (today's date as `YYYY-MM-DD`). Example: `title = function(ctx) return ctx.link_title:upper() end`.<br>- A **magic string shorthand** — one of `'link_title'` or `'os_date'`, which resolves to the corresponding `ctx` value.<br>- A **plain string literal** — used as-is (e.g., `author = 'Jake'`).<br><br>Default: `{ title = 'link_title', date = 'os_date' }` |
+| `new_file_template.placeholders.after` | `table<string, string\|fun(ctx: table): string>` | A table whose keys are placeholder names mapped to a function, magic string shorthand, or plain string literal (see `placeholders.before` above). Evaluated immediately after the buffer is opened in the current window. Default: `{}` |
 | `new_file_template.template` | `string` | A string, optionally containing placeholder names, that will be inserted into a new file. Default: `'# {{ title }}'` |
 
 ##### to_do
@@ -1312,6 +1312,8 @@ Formats the new file template based on the specified timing (before or
 after buffer creation). If this is called once with 'before' timing,
 the output can be captured and passed back in with 'after' timing to
 perform different substitutions before and after a new buffer is opened.
+Function placeholders receive a `ctx` table with resolved built-in
+values (`link_title`, `os_date`).
 
 - **Parameters:**
     - `timing`: (string) "before" or "after" specifying when to perform the formatting.
