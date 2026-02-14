@@ -861,6 +861,21 @@ M.followLink = function(args)
         link = M.getLinkUnderCursor()
         path, anchor, link_type = M.getLinkPart(link, 'source')
     end
+    -- Footnote handling: jump to definition or back to first reference
+    if link_type == 'footnote_ref' or link_type == 'footnote_definition' then
+        local source = link:get_source()
+        if source and source.start_row and source.start_row > 0 then
+            vim.api.nvim_win_set_cursor(0, { source.start_row, source.start_col - 1 })
+        else
+            local direction = link_type == 'footnote_ref' and 'definition' or 'reference'
+            vim.notify(
+                "Couldn't find footnote " .. direction .. '!',
+                vim.log.levels.WARN
+            )
+        end
+        return
+    end
+
     local is_citation = link_type == 'citation' or link_type == 'pandoc_citation'
     if is_citation and range then
         -- Pass citation bounds so createLink can expand partial selections

@@ -919,4 +919,152 @@ T['heading_operator_e2e']['visual - followed by dot repeat'] = function()
     eq(get_line(5), '### Fourth')
 end
 
+-- =============================================================================
+-- Detection-based jumping (toNextLink / toPrevLink)
+-- =============================================================================
+T['detection_jump'] = new_set()
+
+T['detection_jump']['jumps to footnote ref when definition exists'] = function()
+    set_lines({ 'Text here[^1] more.', '', '[^1]: Footnote text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 9) -- '[' of [^1]
+end
+
+T['detection_jump']['skips [^a-z] when no definition exists'] = function()
+    -- [^a-z] looks like a footnote ref but has no definition, so should be skipped
+    set_lines({ 'regex [^a-z] and [link](url) here' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 17) -- '[' of [link](url), not [^a-z]
+end
+
+T['detection_jump']['skips ref_definition lines'] = function()
+    set_lines({ '[ref]: https://example.com', '[link](url)' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 2)
+    eq(cursor[2], 0) -- Jumped past the definition line to [link](url)
+end
+
+T['detection_jump']['skips footnote_definition lines'] = function()
+    set_lines({ '[^1]: Footnote text', 'Text [link](url)' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 2)
+    eq(cursor[2], 5)
+end
+
+T['detection_jump']['skips links inside fenced code blocks'] = function()
+    set_lines({
+        'Text before',
+        '```',
+        '[link](url)',
+        '```',
+        'Text [real](link)',
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 5)
+    eq(cursor[2], 5) -- Skipped the link inside the code block
+end
+
+T['detection_jump']['skips links inside inline code'] = function()
+    set_lines({ 'Text `[code](link)` and [real](link)' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 24) -- '[' of [real](link)
+end
+
+T['detection_jump']['toPrevLink works with detected links'] = function()
+    set_lines({ '[first](a.md)', 'text', '[second](b.md)' })
+    set_cursor(3, 14)
+    child.lua([[require('mkdnflow.cursor').toPrevLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 0) -- Jumped back to [first](a.md)
+end
+
+T['detection_jump']['extra jump_patterns merge with detection'] = function()
+    child.lua(
+        [[require('mkdnflow').setup({ cursor = { jump_patterns = { 'TODO' } }, links = { transform_on_create = false }, silent = true })]]
+    )
+    set_lines({ 'Text here TODO: fix [link](url)' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 10) -- 'T' of TODO matched by extra pattern (before [link])
+end
+
+T['detection_jump']['wiki links only jumped to when style is wiki'] = function()
+    set_lines({ 'Text [[wiki link]] and [md](link)' })
+    set_cursor(1, 0)
+    -- Default style is 'markdown', so wiki links should be skipped
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 23) -- [md](link), not [[wiki link]]
+end
+
+T['detection_jump']['wiki links jumped to when style is wiki'] = function()
+    child.lua(
+        [[require('mkdnflow').setup({ links = { style = 'wiki', transform_on_create = false }, silent = true })]]
+    )
+    set_lines({ 'Text [[wiki link]] here' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 5) -- '[[' of [[wiki link]]
+end
+
+T['detection_jump']['wrapping works with detection'] = function()
+    child.lua(
+        [[require('mkdnflow').setup({ wrap = true, links = { transform_on_create = false }, silent = true })]]
+    )
+    set_lines({ 'no links', '[link](url)', 'no links' })
+    set_cursor(3, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 2)
+    eq(cursor[2], 0) -- Wrapped around to find [link](url)
+end
+
+T['detection_jump']['jumps to shortcut ref link'] = function()
+    set_lines({ 'See [gh] for details.', '', '[gh]: https://github.com/' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 4) -- '[' of [gh]
+end
+
+T['detection_jump']['jumps to bare citation'] = function()
+    set_lines({ 'As noted by @smith2020 in the paper.' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 12) -- '@' of @smith2020
+end
+
+T['detection_jump']['jumps to auto link'] = function()
+    set_lines({ 'Visit <https://example.com> for info.' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').toNextLink()]])
+    local cursor = get_cursor()
+    eq(cursor[1], 1)
+    eq(cursor[2], 6) -- '<' of <https://example.com>
+end
+
 return T

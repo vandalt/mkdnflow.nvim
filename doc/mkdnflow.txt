@@ -113,6 +113,7 @@ Link and reference handling                           *Mkdnflow-link-handling*
     [x] Reference-style links (`[my page][1]` with `[1]: my_page.md`)
     [x] Image links (`!alt text`) — opened in system viewer
     [x] Citations (`@citekey` or Pandoc-style `[@citekey]`)
+    [x] Footnotes (`[^1]` with `[^1]: Footnote text`)
 
 
 ------------------------------------------------------------------------------
@@ -870,13 +871,19 @@ cursor ~
 cursor.jump_patterns                    *Mkdnflow-config-cursor-jump-patterns*
     Type: table` | `nil
 
-    `nil`: (default): The default jump patterns for the configured link style
-    are used (markdown-style links by default).
+    `nil`: (default): Cursor jumping (`MkdnNextLink`/`MkdnPrevLink`) uses
+    detection-based link finding, which reuses the same link detection system
+    as `followLink()`. All recognized link types (markdown links, wiki links,
+    auto links, reference links, citations, footnote refs with definitions)
+    are automatically jumped to based on the configured `links.style`. Links
+    inside fenced code blocks and inline code spans are skipped.
 
-    `table`: A table of custom Lua regex patterns.
+    `table`: A table of additional Lua regex patterns to jump to alongside
+    detected links. Useful for non-link targets like `TODO` markers (e.g. `{
+    'TODO', 'FIXME' }`).
 
-    `{}` (empty table): Disable link jumping without disabling the `cursor`
-    module.
+    `{}` (empty table): No extra patterns; only detected links are jumped to
+    (same as `nil`).
 
 cursor.yank_register                    *Mkdnflow-config-cursor-yank-register*
     Type: string

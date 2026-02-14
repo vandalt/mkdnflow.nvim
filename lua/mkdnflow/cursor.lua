@@ -54,76 +54,286 @@ local find_patterns = function(str, patterns, reverse, init)
     return left, right
 end
 
+-- =============================================================================
+-- Detection-based jumping helpers
+-- =============================================================================
+
+--- Find inline code ranges on a line (backtick-delimited spans)
+---@param line string The line text
+---@return table[] Array of {start, end} pairs
+---@private
+local function find_inline_code_ranges(line)
+    local ranges = {}
+    local pos = 1
+    while true do
+        local s, e = line:find('`[^`]+`', pos)
+        if not s then
+            break
+        end
+        table.insert(ranges, { s, e })
+        pos = e + 1
+    end
+    return ranges
+end
+
+--- Check if a column falls within any inline code range
+---@param col integer 1-indexed column
+---@param code_ranges table[] Array of {start, end} pairs
+---@return boolean
+---@private
+local function in_code_range(col, code_ranges)
+    for _, range in ipairs(code_ranges) do
+        if col >= range[1] and col <= range[2] then
+            return true
+        end
+    end
+    return false
+end
+
+--- Collect all footnote definition labels in the buffer
+---@param bufnr? integer Buffer number (defaults to current)
+---@return table<string, boolean> Set of footnote labels that have definitions
+---@private
+local function collect_footnote_defs(bufnr)
+    local defs = {}
+    local lines = vim.api.nvim_buf_get_lines(bufnr or 0, 0, -1, false)
+    for _, line in ipairs(lines) do
+        local label = string.match(line, '^%s?%s?%s?%[%^(.-)%]:%s')
+        if label then
+            defs[label] = true
+        end
+    end
+    return defs
+end
+
+--- Determine whether a detected link should be a jump target
+---@param link table A Link instance from scan_line
+---@param footnote_defs table<string, boolean> Set of footnote definition labels
+---@param style string The configured link style ('markdown' or 'wiki')
+---@return boolean
+---@private
+local function should_jump_to(link, footnote_defs, style)
+    local t = link.type
+    -- Definition lines aren't navigable jump targets
+    if t == 'ref_definition' or t == 'footnote_definition' then
+        return false
+    end
+    -- Footnote refs require a matching definition to avoid false positives
+    if t == 'footnote_ref' then
+        local label = string.match(link.match, '%[%^(.-)%]')
+        return label and footnote_defs[label] == true
+    end
+    -- Wiki links only when wiki style is configured
+    if t == 'wiki_link' then
+        return style == 'wiki'
+    end
+    return true
+end
+
+--- Collect all match positions from extra user patterns on a line
+---@param line string The line text
+---@param extra_patterns string|string[] Lua patterns
+---@return table[] Array of {col, end_col} tables
+---@private
+local function collect_extra_pattern_positions(line, extra_patterns)
+    local positions = {}
+    extra_patterns = type(extra_patterns) == 'table' and extra_patterns or { extra_patterns }
+    for _, pat in ipairs(extra_patterns) do
+        local pos = 1
+        while true do
+            local s, e = string.find(line, pat, pos)
+            if not s then
+                break
+            end
+            table.insert(positions, { col = s, end_col = e })
+            pos = e + 1
+        end
+    end
+    return positions
+end
+
 local M = {}
 
---- Move the cursor to the next (or previous) instance of a pattern in the buffer
----@param pattern string|string[] One or more Lua patterns to jump to
+--- Move the cursor to the next (or previous) instance of a pattern or detection target
+---@param pattern_or_finder string|string[]|function Lua patterns, or a finder function(line, row) → integer[]
 ---@param reverse? boolean If true, search backward instead of forward
-M.goTo = function(pattern, reverse)
+M.goTo = function(pattern_or_finder, reverse)
+    local is_finder = type(pattern_or_finder) == 'function'
     local search_range = require('mkdnflow').config.links.search_range
     local wrap = require('mkdnflow').config.wrap
     -- Get current position of cursor
     local position = vim.api.nvim_win_get_cursor(0)
     local row, col = position[1], position[2]
-    local line, line_len, left, right
     local already_wrapped = false
 
-    -- Get the line's contents
-    line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
-    line_len = #line
-    if search_range > 0 and line_len > 0 then
-        for i = 1, search_range, 1 do
-            local following_line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
-            line = (following_line and line .. following_line) or line
-        end
-    end
-    -- Get start & end indices of match (if any)
-    left, right = find_patterns(line, pattern, reverse, col)
-    -- As long as a match hasn't been found, keep looking as long as possible!
-    local continue = true
-    while continue do
-        -- See if there's a match on the current line.
-        if left and right then
-            -- If there is, see if the cursor is before the match (or after if rev = true)
-            if
-                ((reverse and col + 1 > left) or ((not reverse) and col + 1 < left))
-                and left <= line_len
-            then
-                -- If it is, send the cursor to the start of the match
-                vim.api.nvim_win_set_cursor(0, { row, left - 1 })
-                continue = false
-            else -- If it isn't, search after the end of the previous match (before if reverse).
-                -- These values will be used on the next iteration of the loop.
-                left, right = find_patterns(line, pattern, reverse, reverse and left or right)
+    if is_finder then
+        -- Detection-based path: build finder with correct code block state
+        local Link = require('mkdnflow.links.core').Link
+        local footnote_defs = collect_footnote_defs()
+        local config = require('mkdnflow').config
+        local extra_patterns = config.cursor.jump_patterns
+        local style = config.links.style
+
+        -- Pre-compute code block state at the cursor row
+        local pre_lines = vim.api.nvim_buf_get_lines(0, 0, row - 1, false)
+        local fences_before = 0
+        for _, pre_line in ipairs(pre_lines) do
+            if string.find(pre_line, '^```') then
+                fences_before = fences_before + 1
             end
-        else -- If there's not a match on the current line, keep checking line-by-line
-            -- Update row to search next line
-            row = (reverse and row - 1) or row + 1
-            -- Get the content of the next line (if any), appending contextual lines if search_range > 0
-            line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
-            line_len = line and #line
-            -- Since we're on the next line, cursor position no longer matters and we want to make
-            -- sure that `col` is always < left (or > if reverse == true)
-            col = reverse and line_len or -1
-            if line and search_range > 0 and line_len > 0 then
-                for i = 1, search_range, 1 do
-                    local following_line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
-                    line = (following_line and line .. following_line) or line
+        end
+        local in_code_block = (fences_before % 2) == 1
+
+        -- Finder returns {col, end_col} pairs sorted by col
+        local function finder(line, finder_row)
+            if string.find(line, '^```') then
+                in_code_block = not in_code_block
+            end
+            if in_code_block then
+                return {}
+            end
+
+            local targets = {}
+            local code_ranges = find_inline_code_ranges(line)
+
+            local links = Link.scan_line(line, finder_row)
+            for _, link in ipairs(links) do
+                if
+                    should_jump_to(link, footnote_defs, style)
+                    and not in_code_range(link.start_col, code_ranges)
+                then
+                    table.insert(targets, { col = link.start_col, end_col = link.end_col })
                 end
             end
-            if line then -- If it's a real line, search it
-                left, right = find_patterns(line, pattern, reverse)
+
+            if extra_patterns and #extra_patterns > 0 then
+                local extras = collect_extra_pattern_positions(line, extra_patterns)
+                for _, t in ipairs(extras) do
+                    table.insert(targets, t)
+                end
+            end
+
+            table.sort(targets, function(a, b)
+                return a.col < b.col
+            end)
+            return targets
+        end
+
+        -- Scan lines to find the target
+        local continue = true
+        while continue do
+            local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+            if line then
+                local line_len = #line
+                local targets = finder(line, row)
+                local best = nil
+                if reverse then
+                    -- Find rightmost target that the cursor is NOT inside of.
+                    -- cursor is at 0-indexed col; 1-indexed = col + 1
+                    local cur_1 = col + 1
+                    for i = #targets, 1, -1 do
+                        local t = targets[i]
+                        -- Skip links the cursor is currently inside
+                        if cur_1 >= t.col and cur_1 <= t.end_col then
+                            goto skip_reverse
+                        end
+                        if t.col < cur_1 then
+                            best = t.col
+                            break
+                        end
+                        ::skip_reverse::
+                    end
+                else
+                    -- Find leftmost target after cursor
+                    local cur_1 = col + 1
+                    for _, t in ipairs(targets) do
+                        if t.col > cur_1 and t.col <= line_len then
+                            best = t.col
+                            break
+                        end
+                    end
+                end
+
+                if best then
+                    vim.api.nvim_win_set_cursor(0, { row, best - 1 })
+                    continue = false
+                else
+                    row = reverse and row - 1 or row + 1
+                    col = reverse and math.huge or -1
+                end
             else
-                -- If the line is nil, there is no next line and the loop should stop (unless wrapping is on)
-                if wrap == true then -- If searching backwards & user wants search to wrap, go to last line in file
+                if wrap == true then
                     if not already_wrapped then
-                        row = (reverse and vim.api.nvim_buf_line_count(0) + 1) or 0
+                        in_code_block = false
+                        row = reverse and vim.api.nvim_buf_line_count(0) or 1
+                        col = reverse and math.huge or -1
                         already_wrapped = true
                     else
                         continue = nil
                     end
-                else -- Otherwise, search is done
+                else
                     continue = nil
+                end
+            end
+        end
+    else
+        -- Pattern-based path (original behavior for direct goTo() calls)
+        local pattern = pattern_or_finder
+        local line, line_len, left, right
+        -- Get the line's contents
+        line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+        line_len = #line
+        if search_range > 0 and line_len > 0 then
+            for i = 1, search_range, 1 do
+                local following_line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
+                line = (following_line and line .. following_line) or line
+            end
+        end
+        -- Get start & end indices of match (if any)
+        left, right = find_patterns(line, pattern, reverse, col)
+        -- As long as a match hasn't been found, keep looking as long as possible!
+        local continue = true
+        while continue do
+            -- See if there's a match on the current line.
+            if left and right then
+                -- If there is, see if the cursor is before the match (or after if rev = true)
+                if
+                    ((reverse and col + 1 > left) or ((not reverse) and col + 1 < left))
+                    and left <= line_len
+                then
+                    -- If it is, send the cursor to the start of the match
+                    vim.api.nvim_win_set_cursor(0, { row, left - 1 })
+                    continue = false
+                else -- If it isn't, search after the end of the previous match (before if reverse).
+                    left, right = find_patterns(line, pattern, reverse, reverse and left or right)
+                end
+            else -- If there's not a match on the current line, keep checking line-by-line
+                -- Update row to search next line
+                row = (reverse and row - 1) or row + 1
+                -- Get the content of the next line (if any)
+                line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+                line_len = line and #line
+                col = reverse and line_len or -1
+                if line and search_range > 0 and line_len > 0 then
+                    for i = 1, search_range, 1 do
+                        local following_line =
+                            vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
+                        line = (following_line and line .. following_line) or line
+                    end
+                end
+                if line then
+                    left, right = find_patterns(line, pattern, reverse)
+                else
+                    if wrap == true then
+                        if not already_wrapped then
+                            row = (reverse and vim.api.nvim_buf_line_count(0) + 1) or 0
+                            already_wrapped = true
+                        else
+                            continue = nil
+                        end
+                    else
+                        continue = nil
+                    end
                 end
             end
         end
@@ -358,16 +568,19 @@ M.headingOperatorVisual = function(direction)
     vim.cmd('normal! `<' .. line_count .. 'g@_')
 end
 
---- Jump to the next link in the buffer (using configured jump_patterns)
----@param pattern? string|string[] Unused; jump_patterns from config are always used
+--- Sentinel value indicating detection-based jumping should be used
+local DETECTION_FINDER = function() end
+
+--- Jump to the next link in the buffer (using detection-based jumping)
+---@param pattern? string|string[] Unused; detection-based jumping is always used
 M.toNextLink = function(pattern)
-    M.goTo(require('mkdnflow').config.cursor.jump_patterns)
+    M.goTo(DETECTION_FINDER)
 end
 
---- Jump to the previous link in the buffer (using configured jump_patterns)
----@param pattern? string|string[] Unused; jump_patterns from config are always used
+--- Jump to the previous link in the buffer (using detection-based jumping)
+---@param pattern? string|string[] Unused; detection-based jumping is always used
 M.toPrevLink = function(pattern)
-    M.goTo(require('mkdnflow').config.cursor.jump_patterns, true)
+    M.goTo(DETECTION_FINDER, true)
 end
 
 --- Jump to a heading matching the given anchor text, or to the next/previous heading

@@ -422,24 +422,8 @@ local function configure(user_config)
     end
     init.config.notebook_extensions = notebook_extensions
 
-    -- Compute jump patterns based on link style
-    if init.config.cursor.jump_patterns == nil then
-        if init.config.links.style == 'markdown' then
-            init.config.cursor.jump_patterns = {
-                '!%b[]%b()', -- Image links
-                '%b[]%b()',
-                '<[^<>]->',
-                '%b[] ?%b[]',
-                '%[@[^%[%]]-%]',
-            }
-        elseif init.config.links.style == 'wiki' then
-            init.config.cursor.jump_patterns = {
-                '%[%[[^%[%]]-%]%]',
-            }
-        else
-            init.config.cursor.jump_patterns = {}
-        end
-    end
+    -- jump_patterns: nil means "no extras" (detection-based jumping handles all link types).
+    -- If a user sets jump_patterns, those patterns are added on top of detection results.
 end
 
 --- Load all enabled modules and set up path resolution/root directory

@@ -189,9 +189,9 @@ cursor:
   - name: cursor.jump_patterns
     type: table | nil
     description: |
-      **`nil`** (default): The default jump patterns for the configured link style are used (markdown-style links by default).
-      `table`: A table of custom Lua regex patterns.
-      `{}` (empty table): Disable link jumping without disabling the `cursor` module.
+      **`nil`** (default): Cursor jumping (`MkdnNextLink`/`MkdnPrevLink`) uses detection-based link finding, which reuses the same link detection system as `followLink()`. All recognized link types (markdown links, wiki links, auto links, reference links, citations, footnote refs with definitions) are automatically jumped to based on the configured `links.style`. Links inside fenced code blocks and inline code spans are skipped.
+      `table`: A table of additional Lua regex patterns to jump to alongside detected links. Useful for non-link targets like `TODO` markers (e.g. `{ 'TODO', 'FIXME' }`).
+      `{}` (empty table): No extra patterns; only detected links are jumped to (same as `nil`).
 
   - name: cursor.yank_register
     type: string

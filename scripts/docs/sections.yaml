@@ -105,6 +105,8 @@ sections:
                     children:
                       - text: "Visual selection of a citation + `<CR>` creates a link from the citekey"
                         done: true
+                  - text: "Footnotes (`[^1]` with `[^1]: Footnote text`)"
+                    done: true
           - type: responsive_image
             light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_light.gif
             dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_dark.gif

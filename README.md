@@ -103,6 +103,7 @@ building, and more. Most features are highly tweakable ([⚙️ Configuration](#
     - [x] Reference-style links (`[my page][1]` with `[1]: my_page.md`)
     - [x] Image links (`![alt text](image.png)`) — opened in system viewer
     - [x] Citations (`@citekey` or Pandoc-style `[@citekey]`)
+    - [x] Footnotes (`[^1]` with `[^1]: Footnote text`)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/demos/links_dark.gif">
@@ -626,7 +627,7 @@ require('mkdnflow').setup({
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `cursor.jump_patterns` | `table` \| `nil` | **`nil`** (default): The default jump patterns for the configured link style are used (markdown-style links by default).<br>`table`: A table of custom Lua regex patterns.<br>`{}` (empty table): Disable link jumping without disabling the `cursor` module. |
+| `cursor.jump_patterns` | `table` \| `nil` | **`nil`** (default): Cursor jumping (`MkdnNextLink`/`MkdnPrevLink`) uses detection-based link finding, which reuses the same link detection system as `followLink()`. All recognized link types (markdown links, wiki links, auto links, reference links, citations, footnote refs with definitions) are automatically jumped to based on the configured `links.style`. Links inside fenced code blocks and inline code spans are skipped.<br>`table`: A table of additional Lua regex patterns to jump to alongside detected links. Useful for non-link targets like `TODO` markers (e.g. `{ 'TODO', 'FIXME' }`).<br>`{}` (empty table): No extra patterns; only detected links are jumped to (same as `nil`). |
 | `cursor.yank_register` | `string` | **`'"'`** (default): Anchor links are yanked to the unnamed register.<br>`'+'`: Yank to the system clipboard.<br>`'<any register>'`: Yank to any valid Vim register (e.g. `'a'`, `'*'`, `'0'`). |
 
 ##### links

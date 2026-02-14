@@ -22,6 +22,32 @@ local ns = vim.api.nvim_create_namespace('mkdnflow_ref_hint')
 local timers = {} -- debounce timers per buffer
 local DEBOUNCE_MS = 50
 
+--- Count how many times a footnote reference [^label] appears in the buffer (excluding definitions)
+--- @param label string The footnote label (without ^)
+--- @param bufnr integer Buffer number
+--- @param skip_row integer Row to skip (the definition line itself)
+--- @return integer count Number of footnote references found
+local function count_footnote_refs(label, bufnr, skip_row)
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local escaped = vim.pesc(label)
+    local pat = '%[%^' .. escaped .. '%]'
+    local def_pat = '^%s?%s?%s?%[%^' .. escaped .. '%]:%s'
+    local count = 0
+
+    for i, line in ipairs(lines) do
+        if i ~= skip_row then
+            -- Skip definition lines
+            if not string.find(line, def_pat) then
+                for _ in string.gmatch(line, pat) do
+                    count = count + 1
+                end
+            end
+        end
+    end
+
+    return count
+end
+
 --- Count how many times a reference label is used in the buffer
 --- @param label string The reference label to search for
 --- @param bufnr integer Buffer number
@@ -91,6 +117,25 @@ local function update_hint(bufnr)
         local label = name and name.text or ''
         if label ~= '' then
             local count = count_refs(label, bufnr, link.start_row)
+            local word = count == 1 and 'reference' or 'references'
+            hint_text = { { '(' .. count .. ' ' .. word .. ')', 'MkdnflowRefHint' } }
+        end
+    elseif link.type == 'footnote_ref' then
+        local label = string.match(link.match, '%[%^(.-)%]')
+        if label then
+            local get_ref = require('mkdnflow.links.core').get_ref
+            local source = get_ref('^' .. label, link.start_row)
+            if source and source ~= '' then
+                if #source > 80 then
+                    source = source:sub(1, 77) .. '...'
+                end
+                hint_text = { { '→ ' .. source, 'MkdnflowRefHint' } }
+            end
+        end
+    elseif link.type == 'footnote_definition' then
+        local label = string.match(link.match, '%[%^(.-)%]')
+        if label then
+            local count = count_footnote_refs(label, bufnr, link.start_row)
             local word = count == 1 and 'reference' or 'references'
             hint_text = { { '(' .. count .. ' ' .. word .. ')', 'MkdnflowRefHint' } }
         end

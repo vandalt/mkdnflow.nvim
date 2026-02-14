@@ -111,6 +111,7 @@ local pattern_order = {
     'ref_style_link',
     'pandoc_citation',
     'citation',
+    'footnote_ref', -- Before shortcut_ref_link: caret distinguishes [^label] from [label]
     'shortcut_ref_link', -- Must be last: matches any [text], relies on priority for disambiguation
 }
 
@@ -122,6 +123,7 @@ local patterns = {
     auto_link = '(%b<>)',
     pandoc_citation = '(%[@[^%[%]]+%])', -- Pandoc-style bracketed citation [@citekey]
     citation = "[^%a%d]-(@[%a%d_%.%-']*[%a%d]+)[%s%p%c]?",
+    footnote_ref = '(%[%^[^%]]+%])', -- Footnote reference [^label]
     shortcut_ref_link = '(%b[])', -- Shortcut reference link [label]
 }
 
@@ -135,6 +137,7 @@ local part_patterns = {
         wiki_link_anchor_no_bar = '%[%[(.-)#.-%]%]',
         ref_style_link = '%[(.-)%]%s?%[',
         shortcut_ref_link = '%[(.-)%]',
+        footnote_ref = '%[%^(.-)%]', -- Extracts label without ^
         pandoc_citation = '%[@([^%[%]]+)%]', -- Captures citekey without @ or brackets
         citation = '(@.*)',
     },
@@ -145,6 +148,7 @@ local part_patterns = {
         wiki_link_no_bar = '%[%[(.-)%]%]',
         ref_style_link = '%]%[(.-)%]',
         shortcut_ref_link = '%[(.-)%]', -- label IS the source lookup key
+        footnote_ref = '%[%^(.-)%]', -- label is the lookup key
         auto_link = '<(.-)>',
         pandoc_citation = '%[(@[^%[%]]+)%]', -- Captures @citekey (without brackets)
         citation = '(@.*)',
@@ -316,10 +320,13 @@ function Link:read(col, buffer)
         if dmatch then
             local col_1indexed = col + 1
             if col_1indexed >= ds and col_1indexed <= de then
+                -- Determine if this is a footnote definition or ref definition
+                local link_type = string.match(dmatch, '^%s?%s?%s?%[%^') and 'footnote_definition'
+                    or 'ref_definition'
                 local link = Link:new({
                     match = dmatch,
                     match_lines = { cursor_line },
-                    type = 'ref_definition',
+                    type = link_type,
                     start_row = row,
                     start_col = ds,
                     end_row = row,
@@ -410,6 +417,31 @@ local function get_ref(refnr, skip_row)
             if match then
                 local _, label_finish = string.find(match, '^%[.-%]:%s')
                 return string.sub(match, label_finish + 1), row, label_finish + 1, finish
+            end
+        end
+    end
+    return nil
+end
+
+--- Find the first footnote reference [^label] in the buffer (not a definition line)
+--- @param label string The footnote label (without ^)
+--- @param skip_row? integer Row to skip
+--- @return integer|nil row The row of the first reference
+--- @return integer|nil col The 1-indexed column of the match start
+local function get_footnote_ref(label, skip_row)
+    local line_count = vim.api.nvim_buf_line_count(0)
+    local escaped = vim.pesc(label)
+    local pat = '%[%^' .. escaped .. '%]'
+    local def_pat = '^%s?%s?%s?%[%^' .. escaped .. '%]:%s'
+    for row = 1, line_count do
+        if row ~= skip_row then
+            local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+            local start = string.find(line, pat)
+            if start then
+                -- Exclude definition lines
+                if not string.find(line, def_pat) then
+                    return row, start
+                end
             end
         end
     end
@@ -554,6 +586,31 @@ function Link:get_source()
             s_row, e_row = self.start_row, self.start_row
             text, anchor = extract_anchor(source)
         end
+    elseif self.type == 'footnote_ref' then
+        -- Source is the definition row position (no path to follow)
+        local label = string.match(self.match, '%[%^(.-)%]')
+        if label then
+            local _, source_row, source_start, source_end =
+                get_ref('^' .. label, self.start_row)
+            if source_row then
+                s_row, e_row = source_row, source_row
+                s_col = source_start or 1
+                e_col = source_end or s_col
+            end
+        end
+        anchor = ''
+    elseif self.type == 'footnote_definition' then
+        -- Source is the first reference row position
+        local label = string.match(self.match, '%[%^(.-)%]')
+        if label then
+            local ref_row, ref_col = get_footnote_ref(label, self.start_row)
+            if ref_row then
+                s_row, e_row = ref_row, ref_row
+                s_col = ref_col or 1
+                e_col = s_col
+            end
+        end
+        anchor = ''
     elseif self.type == 'auto_link' then
         local pat = part_patterns.source.auto_link
         s_row, s_col, e_row, e_col, text = utils.mFind(self.match_lines, pat, self.start_row)
@@ -633,6 +690,12 @@ function Link:get_name()
         s_row, s_col, e_row, e_col, text = utils.mFind(self.match_lines, pat, self.start_row)
     elseif self.type == 'ref_definition' then
         s_col, e_col, text = string.find(self.match, '%[(.-)%]')
+        s_row, e_row = self.start_row, self.start_row
+    elseif self.type == 'footnote_ref' then
+        text = string.match(self.match, '%[%^(.-)%]')
+        s_row, e_row = self.start_row, self.start_row
+    elseif self.type == 'footnote_definition' then
+        s_col, e_col, text = string.find(self.match, '%[%^(.-)%]')
         s_row, e_row = self.start_row, self.start_row
     elseif self.type == 'citation' then
         local pat = part_patterns.name.citation
@@ -738,6 +801,117 @@ function Link:get_type()
 end
 
 -- =============================================================================
+-- Line scanning (used by cursor jumping)
+-- =============================================================================
+
+--- Check if a column range overlaps any range in the occupied list
+--- @param occupied table[] Array of {start, end} pairs
+--- @param s integer Start column
+--- @param e integer End column
+--- @return boolean Whether the range overlaps
+local function is_occupied(occupied, s, e)
+    for _, range in ipairs(occupied) do
+        if s <= range[2] and e >= range[1] then
+            return true
+        end
+    end
+    return false
+end
+
+--- Find all links on a single line, reusing the same patterns and priority logic as Link:read()
+--- @param line string The line text
+--- @param row integer The 1-indexed row number
+--- @return Link[] Array of Link instances found on this line, sorted by start_col
+function Link.scan_line(line, row)
+    local results = {}
+    local occupied = {}
+
+    -- Pre-check for ref_definition / footnote_definition (line-anchored)
+    local ds, de, dmatch = string.find(line, '^(%s?%s?%s?%[.-%]:%s.+)')
+    if dmatch then
+        local link_type = string.match(dmatch, '^%s?%s?%s?%[%^') and 'footnote_definition'
+            or 'ref_definition'
+        table.insert(results, Link:new({
+            match = dmatch,
+            match_lines = { line },
+            type = link_type,
+            start_row = row,
+            start_col = ds,
+            end_row = row,
+            end_col = de,
+            valid = true,
+        }))
+        return results
+    end
+
+    -- Iterate through patterns in priority order
+    for _, link_type in ipairs(pattern_order) do
+        local pattern = patterns[link_type]
+        local pos = 1
+        while true do
+            local full_start, full_end, capture = string.find(line, pattern, pos)
+            if not full_start then
+                break
+            end
+
+            -- Determine the capture range (mirrors mFind behavior)
+            local cap_start, cap_end = full_start, full_end
+            if capture then
+                local cs, ce = string.find(line, capture, full_start, true)
+                if cs then
+                    cap_start, cap_end = cs, ce
+                end
+            end
+
+            -- Citation special handling
+            if link_type == 'citation' then
+                -- Skip if @ is preceded by an alphanumeric character
+                if cap_start > 1 then
+                    local preceding_char = line:sub(cap_start - 1, cap_start - 1)
+                    if preceding_char:match('[%a%d]') then
+                        pos = full_end
+                        goto continue_scan
+                    end
+                end
+                -- Remove Saxon genitive if present
+                if capture then
+                    local possessor = string.gsub(capture, "'s$", '')
+                    if #capture > #possessor then
+                        capture = possessor
+                        cap_end = cap_end - 2
+                    end
+                end
+            end
+
+            -- Check overlap with higher-priority matches
+            if not is_occupied(occupied, full_start, full_end) then
+                table.insert(occupied, { full_start, full_end })
+                table.insert(results, Link:new({
+                    match = capture or string.sub(line, full_start, full_end),
+                    match_lines = { line },
+                    type = link_type,
+                    start_row = row,
+                    start_col = cap_start,
+                    end_row = row,
+                    end_col = cap_end,
+                    valid = true,
+                }))
+            end
+
+            pos = full_end + 1
+            ::continue_scan::
+        end
+    end
+
+    -- Sort by start_col
+    table.sort(results, function(a, b)
+        return a.start_col < b.start_col
+    end)
+
+    return results
+end
+
+-- =============================================================================
 -- Module exports
 -- =============================================================================
 
@@ -751,4 +925,6 @@ return {
     clear_cache = clear_cache,
     contains = contains,
     extract_anchor = extract_anchor,
+    get_ref = get_ref,
+    get_footnote_ref = get_footnote_ref,
 }
