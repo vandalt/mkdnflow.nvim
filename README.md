@@ -1062,7 +1062,8 @@ Configuration options.
 | `MkdnGoForward` | `{ 'n', '<Del>' }` | Open the buffer that was historically navigated away from in the current window. |
 | `MkdnCreateLink` | -- | Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). |
 | `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. |
-| `MkdnFollowLink` | -- | Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the text under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer. |
+| `MkdnCreateFootnote` | -- | Create a footnote reference (`[^N]`) at the cursor position and a corresponding definition (`[^N]: `) at the end of the document. The reference is placed after the current word and any trailing punctuation (e.g., `word.[^1]` rather than `word[^1].`). The cursor jumps to the definition line in insert mode so the footnote text can be filled in immediately. After filling in the definition, use `MkdnFollowLink` (`<CR>`) on the definition to jump back to the reference (or use ` `` `/`''` via the jumplist).<br><br>Auto-numbering increments from the highest existing numeric footnote label. An optional argument specifies an explicit string label instead (e.g., `:MkdnCreateFootnote myref` creates `[^myref]`).<br><br>If no footnote definitions exist in the buffer and `footnotes.heading` is configured, the heading is appended to the end of the document before the definition. If definitions already exist, the new definition is placed after the last one. |
+| `MkdnFollowLink` | -- | Open the link under the cursor, creating missing directories if desired, or if there is no link under the cursor, make a link from the text under the cursor. Image links (`![alt](path)`) are opened in the system's default viewer.<br><br>For footnotes, this command jumps bidirectionally: pressing `<CR>` on a footnote reference (`[^1]`) jumps to its definition (`[^1]: ...`), and pressing `<CR>` on a definition jumps back to the reference. |
 | `MkdnDestroyLink` | `{ 'n', '<M-CR>' }` | Destroy the link under the cursor, replacing it with just the text from the link name. |
 | `MkdnTagSpan` | `{ 'v', '<M-CR>' }` | Tag a visually-selected span of text with an ID, allowing it to be linked to with an anchor link. |
 | `MkdnMoveSource` | `{ 'n', '<F2>' }` | Open a dialog where you can provide a new source for a link and the plugin will rename and move the associated file on the backend (and rename the link source). |
@@ -1168,6 +1169,14 @@ Creates a markdown link from the text under the cursor or visual selection.
 - **Parameters:**
     - `args`: (table) Arguments to customize link creation.
         - `from_clipboard`: (boolean) If true, use the system clipboard content as the link source.
+
+`require('mkdnflow').links.createFootnote(args)`
+
+Creates a footnote reference at the cursor position and a definition at the end of the document. Jumps to the definition line in insert mode.
+
+- **Parameters:**
+    - `args`: (table) Arguments to customize footnote creation.
+        - `label`: (string|nil) If provided, uses this string as the footnote label (e.g., `'myref'` creates `[^myref]`). If nil, auto-increments from the highest existing numeric footnote.
 
 `require('mkdnflow').links.followLink(args)`
 

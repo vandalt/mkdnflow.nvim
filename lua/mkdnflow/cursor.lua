@@ -316,8 +316,7 @@ M.goTo = function(pattern_or_finder, reverse)
                 col = reverse and line_len or -1
                 if line and search_range > 0 and line_len > 0 then
                     for i = 1, search_range, 1 do
-                        local following_line =
-                            vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
+                        local following_line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
                         line = (following_line and line .. following_line) or line
                     end
                 end

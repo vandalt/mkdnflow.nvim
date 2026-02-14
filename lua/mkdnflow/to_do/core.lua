@@ -802,8 +802,8 @@ end
 local function is_thematic_break(line)
     local stripped = line:gsub('%s', '')
     return #stripped >= 3
-        and (stripped:match('^%-+$') or stripped:match('^%*+$') or stripped:match('^_+$'))
-        and true
+            and (stripped:match('^%-+$') or stripped:match('^%*+$') or stripped:match('^_+$'))
+            and true
         or false
 end
 

@@ -93,6 +93,9 @@ local default_config = {
         auto_create = true,
         on_create_new = false,
     },
+    footnotes = {
+        heading = '## Footnotes',
+    },
     new_file_template = {
         enabled = false,
         placeholders = {
@@ -266,6 +269,7 @@ local default_config = {
         MkdnDedentListItem = { 'i', '<C-d>' },
         MkdnCreateLink = false,
         MkdnCreateLinkFromClipboard = { { 'n', 'v' }, '<leader>p' },
+        MkdnCreateFootnote = false,
     },
 }
 
@@ -535,6 +539,7 @@ init.command_deps = {
     MkdnPrevLink = { 'links', 'cursor' },
     MkdnCreateLink = { 'links' },
     MkdnCreateLinkFromClipboard = { 'links' },
+    MkdnCreateFootnote = { 'links' },
     MkdnTagSpan = { 'links' },
     MkdnFollowLink = { 'links', 'paths' },
     MkdnDestroyLink = { 'links' },

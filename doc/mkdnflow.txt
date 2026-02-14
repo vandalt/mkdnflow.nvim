@@ -1836,12 +1836,36 @@ Configuration options.
     the source and the text under the cursor or visual selection as the link
     text.
 
+:MkdnCreateFootnote                          *Mkdnflow-cmd-MkdnCreateFootnote*
+
+    Create a footnote reference (`[^N]`) at the cursor position and a
+    corresponding definition (`[^N]: `) at the end of the document. The
+    reference is placed after the current word and any trailing punctuation
+    (e.g., `word.[^1]` rather than `word[^1].`). The cursor jumps to the
+    definition line in insert mode so the footnote text can be filled in
+    immediately. After filling in the definition, use `MkdnFollowLink` (``) on
+    the definition to jump back to the reference (or use ` `` `/`''` via the
+    jumplist).
+
+    Auto-numbering increments from the highest existing numeric footnote
+    label. An optional argument specifies an explicit string label instead
+    (e.g., `:MkdnCreateFootnote myref` creates `[^myref]`).
+
+    If no footnote definitions exist in the buffer and `footnotes.heading` is
+    configured, the heading is appended to the end of the document before the
+    definition. If definitions already exist, the new definition is placed
+    after the last one.
+
 :MkdnFollowLink                                  *Mkdnflow-cmd-MkdnFollowLink*
 
     Open the link under the cursor, creating missing directories if desired,
     or if there is no link under the cursor, make a link from the text under
     the cursor. Image links (`!alt`) are opened in the system's default
     viewer.
+
+    For footnotes, this command jumps bidirectionally: pressing `` on a
+    footnote reference (`[^1]`) jumps to its definition (`[^1]: ...`), and
+    pressing `` on a definition jumps back to the reference.
 
 :MkdnDestroyLink                                *Mkdnflow-cmd-MkdnDestroyLink*
     Default mapping: { 'n', '<M-CR>' }
@@ -2193,6 +2217,16 @@ Creates a markdown link from the text under the cursor or visual selection.
 - **Parameters:**
     - `args`: (table) Arguments to customize link creation.
         - `from_clipboard`: (boolean) If true, use the system clipboard content as the link source.
+
+`require('mkdnflow').links.createFootnote(args)`^
+
+
+Creates a footnote reference at the cursor position and a definition at the
+end of the document. Jumps to the definition line in insert mode.
+
+- **Parameters:**
+    - `args`: (table) Arguments to customize footnote creation.
+        - `label`: (string|nil) If provided, uses this string as the footnote label (e.g., `'myref'` creates `[^myref]`). If nil, auto-increments from the highest existing numeric footnote.
 
 `require('mkdnflow').links.followLink(args)`^
 

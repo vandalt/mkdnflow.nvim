@@ -39,9 +39,7 @@ T['state']['stores raw_user_config before compat mutation'] = function()
         })
     ]])
     -- raw_user_config should have the deprecated key
-    local has_old = child.lua_get(
-        "require('mkdnflow').raw_user_config.links.name_is_source"
-    )
+    local has_old = child.lua_get("require('mkdnflow').raw_user_config.links.name_is_source")
     eq(has_old, true)
 end
 
@@ -54,14 +52,10 @@ T['state']['raw_user_config is independent of compat mutations'] = function()
     ]])
     -- compat migrates name_is_source → compact in user_config
     -- but raw_user_config should still have name_is_source
-    local raw_has_old = child.lua_get(
-        "require('mkdnflow').raw_user_config.links.name_is_source"
-    )
+    local raw_has_old = child.lua_get("require('mkdnflow').raw_user_config.links.name_is_source")
     eq(raw_has_old, true)
     -- user_config (post-compat) should have compact, not name_is_source
-    local post_has_new = child.lua_get(
-        "require('mkdnflow').user_config.links.compact"
-    )
+    local post_has_new = child.lua_get("require('mkdnflow').user_config.links.compact")
     eq(post_has_new, true)
 end
 

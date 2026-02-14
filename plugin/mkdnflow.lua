@@ -120,6 +120,13 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             links.createLink({ from_clipboard = true })
         end
     end, { range = true })
+    user_command('MkdnCreateFootnote', function(opts)
+        local links = require_module('links')
+        if not links then
+            return
+        end
+        links.createFootnote({ label = opts.fargs[1] })
+    end, { nargs = '?' })
     user_command('MkdnDestroyLink', function(opts)
         local links = require_module('links')
         if links then

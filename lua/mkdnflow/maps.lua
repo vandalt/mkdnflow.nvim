@@ -69,6 +69,7 @@ local descriptions = {
     MkdnDedentListItem = 'Dedent list item and update numbering',
     MkdnCreateLink = 'Create link from word or selection',
     MkdnCreateLinkFromClipboard = 'Create link using clipboard URL',
+    MkdnCreateFootnote = 'Create footnote reference and definition',
 }
 
 -- Operator commands that need special handling (expression mappings for dot-repeat)

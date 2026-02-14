@@ -38,6 +38,17 @@ linkmanagement:
             type: boolean
             description: If true, use the system clipboard content as the link source.
 
+  - signature: "require('mkdnflow').links.createFootnote(args)"
+    description: Creates a footnote reference at the cursor position and a definition at the end of the document. Jumps to the definition line in insert mode.
+    params:
+      - name: args
+        type: table
+        description: Arguments to customize footnote creation.
+        children:
+          - name: label
+            type: string|nil
+            description: If provided, uses this string as the footnote label (e.g., `'myref'` creates `[^myref]`). If nil, auto-increments from the highest existing numeric footnote.
+
   - signature: "require('mkdnflow').links.followLink(args)"
     description: Follows the link under the cursor, opening the corresponding file, URL, or directory. Image links are opened in the system's default image viewer.
     params:

@@ -841,6 +841,111 @@ M.destroyLink = function()
     end
 end
 
+--- Create a footnote reference at the cursor and a definition at the end of the document
+---@param args? {label?: string} If label is provided, use it; otherwise auto-increment
+M.createFootnote = function(args)
+    args = args or {}
+    local config = require('mkdnflow').config
+
+    -- Scan buffer for existing footnote definitions
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local max_numeric = 0
+    local last_def_row = nil -- 1-indexed
+    local existing_labels = {}
+    local heading_text = config.footnotes and config.footnotes.heading
+    local heading_row = nil
+
+    for i, line in ipairs(lines) do
+        local label = string.match(line, '^%s?%s?%s?%[%^(.-)%]:%s')
+        if label then
+            existing_labels[label] = true
+            last_def_row = i
+            local num = tonumber(label)
+            if num and num > max_numeric then
+                max_numeric = num
+            end
+        end
+        if heading_text and line == heading_text then
+            heading_row = i
+        end
+    end
+
+    -- Determine the label
+    local label = args.label
+    if label then
+        if existing_labels[label] then
+            vim.notify('Footnote [^' .. label .. '] already exists!', vim.log.levels.WARN)
+            return
+        end
+    else
+        label = tostring(max_numeric + 1)
+    end
+
+    -- Insert the reference after the current word and any trailing punctuation
+    local position = vim.api.nvim_win_get_cursor(0)
+    local row = position[1]
+    local col = position[2]
+    local ref_text = '[^' .. label .. ']'
+
+    local line = vim.api.nvim_get_current_line()
+    local punct_pat = '[%.,:;%?!%)%]"]'
+    local i = col + 1 -- Lua 1-indexed
+
+    -- Step 1: scan forward past word characters (non-whitespace, non-punctuation)
+    while i <= #line do
+        local ch = line:sub(i, i)
+        if ch:match('%s') or ch:match(punct_pat) then
+            break
+        end
+        i = i + 1
+    end
+
+    -- Step 2: scan forward past trailing punctuation
+    while i <= #line and line:sub(i, i):match(punct_pat) do
+        i = i + 1
+    end
+
+    local insert_col = i - 1 -- Back to 0-indexed
+    vim.api.nvim_buf_set_text(0, row - 1, insert_col, row - 1, insert_col, { ref_text })
+
+    -- Build and place the definition
+    local def_line = '[^' .. label .. ']: '
+    local target_row -- 1-indexed row of the new definition
+
+    if last_def_row then
+        -- Add after the last existing definition
+        vim.api.nvim_buf_set_lines(0, last_def_row, last_def_row, false, { def_line })
+        target_row = last_def_row + 1
+    else
+        -- No existing definitions: append to end of buffer
+        local line_count = vim.api.nvim_buf_line_count(0)
+        local last_line = vim.api.nvim_buf_get_lines(0, line_count - 1, line_count, false)[1]
+        local append = {}
+
+        -- Blank separator if buffer doesn't end with an empty line
+        if last_line ~= '' then
+            table.insert(append, '')
+        end
+
+        -- Heading (if configured and not already in buffer)
+        if heading_text and not heading_row then
+            table.insert(append, heading_text)
+            table.insert(append, '')
+        end
+
+        table.insert(append, def_line)
+        vim.api.nvim_buf_set_lines(0, line_count, line_count, false, append)
+        target_row = line_count + #append
+    end
+
+    -- Set jumplist mark so '' returns to the reference position
+    vim.cmd("normal! m'")
+    -- Jump to the definition line
+    vim.api.nvim_win_set_cursor(0, { target_row, 0 })
+    -- Enter insert mode at end of line so user can type the definition
+    vim.cmd('startinsert!')
+end
+
 --- Follow the link under the cursor, or create a new link if none exists
 ---@param args? {path?: string, anchor?: string, range?: boolean}
 M.followLink = function(args)
@@ -868,10 +973,7 @@ M.followLink = function(args)
             vim.api.nvim_win_set_cursor(0, { source.start_row, source.start_col - 1 })
         else
             local direction = link_type == 'footnote_ref' and 'definition' or 'reference'
-            vim.notify(
-                "Couldn't find footnote " .. direction .. '!',
-                vim.log.levels.WARN
-            )
+            vim.notify("Couldn't find footnote " .. direction .. '!', vim.log.levels.WARN)
         end
         return
     end
