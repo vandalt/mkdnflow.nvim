@@ -399,6 +399,21 @@ local function configure(user_config)
     -- Deep-copy defaults before mergeTables mutates them (for :checkhealth / :MkdnCleanConfig)
     init.default_config = vim.deepcopy(default_config)
 
+    -- Validate post-compat user config against defaults and schema
+    local validate = require('mkdnflow.validate')
+    local diagnostics = validate.validate(user_config, init.default_config)
+    validate.checkConflicts(init.raw_user_config, diagnostics)
+    init.validation_diagnostics = diagnostics
+
+    if not user_config.silent then
+        for _, diag in ipairs(diagnostics) do
+            vim.notify(
+                string.format("⬇️  '%s': %s", diag.path, diag.message),
+                vim.log.levels.WARN
+            )
+        end
+    end
+
     -- Merge user config with defaults
     init.config = init.utils.mergeTables(default_config, user_config)
 

@@ -362,6 +362,25 @@ function M.check()
         end
     end
 
+    -- == Validation ==
+    vim.health.start('mkdnflow: config validation')
+
+    local diagnostics = mkdnflow.validation_diagnostics
+    if not diagnostics and mkdnflow.user_config and next(mkdnflow.user_config) then
+        -- setup() may not have stored diagnostics (e.g. older code path); run now
+        local validate = require('mkdnflow.validate')
+        diagnostics = validate.validate(mkdnflow.user_config, mkdnflow.default_config)
+        validate.checkConflicts(mkdnflow.raw_user_config, diagnostics)
+    end
+
+    if not diagnostics or #diagnostics == 0 then
+        vim.health.ok('No config validation issues found')
+    else
+        for _, diag in ipairs(diagnostics) do
+            vim.health.warn(string.format('`%s`: %s', diag.path, diag.message))
+        end
+    end
+
     -- == Modules ==
     vim.health.start('mkdnflow: modules')
 

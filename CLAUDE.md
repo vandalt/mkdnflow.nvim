@@ -33,6 +33,7 @@ mkdnflow.nvim/
 │       │   ├── core.lua
 │       │   └── hl.lua        # To-do highlighting
 │       ├── utils.lua         # Shared utilities
+│       ├── validate.lua      # Config validation (schema, walker, diagnostics)
 │       ├── wrappers.lua      # Command wrapper functions
 │       └── yaml.lua          # YAML frontmatter parsing
 ├── plugin/
@@ -236,8 +237,37 @@ Before creating or handling issues, check the templates in `.github/ISSUE_TEMPLA
 
 ## Error Handling
 - Use `vim.notify()` with `vim.log.levels` for user messages
+- Prefix user-facing notifications with `⬇️ ` (e.g., `'⬇️  Some warning message'`)
 - Return `nil` or `false` on failure rather than throwing errors
 - Validate inputs at public API boundaries
+
+## Config Validation
+
+`lua/mkdnflow/validate.lua` validates user config at setup time and via `:checkhealth`. It uses a **sparse schema overlay** — most config keys are validated by inferring the expected type from `default_config`. Only keys that need extra annotation (multi-type, enum, dynamic containers) have schema entries.
+
+### When Adding New Config Keys
+
+When you add a new key to `default_config` in `lua/mkdnflow.lua`, determine whether the schema in `validate.lua` needs updating:
+
+| Scenario | Schema entry needed? |
+|----------|---------------------|
+| Key accepts only one type and the default is that type (e.g., `foo = true`) | No — inferred from default |
+| Key accepts multiple types (e.g., default `false` but also accepts `string`) | Yes — add `types` annotation |
+| Key is a string with a fixed set of valid values | Yes — add `enum` annotation |
+| Key is a container with user-defined child keys | Yes — add `dynamic = true` |
+| New command added to `command_deps` | No — mappings validation reads `command_deps` directly |
+| New deprecation added to `compat.deprecations` | No — conflict detection reads the registry directly |
+
+### Schema Annotation Format
+
+```lua
+-- In M.schema (mirrors config structure):
+links = {
+    style = { enum = { 'markdown', 'wiki' } },               -- enum constraint
+    transform_on_follow = { types = { 'boolean', 'function' } }, -- multi-type
+},
+filetypes = { dynamic = true },                                -- user-defined keys
+```
 
 ## Neovim API Patterns
 
