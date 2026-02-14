@@ -404,6 +404,16 @@ local function configure(user_config)
     -- Merge user config with defaults
     init.config = init.utils.mergeTables(default_config, user_config)
 
+    -- Normalize footnotes.heading into a heading_lines array so that both
+    -- single-line (ATX) and multi-line (setext) headings use one code path.
+    local fh = init.config.footnotes and init.config.footnotes.heading
+    if type(fh) == 'string' then
+        init.config.footnotes.heading_lines = { fh }
+    elseif type(fh) == 'table' then
+        init.config.footnotes.heading_lines = fh
+    end
+    -- When heading is false/nil, heading_lines stays nil
+
     -- Resolve filetypes (registers unknown extensions via vim.filetype.add)
     local filetype_patterns = resolve_filetypes(init.config.filetypes)
     init.config.resolved_filetypes = filetype_patterns

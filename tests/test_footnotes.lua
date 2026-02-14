@@ -1226,4 +1226,120 @@ T['renumber_e2e'][':MkdnRefreshFootnotes works'] = function()
     eq(get_line(6), '[^note]: Named')
 end
 
+-- =============================================================================
+-- Setext (multi-line) heading support
+-- =============================================================================
+T['setext_heading'] = new_set()
+
+-- Helper to restart child with a setext heading config
+local function setup_setext()
+    child.restart({ '-u', 'scripts/minimal_init.lua' })
+    child.lua([[
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({
+            links = { transform_on_create = false },
+            footnotes = { heading = { 'Footnotes', '---------' } },
+        })
+    ]])
+end
+
+T['setext_heading']['create inserts setext heading on first footnote'] = function()
+    setup_setext()
+    set_lines({ 'Some text here.' })
+    set_cursor(1, 9)
+    child.lua([[require('mkdnflow.links').createFootnote()]])
+    child.type_keys('<Esc>')
+    eq(get_line(1), 'Some text[^1] here.')
+    eq(get_line(2), '')
+    eq(get_line(3), 'Footnotes')
+    eq(get_line(4), '---------')
+    eq(get_line(5), '')
+    eq(get_line(6), '[^1]: ')
+end
+
+T['setext_heading']['create does not duplicate setext heading'] = function()
+    setup_setext()
+    set_lines({
+        'Some text here.',
+        '',
+        'Footnotes',
+        '---------',
+        '',
+        '[^1]: First',
+    })
+    set_cursor(1, 4)
+    child.lua([[require('mkdnflow.links').createFootnote()]])
+    child.type_keys('<Esc>')
+    eq(get_line(1), 'Some[^2] text here.')
+    -- Heading should still appear only once
+    eq(get_line(3), 'Footnotes')
+    eq(get_line(4), '---------')
+    eq(get_line(5), '')
+    eq(get_line(6), '[^1]: First')
+    eq(get_line(7), '[^2]: ')
+end
+
+T['setext_heading']['refresh consolidates under setext heading'] = function()
+    setup_setext()
+    set_lines({
+        'Text[^2] here[^1].',
+        '[^2]: Second def',
+        '',
+        'More text.',
+        '',
+        '[^1]: First def',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Text[^1] here[^2].')
+    eq(get_line(2), '')
+    eq(get_line(3), 'More text.')
+    eq(get_line(4), '')
+    eq(get_line(5), 'Footnotes')
+    eq(get_line(6), '---------')
+    eq(get_line(7), '')
+    eq(get_line(8), '[^1]: Second def')
+    eq(get_line(9), '[^2]: First def')
+end
+
+T['setext_heading']['refresh preserves existing setext heading'] = function()
+    setup_setext()
+    set_lines({
+        'Text[^1] here.',
+        '',
+        'Footnotes',
+        '---------',
+        '',
+        '[^1]: My definition',
+    })
+    child.lua([[require('mkdnflow.links').refreshFootnotes()]])
+    eq(get_line(1), 'Text[^1] here.')
+    eq(get_line(3), 'Footnotes')
+    eq(get_line(4), '---------')
+    eq(get_line(5), '')
+    eq(get_line(6), '[^1]: My definition')
+end
+
+T['setext_heading']['refresh removes old setext heading when consolidating'] = function()
+    setup_setext()
+    set_lines({
+        'Body text[^1] and[^2].',
+        '',
+        'Footnotes',
+        '---------',
+        '',
+        '[^2]: Was second',
+        '',
+        '[^1]: Was first',
+    })
+    child.lua([[require('mkdnflow.links').renumberFootnotes()]])
+    eq(get_line(1), 'Body text[^1] and[^2].')
+    -- Heading reinserted before consolidated definitions
+    eq(get_line(3), 'Footnotes')
+    eq(get_line(4), '---------')
+    eq(get_line(5), '')
+    eq(get_line(6), '[^1]: Was first')
+    eq(get_line(7), '[^2]: Was second')
+end
+
 return T

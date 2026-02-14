@@ -841,6 +841,27 @@ M.destroyLink = function()
     end
 end
 
+--- Find the first row where heading_lines appears as consecutive lines in the buffer.
+---@param lines string[] Buffer lines
+---@param heading_lines string[] One or more heading lines to match
+---@return integer|nil row 1-indexed row of the first heading line, or nil
+local function findHeadingRow(lines, heading_lines)
+    local n = #heading_lines
+    for i = 1, #lines - n + 1 do
+        local match = true
+        for j = 1, n do
+            if lines[i + j - 1] ~= heading_lines[j] then
+                match = false
+                break
+            end
+        end
+        if match then
+            return i
+        end
+    end
+    return nil
+end
+
 --- Create a footnote reference at the cursor and a definition at the end of the document
 ---@param args? {label?: string} If label is provided, use it; otherwise auto-increment
 M.createFootnote = function(args)
@@ -852,8 +873,8 @@ M.createFootnote = function(args)
     local max_numeric = 0
     local last_def_row = nil -- 1-indexed
     local existing_labels = {}
-    local heading_text = config.footnotes and config.footnotes.heading
-    local heading_row = nil
+    local heading_lines = config.footnotes and config.footnotes.heading_lines
+    local heading_row = heading_lines and findHeadingRow(lines, heading_lines)
 
     for i, line in ipairs(lines) do
         local label = string.match(line, '^%s?%s?%s?%[%^(.-)%]:%s')
@@ -864,9 +885,6 @@ M.createFootnote = function(args)
             if num and num > max_numeric then
                 max_numeric = num
             end
-        end
-        if heading_text and line == heading_text then
-            heading_row = i
         end
     end
 
@@ -928,8 +946,10 @@ M.createFootnote = function(args)
         end
 
         -- Heading (if configured and not already in buffer)
-        if heading_text and not heading_row then
-            table.insert(append, heading_text)
+        if heading_lines and not heading_row then
+            for _, hl in ipairs(heading_lines) do
+                table.insert(append, hl)
+            end
             table.insert(append, '')
         end
 
@@ -988,12 +1008,12 @@ local function refreshFootnotes(opts)
     local config = require('mkdnflow').config
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     local def_pat = '^%s?%s?%s?%[%^(.-)%]:%s'
-    local heading_text = config.footnotes and config.footnotes.heading
+    local heading_lines = config.footnotes and config.footnotes.heading_lines
 
     -- Phase 1: Find definitions with multi-line support, detect duplicates
     local definitions = {} -- label -> { start_row, end_row }
     local def_labels_ordered = {} -- preserve discovery order for stable orphan handling
-    local heading_row = nil
+    local heading_row = heading_lines and findHeadingRow(lines, heading_lines)
 
     local i = 1
     while i <= #lines do
@@ -1017,9 +1037,6 @@ local function refreshFootnotes(opts)
             table.insert(def_labels_ordered, label)
             i = end_row + 1
         else
-            if heading_text and lines[i] == heading_text then
-                heading_row = i
-            end
             i = i + 1
         end
     end
@@ -1096,16 +1113,21 @@ local function refreshFootnotes(opts)
     end
 
     -- Phase 7: Build body (all lines except definitions and heading)
-    local is_def_row = {}
+    local is_excluded_row = {}
     for _, def in pairs(definitions) do
         for r = def.start_row, def.end_row do
-            is_def_row[r] = true
+            is_excluded_row[r] = true
+        end
+    end
+    if heading_row and heading_lines then
+        for j = 0, #heading_lines - 1 do
+            is_excluded_row[heading_row + j] = true
         end
     end
 
     local body = {}
     for idx, line in ipairs(new_lines) do
-        if not is_def_row[idx] and idx ~= heading_row then
+        if not is_excluded_row[idx] then
             table.insert(body, line)
         end
     end
@@ -1127,8 +1149,10 @@ local function refreshFootnotes(opts)
     -- Phase 8: Build footnotes section
     local footnotes_section = {}
     if #ordered_def_blocks > 0 then
-        if heading_text then
-            table.insert(footnotes_section, heading_text)
+        if heading_lines then
+            for _, hl in ipairs(heading_lines) do
+                table.insert(footnotes_section, hl)
+            end
             table.insert(footnotes_section, '')
         end
         for _, block in ipairs(ordered_def_blocks) do

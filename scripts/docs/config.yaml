@@ -282,11 +282,12 @@ links:
 
 footnotes:
   - name: footnotes.heading
-    type: string | false
+    type: string | string[] | false
     description: |
       **`'## Footnotes'`** (default): When creating the first footnote in a document via `:MkdnCreateFootnote`, this heading is inserted at the end of the buffer before the footnote definition.
+      A **string** sets a single-line ATX heading (e.g., `'### Notes'`).
+      A **table** (array of strings) sets a multi-line heading, such as a setext-style heading: `{ 'Footnotes', '=========' }` or `{ 'Notes', '-----' }`.
       `false`: No heading is inserted; the definition is appended directly.
-      Any string value can be used for a custom heading (e.g., `'### Notes'`, `'---'`).
 
 new_file_template:
   - name: new_file_template.enabled
