@@ -88,6 +88,34 @@ local resolve_notebook_path = function(path, sub_home_var)
     return derived_path
 end
 
+--- Compute a path relative to the resolution base (inverse of resolve_notebook_path)
+---@param abs_path string An absolute file path
+---@return string relative_path The path relative to the configured resolution base
+M.relativeToBase = function(abs_path)
+    local path_resolution = cfg().path_resolution
+    local s = sep()
+    local base
+    if path_resolution.primary == 'root' and mkdn().root_dir then
+        base = mkdn().root_dir
+    elseif
+        path_resolution.primary == 'first'
+        or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
+    then
+        base = mkdn().initial_dir
+    else
+        base = vim.fs.dirname(vim.api.nvim_buf_get_name(0))
+    end
+    if base then
+        if not base:match(s .. '$') then
+            base = base .. s
+        end
+        if abs_path:sub(1, #base) == base then
+            return abs_path:sub(#base + 1)
+        end
+    end
+    return vim.fs.basename(abs_path)
+end
+
 local enter_internal_path = function() end
 
 --- Fill in placeholders in the new-file template string

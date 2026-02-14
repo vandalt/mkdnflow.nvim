@@ -331,14 +331,17 @@ T['yankAsAnchorLink']['yanks H2 heading'] = function()
     eq(register, '[Sub Heading](#sub-heading)')
 end
 
-T['yankAsAnchorLink']['includes full path when requested'] = function()
+T['yankAsAnchorLink']['includes file path relative to resolution base'] = function()
     set_lines({ '# Heading' })
     set_cursor(1, 0)
     child.lua([[require('mkdnflow.cursor').yankAsAnchorLink(true)]])
     local register = child.lua_get("vim.fn.getreg('\"')")
-    -- Should contain the buffer path and anchor
+    -- Should contain the buffer filename and anchor
     local has_path = register:match('test%.md#heading') ~= nil
     eq(has_path, true)
+    -- Should NOT contain an absolute path prefix
+    local has_abs = register:match('^%[Heading%](/') ~= nil
+    eq(has_abs, false)
 end
 
 T['yankAsAnchorLink']['yanks bracketed span as anchor'] = function()
@@ -357,6 +360,84 @@ T['yankAsAnchorLink']['does nothing on non-heading line'] = function()
     child.lua([[require('mkdnflow.cursor').yankAsAnchorLink()]])
     local register = child.lua_get("vim.fn.getreg('\"')")
     eq(register, 'original') -- Should be unchanged
+end
+
+-- =============================================================================
+-- yankAsAnchorLink with path_resolution configs
+-- =============================================================================
+T['yankAsAnchorLink_resolution'] = new_set()
+
+T['yankAsAnchorLink_resolution']['uses root-relative path when primary=root'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.root_dir = '/fake/notebook'
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false },
+            silent = true,
+        })
+        vim.api.nvim_buf_set_name(0, '/fake/notebook/subdir/note.md')
+    ]])
+    set_lines({ '# Heading' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').yankAsAnchorLink(true)]])
+    local register = child.lua_get("vim.fn.getreg('\"')")
+    eq(register, '[Heading](subdir/note.md#heading)')
+end
+
+T['yankAsAnchorLink_resolution']['uses initial_dir-relative path when primary=first'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'first' },
+            links = { transform_on_create = false },
+            silent = true,
+        })
+        init.initial_dir = '/fake/wiki'
+        vim.api.nvim_buf_set_name(0, '/fake/wiki/journal/2024.md')
+    ]])
+    set_lines({ '# Entry' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').yankAsAnchorLink(true)]])
+    local register = child.lua_get("vim.fn.getreg('\"')")
+    eq(register, '[Entry](journal/2024.md#entry)')
+end
+
+T['yankAsAnchorLink_resolution']['falls back to initial_dir when root not found'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false },
+            silent = true,
+        })
+        init.root_dir = nil
+        init.initial_dir = '/fake/wiki'
+        vim.api.nvim_buf_set_name(0, '/fake/wiki/notes/page.md')
+    ]])
+    set_lines({ '# Page' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.cursor').yankAsAnchorLink(true)]])
+    local register = child.lua_get("vim.fn.getreg('\"')")
+    eq(register, '[Page](notes/page.md#page)')
+end
+
+T['yankAsAnchorLink_resolution']['bracketed span uses relative path'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.root_dir = '/fake/notebook'
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false },
+            silent = true,
+        })
+        vim.api.nvim_buf_set_name(0, '/fake/notebook/docs/ref.md')
+    ]])
+    set_lines({ '[Span Text]{#span-id}' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.cursor').yankAsAnchorLink(true)]])
+    local register = child.lua_get("vim.fn.getreg('\"')")
+    eq(register, '[Span Text](docs/ref.md#span-id)')
 end
 
 -- =============================================================================

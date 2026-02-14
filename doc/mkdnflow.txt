@@ -1955,8 +1955,11 @@ Configuration options.
 :MkdnYankFileAnchorLink                  *Mkdnflow-cmd-MkdnYankFileAnchorLink*
     Default mapping: { 'n', 'yfa' }
 
-    Yank a formatted anchor link with the filename included before the anchor
-    (if cursor is currently on a line with a heading).
+    Yank a formatted anchor link with the file path included before the anchor
+    (if cursor is currently on a line with a heading). The file path is
+    relative to the notebook's path resolution base (root directory, initial
+    directory, or current file directory, depending on `path_resolution`
+    config).
 
 :MkdnIncreaseHeading                        *Mkdnflow-cmd-MkdnIncreaseHeading*
     Default mapping: { { 'n', 'v' }, '+' }
@@ -2548,11 +2551,11 @@ adjusting the number of hash symbols.
 `require('mkdnflow').cursor.yankAsAnchorLink(full_path)`^
 
 
-Yanks the current line as an anchor link, optionally including the full file
-path depending on the value of the argument.
+Yanks the current line as an anchor link, optionally including the file path
+(relative to the path resolution base) depending on the value of the argument.
 
 - **Parameters:**
-    - `full_path`: (boolean) If true, includes the full file path.
+    - `full_path`: (boolean) If true, includes the file path relative to the configured path resolution base.
 
 
 ------------------------------------------------------------------------------

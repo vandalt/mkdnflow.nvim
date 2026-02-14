@@ -1072,7 +1072,7 @@ Configuration options.
 | `MkdnTagSpan` | `{ 'v', '<M-CR>' }` | Tag a visually-selected span of text with an ID, allowing it to be linked to with an anchor link. |
 | `MkdnMoveSource` | `{ 'n', '<F2>' }` | Open a dialog where you can provide a new source for a link and the plugin will rename and move the associated file on the backend (and rename the link source). |
 | `MkdnYankAnchorLink` | `{ 'n', 'yaa' }` | Yank a formatted anchor link (if cursor is currently on a line with a heading). |
-| `MkdnYankFileAnchorLink` | `{ 'n', 'yfa' }` | Yank a formatted anchor link with the filename included before the anchor (if cursor is currently on a line with a heading). |
+| `MkdnYankFileAnchorLink` | `{ 'n', 'yfa' }` | Yank a formatted anchor link with the file path included before the anchor (if cursor is currently on a line with a heading). The file path is relative to the notebook's path resolution base (root directory, initial directory, or current file directory, depending on `path_resolution` config). |
 | `MkdnIncreaseHeading` | `{ { 'n', 'v' }, '+' }` | Increase heading importance (remove hashes). Supports visual selection to change multiple headings at once. Visual mode supports dot-repeat (like Vim's `<` and `>`). |
 | `MkdnDecreaseHeading` | `{ { 'n', 'v' }, '-' }` | Decrease heading importance (add hashes). Supports visual selection to change multiple headings at once. Visual mode supports dot-repeat (like Vim's `<` and `>`). |
 | `MkdnIncreaseHeadingOp` | `{ { 'n', 'v' }, 'g+' }` | Operator version of MkdnIncreaseHeading. In normal mode, use with a motion (e.g., `g+}` to increase headings to next paragraph). In visual mode, operates on selection. Supports dot-repeat. |
@@ -1386,10 +1386,10 @@ Increases or decreases the importance of the heading under the cursor by adjusti
 
 `require('mkdnflow').cursor.yankAsAnchorLink(full_path)`
 
-Yanks the current line as an anchor link, optionally including the full file path depending on the value of the argument.
+Yanks the current line as an anchor link, optionally including the file path (relative to the path resolution base) depending on the value of the argument.
 
 - **Parameters:**
-    - `full_path`: (boolean) If true, includes the full file path.
+    - `full_path`: (boolean) If true, includes the file path relative to the configured path resolution base.
 
 ### List management
 

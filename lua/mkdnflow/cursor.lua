@@ -614,8 +614,8 @@ M.yankAsAnchorLink = function(full_path)
         local anchor_link = links.formatLink(line[1])
         anchor_link = anchor_link[1]
         if full_path then
-            -- Get the full buffer name and insert it before the hash
-            local buffer = vim.api.nvim_buf_get_name(0)
+            -- Get the buffer path relative to the resolution base
+            local buffer = require('mkdnflow').paths.relativeToBase(vim.api.nvim_buf_get_name(0))
             local left = anchor_link:match('(%b[]%()#')
             local right = anchor_link:match('%b[]%((#.*)$')
             anchor_link = left .. buffer .. right
@@ -627,7 +627,8 @@ M.yankAsAnchorLink = function(full_path)
         local anchor_link
         if name and attr then
             if full_path then
-                local buffer = vim.api.nvim_buf_get_name(0)
+                local buffer =
+                    require('mkdnflow').paths.relativeToBase(vim.api.nvim_buf_get_name(0))
                 anchor_link = '[' .. name .. ']' .. '(' .. buffer .. attr .. ')'
             else
                 anchor_link = '[' .. name .. ']' .. '(' .. attr .. ')'

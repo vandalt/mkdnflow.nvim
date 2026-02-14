@@ -107,7 +107,7 @@ commands:
   - name: MkdnYankFileAnchorLink
     default_mapping: "{ 'n', 'yfa' }"
     description: |
-      Yank a formatted anchor link with the filename included before the anchor (if cursor is currently on a line with a heading).
+      Yank a formatted anchor link with the file path included before the anchor (if cursor is currently on a line with a heading). The file path is relative to the notebook's path resolution base (root directory, initial directory, or current file directory, depending on `path_resolution` config).
 
   - name: MkdnIncreaseHeading
     default_mapping: "{ { 'n', 'v' }, '+' }"

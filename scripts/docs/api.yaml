@@ -287,11 +287,11 @@ cursorawaremanipulations:
         description: '"increase" to decrease hash symbols (increasing importance), "decrease" to add hash symbols, decreasing importance.'
 
   - signature: "require('mkdnflow').cursor.yankAsAnchorLink(full_path)"
-    description: Yanks the current line as an anchor link, optionally including the full file path depending on the value of the argument.
+    description: Yanks the current line as an anchor link, optionally including the file path (relative to the path resolution base) depending on the value of the argument.
     params:
       - name: full_path
         type: boolean
-        description: If true, includes the full file path.
+        description: If true, includes the file path relative to the configured path resolution base.
 
 listmanagement:
   - signature: "require('mkdnflow').lists.newListItem({ carry, above, cursor_moves, mode_after, alt })"

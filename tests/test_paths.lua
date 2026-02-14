@@ -1326,4 +1326,80 @@ T['external_files_e2e']['<CR> on PDF link does not open in buffer'] = function()
     eq(buf_before, buf_after)
 end
 
+-- =============================================================================
+-- relativeToBase() - Compute path relative to resolution base
+-- =============================================================================
+T['relativeToBase'] = new_set()
+
+T['relativeToBase']['strips root_dir when primary=root'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.root_dir = '/fake/notebook'
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+    ]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').relativeToBase('/fake/notebook/sub/file.md')]])
+    eq(result, 'sub/file.md')
+end
+
+T['relativeToBase']['strips initial_dir when primary=first'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'first' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+        init.initial_dir = '/fake/wiki'
+    ]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').relativeToBase('/fake/wiki/notes/page.md')]])
+    eq(result, 'notes/page.md')
+end
+
+T['relativeToBase']['falls back to initial_dir when root not found'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+        init.root_dir = nil
+        init.initial_dir = '/fake/wiki'
+    ]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').relativeToBase('/fake/wiki/sub/file.md')]])
+    eq(result, 'sub/file.md')
+end
+
+T['relativeToBase']['returns basename when path not under base'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.root_dir = '/fake/notebook'
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+    ]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').relativeToBase('/other/path/file.md')]])
+    eq(result, 'file.md')
+end
+
+T['relativeToBase']['handles file directly in base directory'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.root_dir = '/fake/notebook'
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+    ]])
+    local result =
+        child.lua_get([[require('mkdnflow.paths').relativeToBase('/fake/notebook/index.md')]])
+    eq(result, 'index.md')
+end
+
 return T
