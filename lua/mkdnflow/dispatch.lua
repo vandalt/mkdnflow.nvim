@@ -30,13 +30,13 @@ local groups = {
             action = 'create',
             cmd = 'MkdnCreateLink',
             desc = 'Create link from word or selection',
-            complete = 'style',
+            complete = 'link_args',
         },
         {
             action = 'create-from-clipboard',
             cmd = 'MkdnCreateLinkFromClipboard',
             desc = 'Create link using clipboard URL',
-            complete = 'style',
+            complete = 'link_args',
         },
         { action = 'destroy', cmd = 'MkdnDestroyLink', desc = 'Remove link formatting, keep text' },
         {
@@ -275,6 +275,9 @@ end)()
 local completers = {
     style = function()
         return { 'markdown', 'wiki' }
+    end,
+    link_args = function()
+        return { 'markdown', 'wiki', 'path', 'filename' }
     end,
     list_type = function()
         return { 'ul', 'ol', 'ultd', 'oltd' }

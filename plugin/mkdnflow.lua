@@ -41,27 +41,61 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     end
 
     --- Resolve an abbreviated link style argument to its full name
-    ---@param arg? string User input (e.g., 'm', 'wiki', 'markdown')
-    ---@return string|nil style The resolved style, or nil if invalid
+    ---@param arg string User input (e.g., 'm', 'wiki', 'markdown')
+    ---@return string|nil style The resolved style, or nil if no match
     local function resolve_style(arg)
-        if not arg or arg == '' then
-            return nil
-        end
         arg = arg:lower()
         if ('markdown'):sub(1, #arg) == arg then
             return 'markdown'
         elseif ('wiki'):sub(1, #arg) == arg then
             return 'wiki'
         end
-        vim.notify(
-            "⬇️  Invalid link style: '" .. arg .. "'. Expected 'markdown' or 'wiki'.",
-            vim.log.levels.WARN
-        )
-        return false
+        return nil
     end
 
-    local style_complete = function()
-        return { 'markdown', 'wiki' }
+    --- Resolve an abbreviated transform scope argument to its full name
+    ---@param arg string User input (e.g., 'p', 'path', 'f', 'filename')
+    ---@return string|nil scope The resolved scope, or nil if no match
+    local function resolve_scope(arg)
+        arg = arg:lower()
+        if ('path'):sub(1, #arg) == arg then
+            return 'path'
+        elseif ('filename'):sub(1, #arg) == arg then
+            return 'filename'
+        end
+        return nil
+    end
+
+    --- Parse link command arguments, resolving style and transform_scope in any order
+    ---@param fargs string[] Raw command arguments
+    ---@return table|nil args Table with style and transform_scope keys, or nil on error
+    local function resolve_link_args(fargs)
+        local style, transform_scope
+        for _, arg in ipairs(fargs) do
+            local s = resolve_style(arg)
+            if s then
+                style = s
+            else
+                local sc = resolve_scope(arg)
+                if sc then
+                    transform_scope = sc
+                else
+                    vim.notify(
+                        "⬇️  Invalid argument: '"
+                            .. arg
+                            .. "'. Expected a style ('markdown', 'wiki')"
+                            .. " or scope ('path', 'filename').",
+                        vim.log.levels.WARN
+                    )
+                    return nil
+                end
+            end
+        end
+        return { style = style, transform_scope = transform_scope }
+    end
+
+    local link_complete = function()
+        return { 'markdown', 'wiki', 'path', 'filename' }
     end
 
     user_command('Mkdnflow', function(opts)
@@ -133,31 +167,30 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
         if not links then
             return
         end
-        local style = resolve_style(opts.fargs[1])
-        if style == false then
+        local link_args = resolve_link_args(opts.fargs)
+        if not link_args then
             return
         end
         if opts.range > 0 then
-            links.createLink({ range = true, style = style })
-        else
-            links.createLink({ style = style })
+            link_args.range = true
         end
-    end, { range = true, nargs = '?', complete = style_complete })
+        links.createLink(link_args)
+    end, { range = true, nargs = '*', complete = link_complete })
     user_command('MkdnCreateLinkFromClipboard', function(opts)
         local links = require_module('links')
         if not links then
             return
         end
-        local style = resolve_style(opts.fargs[1])
-        if style == false then
+        local link_args = resolve_link_args(opts.fargs)
+        if not link_args then
             return
         end
+        link_args.from_clipboard = true
         if opts.range > 0 then
-            links.createLink({ from_clipboard = true, range = true, style = style })
-        else
-            links.createLink({ from_clipboard = true, style = style })
+            link_args.range = true
         end
-    end, { range = true, nargs = '?', complete = style_complete })
+        links.createLink(link_args)
+    end, { range = true, nargs = '*', complete = link_complete })
     user_command('MkdnCreateFootnote', function(opts)
         local links = require_module('links')
         if not links then

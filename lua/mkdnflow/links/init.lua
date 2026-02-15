@@ -552,15 +552,22 @@ end
 
 --- Apply the user's `transform_on_create` function to text when creating a link
 ---@param text string The text to transform
+---@param scope? string Transform scope: 'path' (entire text) or 'filename' (filename only). Defaults to config.
 ---@return string text The transformed text (or unchanged if no transform is configured)
-M.transformPath = function(text)
+M.transformPath = function(text, scope)
     local config = require('mkdnflow').config
     local links = config.links
-    if type(links.transform_on_create) ~= 'function' or not links.transform_on_create then
+    if type(links.transform_on_create) ~= 'function' then
         return text
-    else
-        return (links.transform_on_create(text))
     end
+    scope = scope or links.transform_scope
+    if scope == 'filename' then
+        local dir, filename = text:match('^(.*/)([^/]*)$')
+        if dir then
+            return dir .. links.transform_on_create(filename)
+        end
+    end
+    return (links.transform_on_create(text))
 end
 
 --- Convert a heading to an anchor using the legacy ASCII-only behavior (for backwards compatibility)
@@ -598,8 +605,9 @@ end
 ---@param source? string An explicit source path; if nil, derived from text
 ---@param part? integer If 1, return only the text; if 2, return only the path
 ---@param style? string Link style override ('markdown' or 'wiki'); defaults to config
+---@param transform_scope? string Transform scope override ('path' or 'filename'); defaults to config
 ---@return string[]|string|nil result The formatted link as a single-element array, or a part if requested
-M.formatLink = function(text, source, part, style)
+M.formatLink = function(text, source, part, style, transform_scope)
     local config = require('mkdnflow').config
     local links = config.links
     style = style or links.style
@@ -617,7 +625,7 @@ M.formatLink = function(text, source, part, style)
         -- Lowercase using vim.fn.tolower for Unicode support
         path_text = '#' .. vim.fn.tolower(path_text)
     elseif not source then
-        path_text = M.transformPath(text)
+        path_text = M.transformPath(text, transform_scope)
         -- If no path_text, end here
         if not path_text then
             return
@@ -650,7 +658,7 @@ end
 -- =============================================================================
 
 --- Create a link from the word under the cursor or from a visual selection
----@param args? {from_clipboard?: boolean, from_citation?: boolean, citation_bounds?: table, range?: boolean, style?: string}
+---@param args? {from_clipboard?: boolean, from_citation?: boolean, citation_bounds?: table, range?: boolean, style?: string, transform_scope?: string}
 M.createLink = function(args)
     local config = require('mkdnflow').config
     local links = config.links
@@ -662,6 +670,7 @@ M.createLink = function(args)
     local citation_bounds = args.citation_bounds
     local range = args.range or false
     local style = args.style or links.style
+    local transform_scope = args.transform_scope or links.transform_scope
     -- Get mode from vim
     local mode = vim.api.nvim_get_mode()['mode']
     -- Get the cursor position
@@ -704,9 +713,10 @@ M.createLink = function(args)
             -- Make a markdown link out of the date and cursor
             local replacement
             if from_clipboard then
-                replacement = M.formatLink(cursor_word, vim.fn.getreg('+'), nil, style)
+                replacement =
+                    M.formatLink(cursor_word, vim.fn.getreg('+'), nil, style, transform_scope)
             else
-                replacement = M.formatLink(cursor_word, nil, nil, style)
+                replacement = M.formatLink(cursor_word, nil, nil, style, transform_scope)
             end
             -- If there's no replacement, stop here
             if not replacement then
@@ -800,17 +810,18 @@ M.createLink = function(args)
             if from_citation then
                 text = M.cleanCitationText(text)
                 local cite_path = text:gsub('^@', '')
-                cite_path = M.transformPath(cite_path)
+                cite_path = M.transformPath(cite_path, transform_scope)
                 if not cite_path then
                     return
                 end
                 if not links.implicit_extension then
                     cite_path = cite_path .. '.md'
                 end
-                replacement = M.formatLink(text, cite_path, nil, style)
+                replacement = M.formatLink(text, cite_path, nil, style, transform_scope)
             else
-                replacement = from_clipboard and M.formatLink(text, vim.fn.getreg('+'), nil, style)
-                    or M.formatLink(text, nil, nil, style)
+                replacement = from_clipboard
+                        and M.formatLink(text, vim.fn.getreg('+'), nil, style, transform_scope)
+                    or M.formatLink(text, nil, nil, style, transform_scope)
             end
             -- If no replacement, end here
             if not replacement then

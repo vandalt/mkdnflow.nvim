@@ -92,6 +92,7 @@ local default_config = {
             text = os.date('%Y-%m-%d_') .. text
             return text
         end,
+        transform_scope = 'path',
         auto_create = true,
         on_create_new = false,
         uri_handlers = {},

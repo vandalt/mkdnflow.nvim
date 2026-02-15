@@ -339,6 +339,7 @@ the documentation for the configuration options below or in the help files.
                 text = os.date('%Y-%m-%d_') .. text
                 return text
             end,
+            transform_scope = 'path',
             auto_create = true,
             on_create_new = false,
         },
@@ -1017,6 +1018,26 @@ links.transform_on_create          *Mkdnflow-config-links-transform-on-create*
     recipes beneath this table.
 
     Previously named `links.transform_explicit`.
+
+links.transform_scope                  *Mkdnflow-config-links-transform-scope*
+    Type: string
+
+    Controls which part of the link text is passed to `transform_on_create`
+    when the text contains `/`.
+
+    `'path'`: (default): The entire text (including directory components) is
+    passed to `transform_on_create`. For example, `work/with/dirs` is
+    transformed as a single string, and the default transform produces
+    `2026-02-15_work-with-dirs.md`.
+
+    `'filename'`: Only the filename portion (after the last `/`) is passed to
+    `transform_on_create`; the directory prefix is preserved. For example,
+    `work/with/dirs` becomes `work/with/2026-02-15_dirs.md`.
+
+    If the text contains no `/`, both modes behave identically.
+
+    Can be overridden per-call via the Lua API: `createLink({ transform_scope
+    = 'filename' })`, or via command argument: `:MkdnCreateLink filename`.
 
 links.transform_on_follow          *Mkdnflow-config-links-transform-on-follow*
     Type: fun(string): string` | `boolean
@@ -1916,18 +1937,20 @@ Configuration options.
 :MkdnCreateLink                                  *Mkdnflow-cmd-MkdnCreateLink*
 
     Create a link from the text under the cursor (in normal mode) or from the
-    visual selection (in visual mode). Accepts an optional argument to
-    override the link style: `:MkdnCreateLink wiki` or `:MkdnCreateLink
-    markdown`. Abbreviations are accepted (e.g. `:MkdnCreateLink w`).
+    visual selection (in visual mode). Accepts optional arguments to override
+    the link style and/or transform scope, in any order: `:MkdnCreateLink
+    wiki`, `:MkdnCreateLink filename`, or `:MkdnCreateLink wiki filename`.
+    Abbreviations are accepted (e.g. `:MkdnCreateLink w f`).
 
 :MkdnCreateLinkFromClipboard        *Mkdnflow-cmd-MkdnCreateLinkFromClipboard*
     Default mapping: { { 'n', 'v' }, '<leader>p' }
 
     Create a link, using the content from the system clipboard (e.g. a URL) as
     the source and the text under the cursor or visual selection as the link
-    text. Accepts an optional argument to override the link style:
-    `:MkdnCreateLinkFromClipboard wiki`. Abbreviations are accepted (e.g.
-    `:MkdnCreateLinkFromClipboard w`).
+    text. Accepts optional arguments to override the link style and/or
+    transform scope, in any order: `:MkdnCreateLinkFromClipboard wiki
+    filename`. Abbreviations are accepted (e.g. `:MkdnCreateLinkFromClipboard
+    w f`).
 
 :MkdnCreateFootnote                          *Mkdnflow-cmd-MkdnCreateFootnote*
 
@@ -2558,6 +2581,7 @@ Creates a markdown link from the text under the cursor or visual selection.
     - `args`: (table) Arguments to customize link creation.
         - `from_clipboard`: (boolean) If true, use the system clipboard content as the link source.
         - `style`: (string|nil) Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config.
+        - `transform_scope`: (string|nil) Transform scope override: `'path'` or `'filename'`. Defaults to `links.transform_scope` from config.
 
 `require('mkdnflow').links.createFootnote(args)`^
 
@@ -2642,7 +2666,7 @@ Checks if a given string contains a URL and optionally returns the URL.
     - `to_return`: (string) The part to return (e.g., "url").
     - `col`: (number) The column position to check.
 
-`require('mkdnflow').links.transformPath(text)`^
+`require('mkdnflow').links.transformPath(text, scope)`^
 
 
 Transforms the given text according to the default or user-supplied explicit
@@ -2650,8 +2674,9 @@ transformation function.
 
 - **Parameters:**
     - `text`: (string) The text to transform.
+    - `scope`: (string|nil) Transform scope: `'path'` (transform entire text) or `'filename'` (transform only the filename portion after the last `/`). Defaults to `links.transform_scope` from config.
 
-`require('mkdnflow').links.formatLink(text, source, part, style)`^
+`require('mkdnflow').links.formatLink(text, source, part, style, transform_scope)`^
 
 
 Creates a formatted link with whatever is provided.
@@ -2664,6 +2689,7 @@ Creates a formatted link with whatever is provided.
         - `1`: () Return the text part of the link.
         - `2`: () Return the source part of the link.
     - `style`: (string|nil) Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config.
+    - `transform_scope`: (string|nil) Transform scope override: `'path'` or `'filename'`. Defaults to `links.transform_scope` from config.
 
 
 ------------------------------------------------------------------------------

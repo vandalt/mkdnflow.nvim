@@ -1694,6 +1694,154 @@ T['config']['links.transform_on_create=false returns text unchanged'] = function
     eq(result[1], '[My Page](My Page.md)')
 end
 
+T['config']['links.transform_scope=path passes full text to transform'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = function(text)
+                    return string.lower(text):gsub('[ /]', '-')
+                end,
+                transform_scope = 'path',
+            }
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('work/with/dirs')]])
+    eq(result[1], '[work/with/dirs](work-with-dirs.md)')
+end
+
+T['config']['links.transform_scope=filename transforms only filename'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = function(text)
+                    return string.lower(text):gsub(' ', '-')
+                end,
+                transform_scope = 'filename',
+            }
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('work/with/My Page')]])
+    eq(result[1], '[work/with/My Page](work/with/my-page.md)')
+end
+
+T['config']['links.transform_scope=filename without slash behaves like path'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = function(text)
+                    return string.lower(text):gsub(' ', '_')
+                end,
+                transform_scope = 'filename',
+            }
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('My Page')]])
+    eq(result[1], '[My Page](my_page.md)')
+end
+
+T['config']['links.transform_scope per-call override in formatLink'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = function(text)
+                    return string.lower(text):gsub(' ', '-')
+                end,
+                transform_scope = 'path',
+            }
+        })
+    ]])
+    -- Override to 'filename' at call time
+    local result = child.lua_get(
+        [[require('mkdnflow.links').formatLink('work/with/My Page', nil, nil, nil, 'filename')]]
+    )
+    eq(result[1], '[work/with/My Page](work/with/my-page.md)')
+end
+
+T['config']['links.transform_scope per-call override in createLink'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = function(text)
+                    return string.lower(text):gsub(' ', '-')
+                end,
+                transform_scope = 'path',
+            }
+        })
+    ]])
+    set_lines({ 'work/with/dirs' })
+    set_cursor(1, 5)
+    child.lua([[require('mkdnflow.links').createLink({ transform_scope = 'filename' })]])
+    local result = get_line(1)
+    eq(result, '[work/with/dirs](work/with/dirs.md)')
+end
+
+T['config']['links.transform_scope=filename with default transform'] = function()
+    -- This test verifies the exact scenario from issue #223
+    -- Must explicitly provide transform_on_create since pre_case sets it to false
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = function(text)
+                    text = text:gsub('[ /]', '-')
+                    text = text:lower()
+                    text = os.date('%Y-%m-%d_') .. text
+                    return text
+                end,
+                transform_scope = 'filename',
+            }
+        })
+    ]])
+    -- Use formatLink with part=2 to get just the path portion
+    local path_part =
+        child.lua_get([[require('mkdnflow.links').formatLink('work/with/dirs', nil, 2)]])
+    -- With default transform: only 'dirs' gets the date prefix and lowercasing
+    -- Directory prefix 'work/with/' is preserved
+    local today = os.date('%Y-%m-%d')
+    eq(path_part, 'work/with/' .. today .. '_dirs.md')
+end
+
+T['config']['MkdnCreateLink command accepts scope argument'] = function()
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = function(text)
+                    return string.lower(text):gsub(' ', '-')
+                end,
+            },
+            silent = true,
+        })
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+    ]])
+    set_lines({ 'work/with/dirs' })
+    set_cursor(1, 5)
+    child.cmd('MkdnCreateLink filename')
+    local result = get_line(1)
+    eq(result, '[work/with/dirs](work/with/dirs.md)')
+end
+
+T['config']['MkdnCreateLink command accepts both style and scope'] = function()
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = function(text)
+                    return string.lower(text):gsub(' ', '-')
+                end,
+            },
+            silent = true,
+        })
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+    ]])
+    set_lines({ 'work/with/dirs' })
+    set_cursor(1, 5)
+    child.cmd('MkdnCreateLink wiki filename')
+    local result = get_line(1)
+    eq(result, '[[work/with/dirs.md|work/with/dirs]]')
+end
+
 T['config']['links.auto_create creates link from word'] = function()
     child.lua([[require('mkdnflow').setup({ links = { auto_create = true } })]])
     set_lines({ 'word here' })

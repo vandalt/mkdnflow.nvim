@@ -121,6 +121,7 @@ M.schema = {
         implicit_extension = { types = { 'nil', 'string' } },
         transform_on_follow = { types = { 'boolean', 'function' } },
         transform_on_create = { types = { 'function' } },
+        transform_scope = { enum = { 'path', 'filename' } },
         on_create_new = { types = { 'boolean', 'function' } },
         uri_handlers = { dynamic = true },
     },

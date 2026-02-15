@@ -341,6 +341,7 @@ the help files.
             text = os.date('%Y-%m-%d_') .. text
             return text
         end,
+        transform_scope = 'path',
         auto_create = true,
         on_create_new = false,
     },
@@ -667,6 +668,7 @@ require('mkdnflow').setup({
 | `links.search_range` | `integer` | When following or jumping to links, consider `n` lines before and after a given line (useful if you ever permit links to be interrupted by a hard line break). Default: **`0`**.<br>Previously named `links.context`. |
 | `links.implicit_extension` | `string` | A string that instructs the plugin (a) how to interpret links to files that do not have an extension, and (b) how to create new links from the text under the cursor or text selection.<br><br>**`nil`** (default): Extensions will be explicit when a link is created and must be explicit in any notebook link.<br>`'<any extension>'` (e.g. `'md'`): Links without an extension (e.g. `[Homepage](index)`) will be interpreted with the implicit extension (e.g. `index.md`), and new links will be created without an extension. |
 | `links.transform_on_create` | `fun(string): string` \| `boolean` | `false`: No transformations are applied to the text to be turned into the name of the link source/path.<br>**`fun(string): string`** (default): A function that transforms the text to be inserted as the source/path of a link when a link is created. Anchor links are not currently customizable. For an example, see the sample recipes beneath this table.<br>Previously named `links.transform_explicit`. |
+| `links.transform_scope` | `string` | Controls which part of the link text is passed to `transform_on_create` when the text contains `/`.<br>**`'path'`** (default): The entire text (including directory components) is passed to `transform_on_create`. For example, `work/with/dirs` is transformed as a single string, and the default transform produces `2026-02-15_work-with-dirs.md`.<br>`'filename'`: Only the filename portion (after the last `/`) is passed to `transform_on_create`; the directory prefix is preserved. For example, `work/with/dirs` becomes `work/with/2026-02-15_dirs.md`.<br>If the text contains no `/`, both modes behave identically.<br>Can be overridden per-call via the Lua API: `createLink({ transform_scope = 'filename' })`, or via command argument: `:MkdnCreateLink filename`. |
 | `links.transform_on_follow` | `fun(string): string` \| `boolean` | **`false`** (default): Do not perform any transformations on the link's source when following.<br>`fun(string): string`: A function that transforms the path of a link immediately before interpretation. It does not transform the actual text in the buffer but can be used to modify link interpretation. For an example, see the sample recipe below.<br>Previously named `links.transform_implicit`. |
 | `links.auto_create` | `boolean` | **`true`** (default): Try to create a link from the text under the cursor if there is no link under the cursor to follow.<br>`false`: Do nothing if trying to follow a link and a link can't be found under the cursor.<br>Previously named `links.create_on_follow_failure`. |
 | `links.on_create_new` | `false` \| `fun(string, string\|nil): string\|nil` | A callback invoked when following a link to a file that does not yet exist,<br>allowing file creation to be delegated to an external tool (e.g. `zk`,<br>Obsidian CLI, a custom script). This callback is only invoked when the target<br>file does not yet exist. Following a link to an existing file bypasses this<br>callback entirely.<br><br>The function receives two arguments: the full resolved path (with extension)<br>that mkdnflow would create, and the link's display text (which may be `nil`).<br><br>It should return a `string` (file path for mkdnflow to open) or `nil` (if the<br>callback handled everything). If a path is returned and the file exists there,<br>mkdnflow opens it directly (skipping template injection). If the file does not<br>exist at the returned path, mkdnflow runs its normal creation flow.<br><br>**`false`** (default): Use mkdnflow's built-in file creation. |
@@ -1065,8 +1067,8 @@ Configuration options.
 | `MkdnPrevHeading` | `{ 'n', '[[' }` | Move the cursor to the beginning of the previous heading (if there is one). |
 | `MkdnGoBack` | `{ 'n', '<BS>' }` | Open the historically last-active buffer in the current window.<br><br>Note: The back-end function for `:MkdnGoBack` (`require('mkdnflow').buffers.goBack()`) returns a boolean indicating the success of `goBack()`. This may be useful if you wish to remap `<BS>` such that when `goBack()` is unsuccessful, another function is performed. |
 | `MkdnGoForward` | `{ 'n', '<Del>' }` | Open the buffer that was historically navigated away from in the current window. |
-| `MkdnCreateLink` | -- | Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). Accepts an optional argument to override the link style: `:MkdnCreateLink wiki` or `:MkdnCreateLink markdown`. Abbreviations are accepted (e.g. `:MkdnCreateLink w`). |
-| `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. Accepts an optional argument to override the link style: `:MkdnCreateLinkFromClipboard wiki`. Abbreviations are accepted (e.g. `:MkdnCreateLinkFromClipboard w`). |
+| `MkdnCreateLink` | -- | Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). Accepts optional arguments to override the link style and/or transform scope, in any order: `:MkdnCreateLink wiki`, `:MkdnCreateLink filename`, or `:MkdnCreateLink wiki filename`. Abbreviations are accepted (e.g. `:MkdnCreateLink w f`). |
+| `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. Accepts optional arguments to override the link style and/or transform scope, in any order: `:MkdnCreateLinkFromClipboard wiki filename`. Abbreviations are accepted (e.g. `:MkdnCreateLinkFromClipboard w f`). |
 | `MkdnCreateFootnote` | -- | Create a footnote reference (`[^N]`) at the cursor position and a corresponding definition (`[^N]: `) at the end of the document. The reference is placed after the current word and any trailing punctuation (e.g., `word.[^1]` rather than `word[^1].`). The cursor jumps to the definition line in insert mode so the footnote text can be filled in immediately. After filling in the definition, use `MkdnFollowLink` (`<CR>`) on the definition to jump back to the reference (or use ` `` `/`''` via the jumplist).<br><br>Auto-numbering increments from the highest existing numeric footnote label. An optional argument specifies an explicit string label instead (e.g., `:MkdnCreateFootnote myref` creates `[^myref]`).<br><br>If no footnote definitions exist in the buffer and `footnotes.heading` is configured, the heading is appended to the end of the document before the definition. If definitions already exist, the new definition is placed after the last one. |
 | `MkdnRenumberFootnotes` | -- | Renumber all footnote references and definitions in the current buffer so they form a sequential series (1, 2, 3, ...) based on order of first appearance in the document. Both references (`[^label]`) and definitions (`[^label]: ...`) are updated. String-labeled footnotes (e.g., `[^myref]`) are converted to numeric labels. Multiple references to the same footnote are all updated consistently.<br><br>Definitions are consolidated under the configured `footnotes.heading` (default: `## Footnotes`) in appearance order. Multi-line definitions (with indented continuation lines) are moved as a block. If the heading doesn't exist, it is appended to the end of the document.<br><br>Aborts with a warning if duplicate definitions are found (same label defined more than once). If footnotes are already up to date, a message is shown and no changes are made. |
 | `MkdnRefreshFootnotes` | -- | Refresh footnote numbering and consolidate definitions. Like `MkdnRenumberFootnotes`, but only renumbers footnotes that already have numeric labels — string-labeled footnotes (e.g., `[^myref]`) are preserved as-is.<br><br>Definitions are reordered by first appearance in the document and consolidated under the configured `footnotes.heading`. This is useful for documents that mix numbered and named footnotes, or for reordering a disorganized definition list.<br><br>Aborts with a warning if duplicate definitions are found. If footnotes are already up to date, a message is shown and no changes are made. |
@@ -1354,6 +1356,7 @@ Creates a markdown link from the text under the cursor or visual selection.
     - `args`: (table) Arguments to customize link creation.
         - `from_clipboard`: (boolean) If true, use the system clipboard content as the link source.
         - `style`: (string|nil) Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config.
+        - `transform_scope`: (string|nil) Transform scope override: `'path'` or `'filename'`. Defaults to `links.transform_scope` from config.
 
 `require('mkdnflow').links.createFootnote(args)`
 
@@ -1420,14 +1423,15 @@ Checks if a given string contains a URL and optionally returns the URL.
     - `to_return`: (string) The part to return (e.g., "url").
     - `col`: (number) The column position to check.
 
-`require('mkdnflow').links.transformPath(text)`
+`require('mkdnflow').links.transformPath(text, scope)`
 
 Transforms the given text according to the default or user-supplied explicit transformation function.
 
 - **Parameters:**
     - `text`: (string) The text to transform.
+    - `scope`: (string|nil) Transform scope: `'path'` (transform entire text) or `'filename'` (transform only the filename portion after the last `/`). Defaults to `links.transform_scope` from config.
 
-`require('mkdnflow').links.formatLink(text, source, part, style)`
+`require('mkdnflow').links.formatLink(text, source, part, style, transform_scope)`
 
 Creates a formatted link with whatever is provided.
 
@@ -1439,6 +1443,7 @@ Creates a formatted link with whatever is provided.
         - `1`: () Return the text part of the link.
         - `2`: () Return the source part of the link.
     - `style`: (string|nil) Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config.
+    - `transform_scope`: (string|nil) Transform scope override: `'path'` or `'filename'`. Defaults to `links.transform_scope` from config.
 
 ### Link and path handling
 

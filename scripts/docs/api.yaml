@@ -40,6 +40,9 @@ linkmanagement:
           - name: style
             type: string|nil
             description: "Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config."
+          - name: transform_scope
+            type: string|nil
+            description: "Transform scope override: `'path'` or `'filename'`. Defaults to `links.transform_scope` from config."
 
   - signature: "require('mkdnflow').links.createFootnote(args)"
     description: Creates a footnote reference at the cursor position and a definition at the end of the document. Jumps to the definition line in insert mode.
@@ -118,14 +121,17 @@ linkmanagement:
         type: number
         description: The column position to check.
 
-  - signature: "require('mkdnflow').links.transformPath(text)"
+  - signature: "require('mkdnflow').links.transformPath(text, scope)"
     description: Transforms the given text according to the default or user-supplied explicit transformation function.
     params:
       - name: text
         type: string
         description: The text to transform.
+      - name: scope
+        type: string|nil
+        description: "Transform scope: `'path'` (transform entire text) or `'filename'` (transform only the filename portion after the last `/`). Defaults to `links.transform_scope` from config."
 
-  - signature: "require('mkdnflow').links.formatLink(text, source, part, style)"
+  - signature: "require('mkdnflow').links.formatLink(text, source, part, style, transform_scope)"
     description: Creates a formatted link with whatever is provided.
     params:
       - name: text
@@ -150,6 +156,9 @@ linkmanagement:
       - name: style
         type: string|nil
         description: "Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config."
+      - name: transform_scope
+        type: string|nil
+        description: "Transform scope override: `'path'` or `'filename'`. Defaults to `links.transform_scope` from config."
 
 linkpathhandling:
   - signature: "require('mkdnflow').paths.moveSource()"

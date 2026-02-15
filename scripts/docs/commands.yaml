@@ -43,12 +43,12 @@ commands:
   - name: MkdnCreateLink
     default_mapping: null
     description: |
-      Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). Accepts an optional argument to override the link style: `:MkdnCreateLink wiki` or `:MkdnCreateLink markdown`. Abbreviations are accepted (e.g. `:MkdnCreateLink w`).
+      Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). Accepts optional arguments to override the link style and/or transform scope, in any order: `:MkdnCreateLink wiki`, `:MkdnCreateLink filename`, or `:MkdnCreateLink wiki filename`. Abbreviations are accepted (e.g. `:MkdnCreateLink w f`).
 
   - name: MkdnCreateLinkFromClipboard
     default_mapping: "{ { 'n', 'v' }, '<leader>p' }"
     description: |
-      Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. Accepts an optional argument to override the link style: `:MkdnCreateLinkFromClipboard wiki`. Abbreviations are accepted (e.g. `:MkdnCreateLinkFromClipboard w`).
+      Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. Accepts optional arguments to override the link style and/or transform scope, in any order: `:MkdnCreateLinkFromClipboard wiki filename`. Abbreviations are accepted (e.g. `:MkdnCreateLinkFromClipboard w f`).
 
   - name: MkdnCreateFootnote
     default_mapping: null
