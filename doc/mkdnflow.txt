@@ -942,6 +942,11 @@ links.style                                      *Mkdnflow-config-links-style*
     `'wiki'`: Links will be expected in the unofficial wiki-link style,
     specifically the title-after-pipe format: `[[|]]`.
 
+    This sets the default style for link creation. To create links in both
+    styles, you can override the style per-call via `:MkdnCreateLink wiki` (or
+    `markdown`), or via the Lua API: `createLink({ style = 'wiki' })`. See
+    'custom-mappings-on-attach' for an example.
+
 links.compact                                  *Mkdnflow-config-links-compact*
     Type: boolean
 
@@ -1911,14 +1916,18 @@ Configuration options.
 :MkdnCreateLink                                  *Mkdnflow-cmd-MkdnCreateLink*
 
     Create a link from the text under the cursor (in normal mode) or from the
-    visual selection (in visual mode).
+    visual selection (in visual mode). Accepts an optional argument to
+    override the link style: `:MkdnCreateLink wiki` or `:MkdnCreateLink
+    markdown`. Abbreviations are accepted (e.g. `:MkdnCreateLink w`).
 
 :MkdnCreateLinkFromClipboard        *Mkdnflow-cmd-MkdnCreateLinkFromClipboard*
     Default mapping: { { 'n', 'v' }, '<leader>p' }
 
     Create a link, using the content from the system clipboard (e.g. a URL) as
     the source and the text under the cursor or visual selection as the link
-    text.
+    text. Accepts an optional argument to override the link style:
+    `:MkdnCreateLinkFromClipboard wiki`. Abbreviations are accepted (e.g.
+    `:MkdnCreateLinkFromClipboard w`).
 
 :MkdnCreateFootnote                          *Mkdnflow-cmd-MkdnCreateFootnote*
 
@@ -2385,6 +2394,25 @@ disable the `maps` module:
     })
 <
 
+You can also use `on_attach` to create links in both markdown and wiki styles
+from different keys. The `MkdnCreateLink` and `MkdnCreateLinkFromClipboard`
+commands accept an optional style argument (abbreviations like `w` and `m` are
+accepted):
+
+>
+    require('mkdnflow').setup({
+        on_attach = function(bufnr)
+            local opts = { buffer = bufnr }
+            -- Markdown link from clipboard (uses configured default)
+            vim.keymap.set({ 'n', 'v' }, '<leader>p',
+                '<Cmd>MkdnCreateLinkFromClipboard<CR>', opts)
+            -- Wiki link from clipboard (per-call style override)
+            vim.keymap.set({ 'n', 'v' }, '<leader>wp',
+                '<Cmd>MkdnCreateLinkFromClipboard wiki<CR>', opts)
+        end,
+    })
+<
+
 
 USING LAZY.NVIM KEYS~
 
@@ -2497,6 +2525,7 @@ Creates a markdown link from the text under the cursor or visual selection.
 - **Parameters:**
     - `args`: (table) Arguments to customize link creation.
         - `from_clipboard`: (boolean) If true, use the system clipboard content as the link source.
+        - `style`: (string|nil) Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config.
 
 `require('mkdnflow').links.createFootnote(args)`^
 
@@ -2590,7 +2619,7 @@ transformation function.
 - **Parameters:**
     - `text`: (string) The text to transform.
 
-`require('mkdnflow').links.formatLink(text, source, part)`^
+`require('mkdnflow').links.formatLink(text, source, part, style)`^
 
 
 Creates a formatted link with whatever is provided.
@@ -2602,6 +2631,7 @@ Creates a formatted link with whatever is provided.
         - `nil`: () Return the entire link.
         - `1`: () Return the text part of the link.
         - `2`: () Return the source part of the link.
+    - `style`: (string|nil) Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config.
 
 
 ------------------------------------------------------------------------------

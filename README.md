@@ -660,7 +660,7 @@ require('mkdnflow').setup({
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `links.style` | `string` | **`'markdown'`** (default): Links will be expected in the standard markdown format: `[<title>](<source>)`<br>`'wiki'`: Links will be expected in the unofficial wiki-link style, specifically the title-after-pipe format: `[[<source>\|<title>]]`. |
+| `links.style` | `string` | **`'markdown'`** (default): Links will be expected in the standard markdown format: `[<title>](<source>)`<br>`'wiki'`: Links will be expected in the unofficial wiki-link style, specifically the title-after-pipe format: `[[<source>\|<title>]]`.<br>This sets the default style for link creation. To create links in both styles, you can override the style per-call via `:MkdnCreateLink wiki` (or `markdown`), or via the Lua API: `createLink({ style = 'wiki' })`. See 'custom-mappings-on-attach' for an example. |
 | `links.compact` | `boolean` | `true`: Wiki-style links will be created with the source and name being the same (e.g. `[[Link]]` will display as "Link" and go to a file named "Link.md").<br>**`false`** (default): Wiki-style links will be created with separate name and source (e.g. `[[link-to-source\|Link]]` will display as "Link" and go to a file named "link-to-source.md").<br>Previously named `links.name_is_source`. |
 | `links.conceal` | `boolean` | `true`: Link sources and delimiters will be concealed (depending on which link style is selected).<br>**`false`** (default): Link sources and delimiters will not be concealed by mkdnflow. |
 | `links.ref_hint` | `boolean` | `true`: When the cursor is on a reference-style link (`[text][ref]` or `[label]`), the resolved URL is shown as virtual text at the end of the line. When the cursor is on a reference definition line (`[ref]: url`), a usage count is shown instead. The virtual text uses the `MkdnflowRefHint` highlight group, which is linked to `Comment` by default. To customize its appearance, override the highlight group, e.g. `vim.api.nvim_set_hl(0, 'MkdnflowRefHint', { fg = '#88aaff', italic = true })`.<br>**`false`** (default): No virtual text hints for reference links. |
@@ -1065,8 +1065,8 @@ Configuration options.
 | `MkdnPrevHeading` | `{ 'n', '[[' }` | Move the cursor to the beginning of the previous heading (if there is one). |
 | `MkdnGoBack` | `{ 'n', '<BS>' }` | Open the historically last-active buffer in the current window.<br><br>Note: The back-end function for `:MkdnGoBack` (`require('mkdnflow').buffers.goBack()`) returns a boolean indicating the success of `goBack()`. This may be useful if you wish to remap `<BS>` such that when `goBack()` is unsuccessful, another function is performed. |
 | `MkdnGoForward` | `{ 'n', '<Del>' }` | Open the buffer that was historically navigated away from in the current window. |
-| `MkdnCreateLink` | -- | Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). |
-| `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. |
+| `MkdnCreateLink` | -- | Create a link from the text under the cursor (in normal mode) or from the visual selection (in visual mode). Accepts an optional argument to override the link style: `:MkdnCreateLink wiki` or `:MkdnCreateLink markdown`. Abbreviations are accepted (e.g. `:MkdnCreateLink w`). |
+| `MkdnCreateLinkFromClipboard` | `{ { 'n', 'v' }, '<leader>p' }` | Create a link, using the content from the system clipboard (e.g. a URL) as the source and the text under the cursor or visual selection as the link text. Accepts an optional argument to override the link style: `:MkdnCreateLinkFromClipboard wiki`. Abbreviations are accepted (e.g. `:MkdnCreateLinkFromClipboard w`). |
 | `MkdnCreateFootnote` | -- | Create a footnote reference (`[^N]`) at the cursor position and a corresponding definition (`[^N]: `) at the end of the document. The reference is placed after the current word and any trailing punctuation (e.g., `word.[^1]` rather than `word[^1].`). The cursor jumps to the definition line in insert mode so the footnote text can be filled in immediately. After filling in the definition, use `MkdnFollowLink` (`<CR>`) on the definition to jump back to the reference (or use ` `` `/`''` via the jumplist).<br><br>Auto-numbering increments from the highest existing numeric footnote label. An optional argument specifies an explicit string label instead (e.g., `:MkdnCreateFootnote myref` creates `[^myref]`).<br><br>If no footnote definitions exist in the buffer and `footnotes.heading` is configured, the heading is appended to the end of the document before the definition. If definitions already exist, the new definition is placed after the last one. |
 | `MkdnRenumberFootnotes` | -- | Renumber all footnote references and definitions in the current buffer so they form a sequential series (1, 2, 3, ...) based on order of first appearance in the document. Both references (`[^label]`) and definitions (`[^label]: ...`) are updated. String-labeled footnotes (e.g., `[^myref]`) are converted to numeric labels. Multiple references to the same footnote are all updated consistently.<br><br>Definitions are consolidated under the configured `footnotes.heading` (default: `## Footnotes`) in appearance order. Multi-line definitions (with indented continuation lines) are moved as a block. If the heading doesn't exist, it is appended to the end of the document.<br><br>Aborts with a warning if duplicate definitions are found (same label defined more than once). If footnotes are already up to date, a message is shown and no changes are made. |
 | `MkdnRefreshFootnotes` | -- | Refresh footnote numbering and consolidate definitions. Like `MkdnRenumberFootnotes`, but only renumbers footnotes that already have numeric labels — string-labeled footnotes (e.g., `[^myref]`) are preserved as-is.<br><br>Definitions are reordered by first appearance in the document and consolidated under the configured `footnotes.heading`. This is useful for documents that mix numbered and named footnotes, or for reordering a disorganized definition list.<br><br>Aborts with a warning if duplicate definitions are found. If footnotes are already up to date, a message is shown and no changes are made. |
@@ -1230,6 +1230,25 @@ require('mkdnflow').setup({
 })
 ```
 
+You can also use `on_attach` to create links in both markdown
+and wiki styles from different keys. The `MkdnCreateLink` and
+`MkdnCreateLinkFromClipboard` commands accept an optional
+style argument (abbreviations like `w` and `m` are accepted):
+
+```lua
+require('mkdnflow').setup({
+    on_attach = function(bufnr)
+        local opts = { buffer = bufnr }
+        -- Markdown link from clipboard (uses configured default)
+        vim.keymap.set({ 'n', 'v' }, '<leader>p',
+            '<Cmd>MkdnCreateLinkFromClipboard<CR>', opts)
+        -- Wiki link from clipboard (per-call style override)
+        vim.keymap.set({ 'n', 'v' }, '<leader>wp',
+            '<Cmd>MkdnCreateLinkFromClipboard wiki<CR>', opts)
+    end,
+})
+```
+
 #### Using lazy.nvim keys
 
 If you use lazy.nvim, you can define mappings in the plugin
@@ -1334,6 +1353,7 @@ Creates a markdown link from the text under the cursor or visual selection.
 - **Parameters:**
     - `args`: (table) Arguments to customize link creation.
         - `from_clipboard`: (boolean) If true, use the system clipboard content as the link source.
+        - `style`: (string|nil) Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config.
 
 `require('mkdnflow').links.createFootnote(args)`
 
@@ -1407,7 +1427,7 @@ Transforms the given text according to the default or user-supplied explicit tra
 - **Parameters:**
     - `text`: (string) The text to transform.
 
-`require('mkdnflow').links.formatLink(text, source, part)`
+`require('mkdnflow').links.formatLink(text, source, part, style)`
 
 Creates a formatted link with whatever is provided.
 
@@ -1418,6 +1438,7 @@ Creates a formatted link with whatever is provided.
         - `nil`: () Return the entire link.
         - `1`: () Return the text part of the link.
         - `2`: () Return the source part of the link.
+    - `style`: (string|nil) Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config.
 
 ### Link and path handling
 

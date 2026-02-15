@@ -40,6 +40,30 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
         return module
     end
 
+    --- Resolve an abbreviated link style argument to its full name
+    ---@param arg? string User input (e.g., 'm', 'wiki', 'markdown')
+    ---@return string|nil style The resolved style, or nil if invalid
+    local function resolve_style(arg)
+        if not arg or arg == '' then
+            return nil
+        end
+        arg = arg:lower()
+        if ('markdown'):sub(1, #arg) == arg then
+            return 'markdown'
+        elseif ('wiki'):sub(1, #arg) == arg then
+            return 'wiki'
+        end
+        vim.notify(
+            "⬇️  Invalid link style: '" .. arg .. "'. Expected 'markdown' or 'wiki'.",
+            vim.log.levels.WARN
+        )
+        return false
+    end
+
+    local style_complete = function()
+        return { 'markdown', 'wiki' }
+    end
+
     user_command('Mkdnflow', function(opts)
         mkdnflow.forceStart(opts.fargs)
     end, { nargs = '*' })
@@ -103,23 +127,31 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
         if not links then
             return
         end
-        if opts.range > 0 then
-            links.createLink({ range = true })
-        else
-            links.createLink()
+        local style = resolve_style(opts.fargs[1])
+        if style == false then
+            return
         end
-    end, { range = true })
+        if opts.range > 0 then
+            links.createLink({ range = true, style = style })
+        else
+            links.createLink({ style = style })
+        end
+    end, { range = true, nargs = '?', complete = style_complete })
     user_command('MkdnCreateLinkFromClipboard', function(opts)
         local links = require_module('links')
         if not links then
             return
         end
-        if opts.range > 0 then
-            links.createLink({ from_clipboard = true, range = true })
-        else
-            links.createLink({ from_clipboard = true })
+        local style = resolve_style(opts.fargs[1])
+        if style == false then
+            return
         end
-    end, { range = true })
+        if opts.range > 0 then
+            links.createLink({ from_clipboard = true, range = true, style = style })
+        else
+            links.createLink({ from_clipboard = true, style = style })
+        end
+    end, { range = true, nargs = '?', complete = style_complete })
     user_command('MkdnCreateFootnote', function(opts)
         local links = require_module('links')
         if not links then

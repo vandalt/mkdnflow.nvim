@@ -37,6 +37,9 @@ linkmanagement:
           - name: from_clipboard
             type: boolean
             description: If true, use the system clipboard content as the link source.
+          - name: style
+            type: string|nil
+            description: "Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config."
 
   - signature: "require('mkdnflow').links.createFootnote(args)"
     description: Creates a footnote reference at the cursor position and a definition at the end of the document. Jumps to the definition line in insert mode.
@@ -122,7 +125,7 @@ linkmanagement:
         type: string
         description: The text to transform.
 
-  - signature: "require('mkdnflow').links.formatLink(text, source, part)"
+  - signature: "require('mkdnflow').links.formatLink(text, source, part, style)"
     description: Creates a formatted link with whatever is provided.
     params:
       - name: text
@@ -144,6 +147,9 @@ linkmanagement:
           - name: "2"
             type: ""
             description: Return the source part of the link.
+      - name: style
+        type: string|nil
+        description: "Link style override: `'markdown'` or `'wiki'`. Defaults to `links.style` from config."
 
 linkpathhandling:
   - signature: "require('mkdnflow').paths.moveSource()"

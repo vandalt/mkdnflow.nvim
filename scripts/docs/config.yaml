@@ -224,6 +224,7 @@ links:
     description: |
       **`'markdown'`** (default): Links will be expected in the standard markdown format: `[<title>](<source>)`
       `'wiki'`: Links will be expected in the unofficial wiki-link style, specifically the title-after-pipe format: `[[<source>|<title>]]`.
+      This sets the default style for link creation. To create links in both styles, you can override the style per-call via `:MkdnCreateLink wiki` (or `markdown`), or via the Lua API: `createLink({ style = 'wiki' })`. See 'custom-mappings-on-attach' for an example.
 
   - name: links.compact
     type: boolean

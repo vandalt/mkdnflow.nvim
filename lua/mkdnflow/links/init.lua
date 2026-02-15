@@ -597,10 +597,12 @@ end
 ---@param text string The display text (or heading text for anchors)
 ---@param source? string An explicit source path; if nil, derived from text
 ---@param part? integer If 1, return only the text; if 2, return only the path
+---@param style? string Link style override ('markdown' or 'wiki'); defaults to config
 ---@return string[]|string|nil result The formatted link as a single-element array, or a part if requested
-M.formatLink = function(text, source, part)
+M.formatLink = function(text, source, part, style)
     local config = require('mkdnflow').config
     local links = config.links
+    style = style or links.style
     local replacement, path_text
     -- If the text starts with a hash, format the link as an anchor link
     if string.sub(text, 0, 1) == '#' and not source then
@@ -627,7 +629,7 @@ M.formatLink = function(text, source, part)
         path_text = source
     end
     -- Format the replacement depending on the user's link style preference
-    if links.style == 'wiki' then
+    if style == 'wiki' then
         replacement = (links.compact and { '[[' .. text .. ']]' })
             or { '[[' .. path_text .. '|' .. text .. ']]' }
     else
@@ -648,7 +650,7 @@ end
 -- =============================================================================
 
 --- Create a link from the word under the cursor or from a visual selection
----@param args? {from_clipboard?: boolean, from_citation?: boolean, citation_bounds?: table, range?: boolean}
+---@param args? {from_clipboard?: boolean, from_citation?: boolean, citation_bounds?: table, range?: boolean, style?: string}
 M.createLink = function(args)
     local config = require('mkdnflow').config
     local links = config.links
@@ -659,6 +661,7 @@ M.createLink = function(args)
     local from_citation = args.from_citation or false
     local citation_bounds = args.citation_bounds
     local range = args.range or false
+    local style = args.style or links.style
     -- Get mode from vim
     local mode = vim.api.nvim_get_mode()['mode']
     -- Get the cursor position
@@ -678,12 +681,12 @@ M.createLink = function(args)
         if url_start and url_end then
             -- Prepare the replacement
             local url = line:sub(url_start, url_end - 1)
-            local replacement = (links.style == 'wiki' and { '[[' .. url .. '|]]' })
+            local replacement = (style == 'wiki' and { '[[' .. url .. '|]]' })
                 or { '[]' .. '(' .. url .. ')' }
             -- Replace
             vim.api.nvim_buf_set_text(0, row - 1, url_start - 1, row - 1, url_end - 1, replacement)
             -- Move the cursor to the name part of the link and change mode
-            if links.style == 'wiki' then
+            if style == 'wiki' then
                 vim.api.nvim_win_set_cursor(0, { row, url_end + 2 })
             else
                 vim.api.nvim_win_set_cursor(0, { row, url_start })
@@ -701,9 +704,9 @@ M.createLink = function(args)
             -- Make a markdown link out of the date and cursor
             local replacement
             if from_clipboard then
-                replacement = M.formatLink(cursor_word, vim.fn.getreg('+'))
+                replacement = M.formatLink(cursor_word, vim.fn.getreg('+'), nil, style)
             else
-                replacement = M.formatLink(cursor_word)
+                replacement = M.formatLink(cursor_word, nil, nil, style)
             end
             -- If there's no replacement, stop here
             if not replacement then
@@ -804,10 +807,10 @@ M.createLink = function(args)
                 if not links.implicit_extension then
                     cite_path = cite_path .. '.md'
                 end
-                replacement = M.formatLink(text, cite_path)
+                replacement = M.formatLink(text, cite_path, nil, style)
             else
-                replacement = from_clipboard and M.formatLink(text, vim.fn.getreg('+'))
-                    or M.formatLink(text)
+                replacement = from_clipboard and M.formatLink(text, vim.fn.getreg('+'), nil, style)
+                    or M.formatLink(text, nil, nil, style)
             end
             -- If no replacement, end here
             if not replacement then

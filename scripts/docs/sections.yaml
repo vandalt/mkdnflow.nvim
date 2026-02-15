@@ -987,6 +987,26 @@ sections:
                           vim.keymap.set({ 'n', 'v' }, '<C-Space>', '<Cmd>MkdnToggleToDo<CR>', opts)
                       end,
                   })
+              - type: prose
+                text: |
+                  You can also use `on_attach` to create links in both markdown
+                  and wiki styles from different keys. The `MkdnCreateLink` and
+                  `MkdnCreateLinkFromClipboard` commands accept an optional
+                  style argument (abbreviations like `w` and `m` are accepted):
+              - type: code
+                language: lua
+                code: |
+                  require('mkdnflow').setup({
+                      on_attach = function(bufnr)
+                          local opts = { buffer = bufnr }
+                          -- Markdown link from clipboard (uses configured default)
+                          vim.keymap.set({ 'n', 'v' }, '<leader>p',
+                              '<Cmd>MkdnCreateLinkFromClipboard<CR>', opts)
+                          -- Wiki link from clipboard (per-call style override)
+                          vim.keymap.set({ 'n', 'v' }, '<leader>wp',
+                              '<Cmd>MkdnCreateLinkFromClipboard wiki<CR>', opts)
+                      end,
+                  })
           - title: Using lazy.nvim keys
             tag: custom-mappings-lazy
             content:

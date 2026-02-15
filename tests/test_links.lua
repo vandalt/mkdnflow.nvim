@@ -1580,6 +1580,88 @@ T['config']['links.style=markdown creates markdown links'] = function()
     eq(result[1], '[my page](my page.md)')
 end
 
+T['config']['formatLink style param overrides config (wiki)'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'markdown' } })]])
+    local result =
+        child.lua_get([[require('mkdnflow.links').formatLink('my page', nil, nil, 'wiki')]])
+    eq(result[1], '[[my page.md|my page]]')
+end
+
+T['config']['formatLink style param overrides config (markdown)'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'wiki' } })]])
+    local result =
+        child.lua_get([[require('mkdnflow.links').formatLink('my page', nil, nil, 'markdown')]])
+    eq(result[1], '[my page](my page.md)')
+end
+
+T['config']['formatLink without style param uses config'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'wiki' } })]])
+    local result = child.lua_get([[require('mkdnflow.links').formatLink('my page')]])
+    eq(result[1], '[[my page.md|my page]]')
+end
+
+T['config']['createLink style param overrides config'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'markdown' } })]])
+    set_lines({ 'myword' })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.links').createLink({ style = 'wiki' })]])
+    local line = get_lines()[1]
+    -- Should be wiki style despite config being markdown
+    eq(line:match('%[%[') ~= nil, true)
+end
+
+T['config']['createLink without style param uses config'] = function()
+    child.lua([[require('mkdnflow').setup({ links = { style = 'markdown' } })]])
+    set_lines({ 'myword' })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.links').createLink()]])
+    local line = get_lines()[1]
+    -- Should be markdown style
+    eq(line:match('%[.*%]%(.*%)') ~= nil, true)
+end
+
+T['config']['MkdnCreateLink command accepts style arg'] = function()
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        require('mkdnflow').setup({ links = { style = 'markdown' }, silent = true })
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+    ]])
+    set_lines({ 'myword' })
+    set_cursor(1, 2)
+    child.cmd('MkdnCreateLink wiki')
+    local line = get_lines()[1]
+    eq(line:match('%[%[') ~= nil, true)
+end
+
+T['config']['MkdnCreateLink command accepts abbreviated style'] = function()
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        require('mkdnflow').setup({ links = { style = 'markdown' }, silent = true })
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+    ]])
+    set_lines({ 'testword' })
+    set_cursor(1, 2)
+    child.cmd('MkdnCreateLink w')
+    local line = get_lines()[1]
+    eq(line:match('%[%[') ~= nil, true)
+end
+
+T['config']['MkdnCreateLink command without arg uses config'] = function()
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        require('mkdnflow').setup({ links = { style = 'wiki' }, silent = true })
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+    ]])
+    set_lines({ 'aword' })
+    set_cursor(1, 2)
+    child.cmd('MkdnCreateLink')
+    local line = get_lines()[1]
+    eq(line:match('%[%[') ~= nil, true)
+end
+
 T['config']['links.compact omits bar in wiki link'] = function()
     child.lua([[require('mkdnflow').setup({ links = { style = 'wiki', compact = true } })]])
     local result = child.lua_get([[require('mkdnflow.links').formatLink('my page')]])
