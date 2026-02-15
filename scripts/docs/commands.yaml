@@ -308,4 +308,25 @@ commands:
   - name: Mkdnflow
     default_mapping: null
     description: |
-      Manually start Mkdnflow.
+      Subcommand dispatcher for Mkdnflow. Provides a single entry point to all
+      Mkdnflow functionality with tab completion at every level.
+
+      Use `:Mkdnflow` with no arguments to see available command groups. Use
+      `:Mkdnflow <group>` to see actions within a group. Use
+      `:Mkdnflow <group> <action> [args]` to execute a command.
+
+      Available groups: `link`, `nav`, `heading`, `todo`, `list`, `table`,
+      `fold`, `yank`, `start`, `config`, `enter`, `tab`, `shift-tab`.
+
+      Examples:
+
+      - `:Mkdnflow link follow` — follow link under cursor
+      - `:Mkdnflow table new 3 4` — create a 3-column, 4-row table
+      - `:'<,'>Mkdnflow todo toggle` — toggle to-do status for visual selection
+      - `:Mkdnflow link create wiki` — create a wiki-style link
+      - `:Mkdnflow start` — force-start Mkdnflow on non-configured filetypes
+      - `:Mkdnflow start silent` — force-start silently
+
+      Note: The previous behavior of `:Mkdnflow` (force-start) has moved to
+      `:Mkdnflow start`. The old usage still works but shows a deprecation
+      warning.

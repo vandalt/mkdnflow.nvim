@@ -65,8 +65,14 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
     end
 
     user_command('Mkdnflow', function(opts)
-        mkdnflow.forceStart(opts.fargs)
-    end, { nargs = '*' })
+        require('mkdnflow.dispatch').dispatch(opts)
+    end, {
+        nargs = '*',
+        range = true,
+        complete = function(arg_lead, cmd_line, cursor_pos)
+            return require('mkdnflow.dispatch').complete(arg_lead, cmd_line, cursor_pos)
+        end,
+    })
     user_command('MkdnEnter', function(opts)
         if opts.range > 0 then
             require('mkdnflow.wrappers').multiFuncEnter({ range = true })

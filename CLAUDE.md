@@ -21,6 +21,7 @@ mkdnflow.nvim/
 │       ├── compat.lua        # Backwards compatibility layer
 │       ├── conceal.lua       # Link syntax concealing
 │       ├── cursor.lua        # Cursor movement (links, headings)
+│       ├── dispatch.lua      # :Mkdnflow subcommand dispatcher
 │       ├── folds.lua         # Section folding
 │       ├── foldtext.lua      # Custom foldtext display
 │       ├── links.lua         # Link creation, following, destruction
@@ -124,6 +125,12 @@ Modules are loaded conditionally based on config. The main entry point `lua/mkdn
 - Default configuration table
 - `setup(config)` function that merges user config and initializes modules
 - `forceStart()` for manual initialization
+
+### Subcommand Dispatcher
+
+`:Mkdnflow` is a subcommand dispatcher (`lua/mkdnflow/dispatch.lua`) that provides grouped, tab-completable access to all commands (e.g., `:Mkdnflow link follow`, `:Mkdnflow table format`). The existing individual `Mkdn*` commands remain registered in `plugin/mkdnflow.lua` and are unchanged.
+
+**When adding a new user command:** register it in `plugin/mkdnflow.lua` as usual, add it to `command_deps` in `lua/mkdnflow.lua`, and also add a corresponding entry to the appropriate group in `dispatch.lua`.
 
 ## Commands
 
