@@ -1959,6 +1959,54 @@ T['multiline']['search_range']['adjacent brackets and parens form link across li
     eq(link_type, 'md_link')
 end
 
+-- destroyLink tests for multi-line links (issue #85 comments)
+T['multiline']['search_range']['destroyLink joins multi-line name with space'] = function()
+    -- [some
+    -- text](destination) → "some text"
+    set_lines({ '[some', 'text](destination.md)' })
+    set_cursor(1, 2)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local lines = get_lines()
+    eq(lines, { 'some text' })
+end
+
+T['multiline']['search_range']['destroyLink preserves surrounding text'] = function()
+    -- Before [some
+    -- text](dest) after → "Before some text after"
+    set_lines({ 'Before [some', 'text](dest.md) after' })
+    set_cursor(1, 9)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local lines = get_lines()
+    eq(lines, { 'Before some text after' })
+end
+
+T['multiline']['search_range']['destroyLink works when only URL wraps'] = function()
+    -- [link text](really/long/
+    -- url/path.md) → "link text"
+    set_lines({ '[link text](really/long/', 'url/path.md)' })
+    set_cursor(1, 3)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local lines = get_lines()
+    eq(lines, { 'link text' })
+end
+
+T['multiline']['search_range']['destroyLink on single-line link with preceding lines'] = function()
+    -- Regression test: should not get end_col out of bounds error
+    set_lines({ 'Some text', 'and now the next line. [link text](link-text.md)' })
+    set_cursor(2, 25)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    eq(get_line(1), 'Some text')
+    eq(get_line(2), 'and now the next line. link text')
+end
+
+T['multiline']['search_range']['destroyLink on multi-line wiki_link joins with space'] = function()
+    set_lines({ '[[some long', 'page name]]' })
+    set_cursor(1, 4)
+    child.lua([[require('mkdnflow.links').destroyLink()]])
+    local lines = get_lines()
+    eq(lines, { 'some long page name' })
+end
+
 -- =============================================================================
 -- Pattern export tests (for advanced users)
 -- =============================================================================

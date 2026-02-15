@@ -834,6 +834,23 @@ M.destroyLink = function()
     local link = M.getLinkUnderCursor()
     if link then
         local link_name = M.getLinkPart(link, 'name')
+        -- For multi-line links, the name extracted from the concatenated match
+        -- is missing the whitespace between lines. Get the real text from the
+        -- buffer and join lines with spaces.
+        if link.start_row ~= link.end_row then
+            local name_part = link:get_name()
+            if name_part.start_row ~= name_part.end_row then
+                local name_lines = vim.api.nvim_buf_get_lines(
+                    0,
+                    name_part.start_row - 1,
+                    name_part.end_row,
+                    false
+                )
+                name_lines[1] = name_lines[1]:sub(name_part.start_col)
+                name_lines[#name_lines] = name_lines[#name_lines]:sub(1, name_part.end_col)
+                link_name = table.concat(name_lines, ' ')
+            end
+        end
         -- Replace the link with just the name
         vim.api.nvim_buf_set_text(0, link[4] - 1, link[5] - 1, link[6] - 1, link[7], { link_name })
     else
