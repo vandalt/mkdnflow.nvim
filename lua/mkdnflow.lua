@@ -19,6 +19,7 @@ local default_config = {
     create_dirs = true,
     silent = false,
     wrap = false,
+    on_attach = false,
     modules = {
         bib = true,
         buffers = true,
@@ -552,6 +553,21 @@ local function activate()
     init.yaml = load_module('yaml', init.config.modules.yaml)
     init.cmp = load_module('cmp', init.config.modules.cmp)
     init.to_do = load_module('to_do', init.config.modules.to_do)
+    -- Set up on_attach autocmd (fires per buffer, independent of maps module)
+    local on_attach = init.config.on_attach
+    if type(on_attach) == 'function' then
+        local on_attach_patterns = init.config.resolved_filetypes
+        if #on_attach_patterns > 0 then
+            vim.api.nvim_create_augroup('MkdnflowOnAttach', { clear = true })
+            vim.api.nvim_create_autocmd('FileType', {
+                group = 'MkdnflowOnAttach',
+                pattern = on_attach_patterns,
+                callback = function(args)
+                    on_attach(args.buf)
+                end,
+            })
+        end
+    end
     -- Record load status
     init.loaded = true
     -- Re-trigger FileType so module autocmds (maps, conceal, foldtext, yaml) fire

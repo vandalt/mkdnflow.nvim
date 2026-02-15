@@ -19,6 +19,7 @@
     create_dirs = true,
     silent = false,
     wrap = false,
+    on_attach = false,
     path_resolution = {
         primary = 'first',
         fallback = 'current',

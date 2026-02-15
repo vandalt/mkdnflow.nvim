@@ -870,6 +870,182 @@ sections:
           If using nvim-cmp, consider using the mapping with a fallback.
           If using an autopair plugin that automatically maps `<CR>` (e.g. nvim-autopairs),
           see if it provides a way to disable its `<CR>` mapping.
+    children:
+      - title: Custom mappings
+        tag: custom-mappings
+        content:
+          - type: prose
+            text: |
+              There are several ways to customize mkdnflow's keybindings. All
+              mkdnflow commands (e.g., `MkdnFollowLink`, `MkdnToggleToDo`) are
+              standard Neovim user commands and can be mapped using any method
+              you'd normally use to map a Neovim command.
+        children:
+          - title: Disabling default mappings
+            tag: custom-mappings-disable
+            content:
+              - type: prose
+                text: |
+                  To disable a single default mapping, set it to `false` in the
+                  `mappings` table:
+              - type: code
+                language: lua
+                code: |
+                  require('mkdnflow').setup({
+                      mappings = {
+                          MkdnNextLink = false,              -- Frees <Tab>
+                          MkdnPrevLink = false,              -- Frees <S-Tab>
+                          MkdnNewListItemBelowInsert = false, -- Frees 'o'
+                          MkdnNewListItemAboveInsert = false, -- Frees 'O'
+                      },
+                  })
+              - type: prose
+                text: |
+                  To disable *all* default mappings at once, disable the `maps`
+                  module:
+              - type: code
+                language: lua
+                code: |
+                  require('mkdnflow').setup({
+                      modules = { maps = false },
+                  })
+          - title: Remapping via the mappings table
+            tag: custom-mappings-remap
+            content:
+              - type: prose
+                text: |
+                  The simplest way to change a binding is to set a different key
+                  in the `mappings` table. Each entry takes a mode (or array of
+                  modes) and a key string:
+              - type: code
+                language: lua
+                code: |
+                  require('mkdnflow').setup({
+                      mappings = {
+                          MkdnFollowLink = { 'n', 'gf' },         -- Single mode
+                          MkdnToggleToDo = { { 'n', 'v' }, 'tt' }, -- Multiple modes
+                          MkdnEnter = false,                       -- Disable default
+                      },
+                  })
+              - type: admonition
+                kind: note
+                content: |
+                  The `mappings` table maps each command to a single key. If you
+                  need the same command on multiple keys (e.g., in different
+                  modes), use `on_attach`, lazy.nvim `keys`, or a manual autocmd
+                  instead.
+          - title: Using on_attach
+            tag: custom-mappings-on-attach
+            content:
+              - type: prose
+                text: |
+                  The `on_attach` callback fires each time mkdnflow activates on
+                  a matching buffer. It receives the buffer number as its
+                  argument, making it ideal for buffer-local mappings, options,
+                  or autocommands.
+
+                  When `modules.maps` is enabled (the default), default mappings
+                  are set up *before* `on_attach` runs, so you can selectively
+                  override or supplement them:
+              - type: code
+                language: lua
+                code: |
+                  require('mkdnflow').setup({
+                      on_attach = function(bufnr)
+                          local opts = { buffer = bufnr }
+
+                          -- Bind a command to an additional key
+                          vim.keymap.set('n', 'gf', '<Cmd>MkdnFollowLink<CR>', opts)
+
+                          -- Bind the same command in multiple modes
+                          vim.keymap.set({ 'n', 'v' }, 'tt', '<Cmd>MkdnToggleToDo<CR>', opts)
+
+                          -- Add a mapping not in the defaults
+                          vim.keymap.set('n', '<leader>ml', '<Cmd>MkdnCreateLink<CR>', opts)
+
+                          -- Delete a default mapping you don't want
+                          pcall(vim.keymap.del, 'n', '+', { buffer = bufnr })
+
+                          -- Set buffer-local options
+                          vim.bo[bufnr].textwidth = 80
+                      end,
+                  })
+              - type: prose
+                text: |
+                  To use `on_attach` as the *sole* source of mappings (fully
+                  manual control), disable the `maps` module:
+              - type: code
+                language: lua
+                code: |
+                  require('mkdnflow').setup({
+                      modules = { maps = false },
+                      on_attach = function(bufnr)
+                          local opts = { buffer = bufnr }
+                          vim.keymap.set('n', '<CR>', '<Cmd>MkdnEnter<CR>', opts)
+                          vim.keymap.set('n', '<BS>', '<Cmd>MkdnGoBack<CR>', opts)
+                          vim.keymap.set('n', '<Tab>', '<Cmd>MkdnNextLink<CR>', opts)
+                          vim.keymap.set({ 'n', 'v' }, '<C-Space>', '<Cmd>MkdnToggleToDo<CR>', opts)
+                      end,
+                  })
+          - title: Using lazy.nvim keys
+            tag: custom-mappings-lazy
+            content:
+              - type: prose
+                text: |
+                  If you use lazy.nvim, you can define mappings in the plugin
+                  spec's `keys` table. Use the `ft` field to scope them to
+                  markdown buffers:
+              - type: code
+                language: lua
+                code: |
+                  {
+                      'jakewvincent/mkdnflow.nvim',
+                      ft = { 'markdown', 'rmd' },
+                      opts = {
+                          mappings = {
+                              MkdnFollowLink = false, -- Disable default
+                              MkdnEnter = false,
+                          },
+                      },
+                      keys = {
+                          { 'gf', '<Cmd>MkdnFollowLink<CR>', ft = 'markdown', desc = 'Follow link' },
+                          { '<CR>', '<Cmd>MkdnEnter<CR>', ft = 'markdown', desc = 'Mkdn enter' },
+                      },
+                  }
+              - type: admonition
+                kind: note
+                content: |
+                  Lazy.nvim's `ft`-scoped `keys` use a filetype autocmd
+                  internally, so they are effectively buffer-local. Plain `keys`
+                  entries without `ft` are global and will apply in non-markdown
+                  buffers too.
+          - title: Manual autocmd
+            tag: custom-mappings-autocmd
+            content:
+              - type: prose
+                text: |
+                  You can also set mappings via your own `FileType` autocmd.
+                  This is equivalent to `on_attach` but managed outside of
+                  mkdnflow's config:
+              - type: code
+                language: lua
+                code: |
+                  vim.api.nvim_create_autocmd('FileType', {
+                      pattern = { 'markdown', 'rmd' },
+                      callback = function(args)
+                          vim.keymap.set('n', 'gf', '<Cmd>MkdnFollowLink<CR>', {
+                              buffer = args.buf,
+                              desc = 'Follow link',
+                          })
+                      end,
+                  })
+              - type: admonition
+                kind: warning
+                content: |
+                  With a manual autocmd, firing order depends on registration
+                  order. Your autocmd may fire before or after mkdnflow's,
+                  depending on when each is registered. Use `on_attach` for
+                  guaranteed ordering (it always runs after default mappings).
 
   # =====================================================================
   # API

@@ -130,6 +130,7 @@ M.schema = {
     new_file_template = {
         placeholders = { dynamic = true },
     },
+    on_attach = { types = { 'boolean', 'function' } },
     mappings = { dynamic = true },
 }
 

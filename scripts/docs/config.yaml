@@ -171,6 +171,18 @@ wrap:
       `true`: When jumping to next/previous links or headings, the cursor will continue searching at the beginning/end of the file.
       **`false`** (default): When jumping to next/previous links or headings, the cursor will stop searching at the end/beginning of the file.
 
+on_attach:
+  - name: on_attach
+    type: "false | fun(bufnr: integer)"
+    description: |
+      A callback invoked each time mkdnflow activates on a buffer with a
+      matching filetype. Receives the buffer number as its only argument.
+      Fires regardless of whether `modules.maps` is enabled. When both are
+      active, default mappings are set up first so the callback can override
+      or delete them. See 'custom-mappings'.
+
+      **`false`** (default): No callback.
+
 bib:
   - name: bib.default_path
     type: string | nil
