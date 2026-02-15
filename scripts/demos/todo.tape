@@ -6,6 +6,7 @@ Output scripts/demos/gif/todo${SUFFIX}.gif
 
 Set FontFamily "MonoLisaCustom Nerd Font"
 Set FontSize 22
+Set LetterSpacing 0
 Set Width 1300
 Set Height 650
 Set Padding 5

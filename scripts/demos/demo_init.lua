@@ -278,8 +278,8 @@ require('lazy').setup({
                 new_file_template = {
                     enabled = true,
                     placeholders = {
-                        before = { title = 'link_title', date = 'os_date' },
-                        after = {},
+                        title = 'link_title',
+                        date = 'os_date',
                     },
                     template = '# {{ title }}',
                 },
