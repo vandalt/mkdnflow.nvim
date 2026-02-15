@@ -15,54 +15,74 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 local cmp = require('cmp')
-local extension = '.md' -- Keep the '.'
 
---- Build completion items from all markdown files in the notebook root directory
+--- Build completion items from all notebook files using the plugin's path resolution
 ---@return table[] items Array of nvim-cmp completion items
 ---@private
 local function get_files_items()
-    local mkdnflow_root_dir = require('mkdnflow').root_dir
-    local transform_on_create = require('mkdnflow').config.links.transform_on_create
-    -- Find all markdown files recursively in the root directory
-    local filepaths_in_root = vim.fs.find(function(name)
-        return name:match('%' .. extension .. '$')
-    end, { path = mkdnflow_root_dir, type = 'file', limit = math.huge })
+    local mkdn = require('mkdnflow')
+    local config = mkdn.config
+    local paths = require('mkdnflow.paths')
+    local links = require('mkdnflow.links')
+
+    -- Determine scan base using the same fallback chain as paths.relativeToBase()
+    local path_resolution = config.path_resolution
+    local base
+    if path_resolution.primary == 'root' and mkdn.root_dir then
+        base = mkdn.root_dir
+    elseif
+        path_resolution.primary == 'first'
+        or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
+    then
+        base = mkdn.initial_dir
+    else
+        base = vim.fs.dirname(vim.api.nvim_buf_get_name(0))
+    end
+    if not base or base == '' then
+        base = vim.fn.getcwd()
+    end
+
+    -- Use all enabled notebook extensions instead of hardcoded .md
+    local extensions = config.notebook_extensions or { md = true }
+
+    -- Find all matching files recursively
+    local filepaths = vim.fs.find(function(name)
+        local ext = name:match('%.([^%.]+)$')
+        return ext and extensions[ext:lower()]
+    end, { path = base, type = 'file', limit = math.huge })
+
+    local implicit_ext = config.links.implicit_extension
     local items = {}
-    -- Iterate over files in the root directory & prepare for completion (if md file)
-    for _, path in ipairs(filepaths_in_root) do
-        if vim.endswith(path, extension) then
-            local item = {}
-            -- Absolute path of the file
-            item.path = path
-            -- Anything except / and \ (\\) followed by the extension so that folders will be excluded
-            -- from the label
-            item.label = path:match('([^/^\\]+)' .. extension .. '$')
-            local explicit_link = transform_on_create
-                    and transform_on_create(item.label) .. extension
-                or item.label .. extension
-            -- Text should be inserted in markdown format
-            item.insertText = '[' .. item.label .. '](' .. explicit_link .. ')'
-            -- For beautification
-            item.kind = cmp.lsp.CompletionItemKind.File
+    for _, abs_path in ipairs(filepaths) do
+        -- Compute path relative to the configured resolution base
+        local rel_path = paths.relativeToBase(abs_path)
 
-            local filepath = item.path
-            local binary = assert(io.open(filepath, 'rb'))
-            local first_kb = binary:read(1024)
+        -- Strip extension from link target when implicit_extension is configured
+        local source_path = rel_path
+        if implicit_ext then
+            source_path = rel_path:gsub('%.[^%.]+$', '')
+        end
 
-            -- Close the file
-            binary:close()
+        -- Display label is the filename without extension
+        local label = vim.fs.basename(abs_path):gsub('%.[^%.]+$', '')
 
-            local contents = {}
-            -- Add to the table if it's not an empty file
-            if first_kb then
-                for content in first_kb:gmatch('[^\r\n]+') do
-                    table.insert(contents, content)
-                end
+        -- Format link using the canonical formatter (respects style, compact, etc.)
+        local formatted = links.formatLink(label, source_path)
+        if formatted then
+            -- Read first 1KB for documentation preview
+            local f = io.open(abs_path, 'rb')
+            local preview = f and f:read(1024)
+            if f then
+                f:close()
             end
 
-            item.documentation = { kind = cmp.lsp.MarkupKind.Markdown, value = first_kb }
-
-            table.insert(items, item)
+            table.insert(items, {
+                label = label,
+                insertText = formatted[1],
+                kind = cmp.lsp.CompletionItemKind.File,
+                documentation = preview and { kind = cmp.lsp.MarkupKind.Markdown, value = preview }
+                    or nil,
+            })
         end
     end
     return items
