@@ -698,8 +698,8 @@ sections:
                           The above recipe will produce foldtext like the following
                           (for an h3-level section heading called `My section`):
                       - type: responsive_image
-                        light: https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/foldtext/foldtext_ex.png
-                        dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/foldtext/foldtext_ex_dark.png
+                        light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/foldtext/foldtext_ex.png
+                        dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/foldtext/foldtext_ex_dark.png
                         alt: Enhanced foldtext example
                         centered: true
 

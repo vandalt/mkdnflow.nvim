@@ -1030,9 +1030,9 @@ class ReadmeFormatter(Formatter):
             """
             <p align="center">
                 <picture>
-                  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/logo/mkdnflow_logo_dark.png">
-                  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/logo/mkdnflow_logo_light.png">
-                  <img alt="Black mkdnflow logo in light color mode and white logo in dark color mode" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/logo/mkdnflow_logo_light.png">
+                  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/logo/mkdnflow_logo_dark.png">
+                  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/logo/mkdnflow_logo_light.png">
+                  <img alt="Black mkdnflow logo in light color mode and white logo in dark color mode" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/logo/mkdnflow_logo_light.png">
                 </picture>
             </p>
             <p align=center>

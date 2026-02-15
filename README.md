@@ -1,8 +1,8 @@
 <p align="center">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/logo/mkdnflow_logo_dark.png">
-      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/logo/mkdnflow_logo_light.png">
-      <img alt="Black mkdnflow logo in light color mode and white logo in dark color mode" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/logo/mkdnflow_logo_light.png">
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/logo/mkdnflow_logo_dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/logo/mkdnflow_logo_light.png">
+      <img alt="Black mkdnflow logo in light color mode and white logo in dark color mode" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/logo/mkdnflow_logo_light.png">
     </picture>
 </p>
 <p align=center>
@@ -899,9 +899,9 @@ The above recipe will produce foldtext like the following
 
 <p align="center">
   <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/foldtext/foldtext_ex_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/foldtext/foldtext_ex.png">
-  <img alt="Enhanced foldtext example" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/foldtext/foldtext_ex.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/foldtext/foldtext_ex_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/foldtext/foldtext_ex.png">
+  <img alt="Enhanced foldtext example" src="https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/foldtext/foldtext_ex.png">
 </picture>
 </p>
 

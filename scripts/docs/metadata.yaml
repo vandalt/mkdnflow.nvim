@@ -9,8 +9,8 @@ license: GPL-3.0
 
 # Logo URLs
 logo:
-  light: https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/logo/mkdnflow_logo_light.png
-  dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow.nvim/media/assets/logo/mkdnflow_logo_dark.png
+  light: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/logo/mkdnflow_logo_light.png
+  dark: https://raw.githubusercontent.com/jakewvincent/mkdnflow-media/main/assets/logo/mkdnflow_logo_dark.png
 
 # Badge URLs
 badges:
