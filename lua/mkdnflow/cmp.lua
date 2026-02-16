@@ -153,33 +153,133 @@ local function relative_to(abs_path, base)
     return vim.fs.basename(abs_path)
 end
 
---- Remove newline characters and collapse excessive whitespace
----@param text? string The text to clean
----@return string|nil text The cleaned text, or nil if input was nil
+--- Extract a bib field value, handling both brace- and quote-delimited values.
+--- Strips outer braces/quotes and any nested BibTeX braces (used only for
+--- capitalization preservation). Collapses newlines and excess whitespace.
+---@param entry string The raw bib entry text
+---@param field string The field name to extract (e.g., 'title', 'author')
+---@return string|nil value The cleaned field value, or nil if not found
 ---@private
-local function clean(text)
-    if text then
-        text = text:gsub('\n', ' ')
-        return text:gsub('%s%s+', ' ')
-    else
-        return text
+local function bib_field(entry, field)
+    -- Match field = {value} or field = "value", allowing nested braces
+    local value = entry:match(field .. '%s*=%s*{(.-)}%s*[,}]')
+        or entry:match(field .. '%s*=%s*"(.-)"%s*[,}]')
+    if not value then
+        return nil
     end
+    -- Strip BibTeX braces used for capitalization preservation
+    value = value:gsub('[{}]', '')
+    -- Collapse newlines and excess whitespace
+    value = value:gsub('\n', ' ')
+    value = value:gsub('%s%s+', ' ')
+    return value
 end
 
---- Parse bib entries from a string and build nvim-cmp completion items
+--- Format a human-readable entry type label from a BibTeX type string
+---@param entry_type string Raw type (e.g., 'article', 'inproceedings')
+---@return string label Formatted label (e.g., 'Article', 'Conference Paper')
+---@private
+local function format_entry_type(entry_type)
+    local labels = {
+        article = 'Article',
+        book = 'Book',
+        inbook = 'Book Chapter',
+        incollection = 'Book Chapter',
+        inproceedings = 'Conference Paper',
+        conference = 'Conference Paper',
+        mastersthesis = "Master's Thesis",
+        phdthesis = 'PhD Thesis',
+        techreport = 'Technical Report',
+        misc = 'Misc',
+        unpublished = 'Unpublished',
+    }
+    return labels[entry_type:lower()] or entry_type
+end
+
+--- Parse bib entries from a string and build nvim-cmp completion items.
+--- Extracts rich metadata for the documentation preview: title, author, year,
+--- venue, entry type, and the link that would open on MkdnFollowLink (matching
+--- the priority in bib.core: file > url > doi > howpublished).
 ---@param bibentries string The raw contents of a .bib file
+---@param bib_source? string Basename of the source .bib file (shown when multiple bib files)
 ---@return table[] items Array of nvim-cmp completion items
 ---@private
-local function parse_bib_string(bibentries)
+local function parse_bib_string(bibentries, bib_source)
     local items = {}
     for bibentry in bibentries:gmatch('@.-\n}\n') do
         local item = {}
 
-        local title = clean(bibentry:match('title%s*=%s*["{]*(.-)["}],?')) or ''
-        local author = clean(bibentry:match('author%s*=%s*["{]*(.-)["}],?')) or ''
+        local entry_type = bibentry:match('^@(%w+){') or ''
+        local title = bib_field(bibentry, 'title') or ''
+        local author = bib_field(bibentry, 'author') or ''
         local year = bibentry:match('year%s*=%s*["{]?(%d+)["}]?,?') or ''
 
-        local doc = { '**' .. title .. '**', '', '*' .. author .. '*', year }
+        -- Venue: journal for articles, booktitle for proceedings, publisher for books
+        local venue = bib_field(bibentry, 'journal')
+            or bib_field(bibentry, 'booktitle')
+            or bib_field(bibentry, 'publisher')
+
+        -- Link that would open on MkdnFollowLink (same priority as bib.core.get_link)
+        local file = bib_field(bibentry, 'file')
+        local url = bib_field(bibentry, 'url')
+        local doi = bib_field(bibentry, 'doi')
+        local howpublished = bib_field(bibentry, 'howpublished')
+
+        -- Build display version of the link: basename for files, full for URLs
+        local link_display
+        if file then
+            link_display = vim.fs.basename(file)
+        elseif url then
+            link_display = url
+        elseif doi then
+            link_display = 'https://doi.org/' .. doi
+        elseif howpublished then
+            link_display = howpublished
+        end
+
+        -- Build documentation preview
+        local doc = {}
+        table.insert(doc, '**' .. title .. '**')
+        table.insert(doc, '')
+
+        -- Author line, cleaning up BibTeX "and" separators
+        if author ~= '' then
+            local cleaned_author = author:gsub('%s+and%s+', ', ')
+            table.insert(doc, cleaned_author)
+        end
+
+        -- Venue and year on one line
+        local venue_year = {}
+        if venue then
+            table.insert(venue_year, '*' .. venue .. '*')
+        end
+        if year ~= '' then
+            table.insert(venue_year, year)
+        end
+        if #venue_year > 0 then
+            table.insert(doc, table.concat(venue_year, ', '))
+        end
+
+        -- Entry type
+        if entry_type ~= '' then
+            table.insert(doc, format_entry_type(entry_type))
+        end
+
+        -- Link (what MkdnFollowLink would open)
+        if link_display then
+            table.insert(doc, '')
+            table.insert(doc, '---')
+            table.insert(doc, 'Opens: `' .. link_display .. '`')
+        end
+
+        -- Source bib file (only shown when multiple bib files are configured)
+        if bib_source then
+            if not link_display then
+                table.insert(doc, '')
+                table.insert(doc, '---')
+            end
+            table.insert(doc, 'Source: `' .. bib_source .. '`')
+        end
 
         item.documentation = {
             kind = cmp.lsp.MarkupKind.Markdown,
@@ -196,13 +296,14 @@ end
 
 --- Build completion items from async results on the main thread.
 ---@param file_paths string[] Absolute paths discovered by async_scan_dir
----@param bib_contents table<integer, string|nil> Bib file contents indexed by position
+---@param bib_results table<integer, {data: string|nil, path: string}> Bib file contents and paths
+---@param bib_count integer Total number of bib files (used to decide whether to show source)
 ---@param base string Base directory captured before async (for relative path computation)
 ---@param implicit_ext string|nil Implicit extension config value
 ---@param links_mod table The links module (for formatLink)
 ---@return table[] items Array of nvim-cmp completion items
 ---@private
-local function build_items(file_paths, bib_contents, base, implicit_ext, links_mod)
+local function build_items(file_paths, bib_results, bib_count, base, implicit_ext, links_mod)
     local items = {}
 
     -- Process discovered file paths into file completion items
@@ -242,9 +343,11 @@ local function build_items(file_paths, bib_contents, base, implicit_ext, links_m
     end
 
     -- Process bib file contents into citation completion items
-    for _, content in pairs(bib_contents) do
-        if content then
-            local bib_items = parse_bib_string(content)
+    local show_bib_source = bib_count > 1
+    for _, entry in pairs(bib_results) do
+        if entry.data then
+            local bib_source = show_bib_source and vim.fs.basename(entry.path) or nil
+            local bib_items = parse_bib_string(entry.data, bib_source)
             for _, item in ipairs(bib_items) do
                 table.insert(items, item)
             end
@@ -321,8 +424,9 @@ function source:complete(params, callback)
 
     -- Async coordination: pending must be computed before any async launches
     local file_paths = nil
-    local bib_contents = {}
-    local pending = 1 + #bib_file_list -- 1 for dir scan + N for bib reads
+    local bib_results = {}
+    local bib_count = #bib_file_list
+    local pending = 1 + bib_count -- 1 for dir scan + N for bib reads
 
     local function check_done()
         if pending > 0 then
@@ -333,7 +437,7 @@ function source:complete(params, callback)
             if my_gen ~= generation then
                 return
             end
-            callback(build_items(file_paths, bib_contents, base, implicit_ext, links_mod))
+            callback(build_items(file_paths, bib_results, bib_count, base, implicit_ext, links_mod))
         end)
     end
 
@@ -350,7 +454,7 @@ function source:complete(params, callback)
     -- Launch async bib file reads in parallel
     for i, bib_path in ipairs(bib_file_list) do
         async_read_file(bib_path, function(data)
-            bib_contents[i] = data
+            bib_results[i] = { data = data, path = bib_path }
             pending = pending - 1
             check_done()
         end)
