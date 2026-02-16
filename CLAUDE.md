@@ -211,7 +211,8 @@ GitHub Actions runners (ubuntu-latest) have limited capabilities compared to loc
 
 ### Naming Conventions
 - Module files: `snake_case.lua`
-- Functions: `camelCase` (e.g., `getFileType`, `followLink`)
+- Public API functions (`M.xxx`): `camelCase` (e.g., `M.followLink`, `M.createLink`)
+- Private/local functions: `snake_case` (e.g., `local function get_config()`, `local function find_patterns()`)
 - Variables: `snake_case` (e.g., `start_row`, `link_table`)
 - Module tables: `local M = {}`
 

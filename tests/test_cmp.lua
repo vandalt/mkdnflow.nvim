@@ -15,8 +15,7 @@ local test_root = vim.fn.tempname()
 local function setup_cmp_child(config_overrides)
     child.restart({ '-u', 'scripts/minimal_init.lua' })
     child.lua('_G._test_root = "' .. test_root .. '"')
-    child.lua(
-        [[
+    child.lua([[
         -- Mock nvim-cmp so cmp.lua can be loaded without the real dependency.
         _G._registered_source = nil
         package.loaded['cmp'] = {
@@ -33,22 +32,22 @@ local function setup_cmp_child(config_overrides)
         vim.api.nvim_buf_set_name(0, _G._test_root .. '/current.md')
         vim.bo.filetype = 'markdown'
 
-        require('mkdnflow').setup(]]
-            .. config_overrides
-            .. [[)
-    ]]
-    )
+        require('mkdnflow').setup(]] .. config_overrides .. [[)
+    ]])
 end
 
---- Helper: call source:complete with '@' trigger and return the items
+--- Helper: call source:complete with '@' trigger and return the items.
+--- Uses vim.wait to poll for the async callback to fire.
 ---@return table[] items
 local function complete_items()
     child.lua([[
+        _G._complete_items = nil
         local params = { context = { cursor_before_line = '@' } }
         _G._registered_source:complete(params, function(items)
             _G._complete_items = items
         end)
     ]])
+    child.lua('vim.wait(2000, function() return _G._complete_items ~= nil end, 10)')
     return child.lua_get('_G._complete_items')
 end
 
@@ -338,7 +337,16 @@ T['base_directory']['returns empty when scanning empty directory'] = function()
             silent = true,
         })
     ]])
-    local items = complete_items()
+    -- complete_items() uses the test_root buffer name; call inline for empty_dir
+    child.lua([[
+        _G._complete_items = nil
+        local params = { context = { cursor_before_line = '@' } }
+        _G._registered_source:complete(params, function(items)
+            _G._complete_items = items
+        end)
+    ]])
+    child.lua('vim.wait(2000, function() return _G._complete_items ~= nil end, 10)')
+    local items = child.lua_get('_G._complete_items')
     eq(#items, 0)
 
     vim.fn.delete(empty_dir, 'rf')
@@ -376,11 +384,13 @@ T['trigger']['returns empty without @ trigger'] = function()
         silent = true,
     }]])
     child.lua([[
+        _G._complete_items = nil
         local params = { context = { cursor_before_line = 'no trigger here' } }
         _G._registered_source:complete(params, function(items)
             _G._complete_items = items
         end)
     ]])
+    child.lua('vim.wait(2000, function() return _G._complete_items ~= nil end, 10)')
     local items = child.lua_get('_G._complete_items')
     eq(#items, 0)
 end
@@ -421,6 +431,7 @@ T['parse_bib']['nonexistent bib path does not error'] = function()
             silent = true,
         })
 
+        _G._complete_items = nil
         local params = { context = { cursor_before_line = '@cite' } }
         _G._complete_ok, _G._complete_err = pcall(function()
             _G._registered_source:complete(params, function(items)
@@ -429,6 +440,8 @@ T['parse_bib']['nonexistent bib path does not error'] = function()
         end)
     ]])
     eq(child.lua_get('_G._complete_ok'), true)
+    -- Wait for async callback to verify it completes without error
+    child.lua('vim.wait(2000, function() return _G._complete_items ~= nil end, 10)')
 end
 
 -- =============================================================================
