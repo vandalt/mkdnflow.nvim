@@ -25,6 +25,10 @@ local generation = 0
 
 local MAX_SCAN_DEPTH = 20
 
+--- Pattern matching footnote definition lines: `[^label]: ` with up to 3 leading spaces.
+--- Captures the label. Used by scan_footnote_defs() and scan_undefined_refs().
+local DEF_PAT = '^%s?%s?%s?%[%^(.-)%]:%s'
+
 --- Recursively scan a directory for files matching a predicate, asynchronously.
 ---
 --- uv.fs_scandir offloads the directory read to libuv's thread pool (async),
@@ -302,10 +306,9 @@ end
 local function scan_footnote_defs()
     local items = {}
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    local def_pat = '^%s?%s?%s?%[%^(.-)%]:%s'
 
     for _, line in ipairs(lines) do
-        local label = string.match(line, def_pat)
+        local label = string.match(line, DEF_PAT)
         if label then
             local content = string.match(line, '^%s?%s?%s?%[%^.-%]:%s(.+)$') or ''
             content = content:gsub('%s+$', '')
@@ -319,6 +322,59 @@ local function scan_footnote_defs()
                         and { kind = cmp.lsp.MarkupKind.Markdown, value = content }
                     or nil,
             })
+        end
+    end
+
+    return items
+end
+
+--- Scan the current buffer for footnote references that have no definition.
+--- For each undefined reference, builds a completion item with the definition syntax
+--- (`[^label]: `) as insertText and a truncated preview of the line where the
+--- reference first appears.
+---@return table[] items Array of nvim-cmp completion items
+---@private
+local function scan_undefined_refs()
+    local items = {}
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local ref_pat = '%[%^([^%]]+)%]'
+
+    -- Pass 1: collect defined labels
+    local defined = {}
+    for _, line in ipairs(lines) do
+        local label = string.match(line, DEF_PAT)
+        if label then
+            defined[label] = true
+        end
+    end
+
+    -- Pass 2: collect undefined references with context
+    local seen = {}
+    for _, line in ipairs(lines) do
+        -- Skip definition lines to avoid counting [^label] in [^label]: text
+        if not string.match(line, DEF_PAT) then
+            for label in string.gmatch(line, ref_pat) do
+                if not defined[label] and not seen[label] then
+                    seen[label] = true
+
+                    -- Build context preview: truncate the line
+                    local preview = line
+                    if #preview > 80 then
+                        preview = preview:sub(1, 77) .. '...'
+                    end
+
+                    table.insert(items, {
+                        label = '[^' .. label .. ']',
+                        insertText = '^' .. label .. ']: ',
+                        filterText = '^' .. label,
+                        kind = cmp.lsp.CompletionItemKind.Reference,
+                        documentation = {
+                            kind = cmp.lsp.MarkupKind.Markdown,
+                            value = preview,
+                        },
+                    })
+                end
+            end
         end
     end
 
@@ -419,7 +475,13 @@ function source:complete(params, callback)
 
     -- Footnote trigger: [^ optionally followed by partial label chars
     if line:match('%[%^[%w_%-]*$') then
-        callback(scan_footnote_defs())
+        -- Line-start = writing a definition → offer undefined refs
+        -- Mid-line = placing a reference → offer defined labels
+        if line:match('^%s?%s?%s?%[%^[%w_%-]*$') then
+            callback(scan_undefined_refs())
+        else
+            callback(scan_footnote_defs())
+        end
         return
     end
 

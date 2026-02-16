@@ -522,7 +522,7 @@ T['footnote_completion']['finds single footnote definition'] = function()
         'Some text[^1] here.',
         '',
         '[^1]: First footnote',
-    })
+    }, 'text [^')
     eq(#items, 1)
     eq(items[1].label, '[^1]')
 end
@@ -534,7 +534,7 @@ T['footnote_completion']['finds multiple footnote definitions'] = function()
         '[^1]: First',
         '[^2]: Second',
         '[^myref]: Third',
-    })
+    }, 'text [^')
     eq(#items, 3)
     eq(items[1].label, '[^1]')
     eq(items[2].label, '[^2]')
@@ -546,7 +546,7 @@ T['footnote_completion']['extracts content as documentation'] = function()
         'Text[^note].',
         '',
         '[^note]: This is the footnote content',
-    })
+    }, 'text [^')
     eq(#items, 1)
     eq(items[1].documentation.kind, 'markdown')
     eq(items[1].documentation.value, 'This is the footnote content')
@@ -555,7 +555,7 @@ end
 T['footnote_completion']['returns Reference kind'] = function()
     local items = complete_footnote_items({
         '[^1]: A footnote',
-    })
+    }, 'text [^')
     eq(#items, 1)
     -- CompletionItemKind.Reference = 18 in our mock
     eq(items[1].kind, 18)
@@ -566,7 +566,7 @@ T['footnote_completion']['returns empty for buffer with no footnotes'] = functio
         '# Heading',
         '',
         'Just some regular text.',
-    })
+    }, 'text [^')
     eq(#items, 0)
 end
 
@@ -574,7 +574,7 @@ T['footnote_completion']['handles labels with hyphens and underscores'] = functi
     local items = complete_footnote_items({
         '[^my-note]: Hyphenated',
         '[^my_note]: Underscored',
-    })
+    }, 'text [^')
     eq(#items, 2)
     eq(items[1].label, '[^my-note]')
     eq(items[2].label, '[^my_note]')
@@ -584,7 +584,7 @@ T['footnote_completion']['partial trigger is recognized'] = function()
     local items = complete_footnote_items({
         '[^foo]: Foo note',
         '[^bar]: Bar note',
-    }, '[^fo')
+    }, 'text [^fo')
     eq(#items, 2) -- All definitions returned; nvim-cmp handles filtering
 end
 
@@ -607,7 +607,7 @@ end
 T['footnote_completion']['insertText omits leading bracket'] = function()
     local items = complete_footnote_items({
         '[^test]: Content',
-    })
+    }, 'text [^')
     eq(#items, 1)
     eq(items[1].insertText, '^test]')
 end
@@ -615,7 +615,7 @@ end
 T['footnote_completion']['filterText omits leading bracket and closing bracket'] = function()
     local items = complete_footnote_items({
         '[^test]: Content',
-    })
+    }, 'text [^')
     eq(#items, 1)
     eq(items[1].filterText, '^test')
 end
@@ -623,7 +623,7 @@ end
 T['footnote_completion']['no documentation when definition content is empty'] = function()
     local items = complete_footnote_items({
         '[^empty]: ',
-    })
+    }, 'text [^')
     eq(#items, 1)
     eq(items[1].documentation == nil or items[1].documentation == vim.NIL, true)
 end
@@ -631,10 +631,120 @@ end
 T['footnote_completion']['definition with leading spaces'] = function()
     local items = complete_footnote_items({
         '   [^indented]: Indented definition',
-    })
+    }, 'text [^')
     eq(#items, 1)
     eq(items[1].label, '[^indented]')
     eq(items[1].documentation.value, 'Indented definition')
+end
+
+-- =============================================================================
+-- Footnote undefined reference completions (line-start trigger)
+-- =============================================================================
+
+T['footnote_undefined'] = new_set({
+    hooks = {
+        pre_case = function()
+            setup_cmp_child([[{
+                modules = { cmp = true },
+                silent = true,
+            }]])
+        end,
+    },
+})
+
+T['footnote_undefined']['offers undefined refs at line start'] = function()
+    local items = complete_footnote_items({
+        'Text with[^1] and[^2] refs.',
+    }, '[^')
+    eq(#items, 2)
+    eq(items[1].label, '[^1]')
+    eq(items[2].label, '[^2]')
+end
+
+T['footnote_undefined']['does not offer defined labels at line start'] = function()
+    local items = complete_footnote_items({
+        'Text[^1] here.',
+        '',
+        '[^1]: Already defined',
+    }, '[^')
+    eq(#items, 0)
+end
+
+T['footnote_undefined']['still offers defined labels mid-line'] = function()
+    local items = complete_footnote_items({
+        'Text[^1] here.',
+        '',
+        '[^1]: Already defined',
+    }, 'text [^')
+    eq(#items, 1)
+    eq(items[1].label, '[^1]')
+end
+
+T['footnote_undefined']['multiple undefined refs with one defined'] = function()
+    local items = complete_footnote_items({
+        'Text[^a] and[^b] and[^c].',
+        '',
+        '[^a]: Defined',
+    }, '[^')
+    eq(#items, 2)
+    eq(items[1].label, '[^b]')
+    eq(items[2].label, '[^c]')
+end
+
+T['footnote_undefined']['context preview shows source line'] = function()
+    local items = complete_footnote_items({
+        'Important claim here[^1].',
+    }, '[^')
+    eq(#items, 1)
+    eq(items[1].documentation.value, 'Important claim here[^1].')
+end
+
+T['footnote_undefined']['context preview truncated for long lines'] = function()
+    local long_line = string.rep('x', 90) .. '[^1]'
+    local items = complete_footnote_items({
+        long_line,
+    }, '[^')
+    eq(#items, 1)
+    eq(string.sub(items[1].documentation.value, -3), '...')
+    -- Truncated to 77 chars + '...' = 80
+    eq(#items[1].documentation.value, 80)
+end
+
+T['footnote_undefined']['insertText includes definition syntax'] = function()
+    local items = complete_footnote_items({
+        'Text[^myref] here.',
+    }, '[^')
+    eq(#items, 1)
+    eq(items[1].insertText, '^myref]: ')
+end
+
+T['footnote_undefined']['deduplicates multiple refs to same label'] = function()
+    local items = complete_footnote_items({
+        'First[^1] mention.',
+        'Second[^1] mention.',
+        'Third[^1] mention.',
+    }, '[^')
+    eq(#items, 1)
+    eq(items[1].label, '[^1]')
+end
+
+T['footnote_undefined']['definition lines are skipped'] = function()
+    -- [^b] only appears inside a definition line for [^a], not in the body
+    local items = complete_footnote_items({
+        'Text[^a] here.',
+        '',
+        '[^a]: See also [^b].',
+    }, '[^')
+    -- [^a] is defined, [^b] only appears in a definition line → empty
+    eq(#items, 0)
+end
+
+T['footnote_undefined']['leading spaces in trigger'] = function()
+    local items = complete_footnote_items({
+        'Text[^1] here.',
+    }, '   [^')
+    eq(#items, 1)
+    eq(items[1].label, '[^1]')
 end
 
 return T
