@@ -294,6 +294,37 @@ local function parse_bib_string(bibentries, bib_source)
     return items
 end
 
+--- Scan the current buffer for footnote definitions and build completion items.
+--- Footnote definitions have the form `[^label]: content` with up to 3 leading spaces.
+--- Only the first line of each definition is used for the documentation preview.
+---@return table[] items Array of nvim-cmp completion items
+---@private
+local function scan_footnote_defs()
+    local items = {}
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local def_pat = '^%s?%s?%s?%[%^(.-)%]:%s'
+
+    for _, line in ipairs(lines) do
+        local label = string.match(line, def_pat)
+        if label then
+            local content = string.match(line, '^%s?%s?%s?%[%^.-%]:%s(.+)$') or ''
+            content = content:gsub('%s+$', '')
+
+            table.insert(items, {
+                label = '[^' .. label .. ']',
+                insertText = '^' .. label .. ']',
+                filterText = '^' .. label,
+                kind = cmp.lsp.CompletionItemKind.Reference,
+                documentation = content ~= ''
+                        and { kind = cmp.lsp.MarkupKind.Markdown, value = content }
+                    or nil,
+            })
+        end
+    end
+
+    return items
+end
+
 --- Build completion items from async results on the main thread.
 ---@param file_paths string[] Absolute paths discovered by async_scan_dir
 ---@param bib_results table<integer, {data: string|nil, path: string}> Bib file contents and paths
@@ -366,16 +397,34 @@ source.new = function()
     return setmetatable({}, { __index = source })
 end
 
---- Provide completion items (files + bib entries) when triggered by `@`.
+--- Declare characters that should trigger completion.
+--- Only `^` is declared (for footnote `[^` triggers). The existing `@` trigger
+--- works without being declared here; adding it could change offset semantics.
+---@return string[]
+function source:get_trigger_characters()
+    return { '^' }
+end
+
+--- Provide completion items when triggered by `@` (files + bib) or `[^` (footnotes).
 --- File scanning and bib reading are performed asynchronously via vim.uv to
---- avoid blocking the editor. The callback is invoked from a vim.schedule
---- once all async I/O completes.
+--- avoid blocking the editor. Footnote scanning is synchronous (buffer-local).
 ---@param params table nvim-cmp completion parameters
 ---@param callback fun(items: table[]) Callback to return completion items
 function source:complete(params, callback)
-    -- Only provide suggestions if the current word starts with '@'
     local line = params.context.cursor_before_line
-    if not line or not (line:match('^@%w*$') or line:match('%W@%w*$')) then
+    if not line then
+        callback({})
+        return
+    end
+
+    -- Footnote trigger: [^ optionally followed by partial label chars
+    if line:match('%[%^[%w_%-]*$') then
+        callback(scan_footnote_defs())
+        return
+    end
+
+    -- @ trigger: file links and bib citations
+    if not (line:match('^@%w*$') or line:match('%W@%w*$')) then
         callback({})
         return
     end

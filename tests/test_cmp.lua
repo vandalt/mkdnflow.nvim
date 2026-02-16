@@ -482,4 +482,159 @@ T['integration']['cmp module disabled by default'] = function()
     eq(cmp_enabled, false)
 end
 
+-- =============================================================================
+-- Footnote completions
+-- =============================================================================
+
+--- Helper: set buffer content in the child and call source:complete with a
+--- footnote trigger. Returns the completion items.
+---@param buffer_lines table Lines to set in the buffer
+---@param trigger? string The cursor_before_line text (defaults to '[^')
+---@return table[] items
+local function complete_footnote_items(buffer_lines, trigger)
+    trigger = trigger or '[^'
+    child.lua('vim.api.nvim_buf_set_lines(0, 0, -1, false, ' .. vim.inspect(buffer_lines) .. ')')
+    child.lua('_G._fn_trigger = ' .. vim.inspect(trigger))
+    child.lua([[
+        _G._complete_items = nil
+        local params = { context = { cursor_before_line = _G._fn_trigger } }
+        _G._registered_source:complete(params, function(items)
+            _G._complete_items = items
+        end)
+    ]])
+    child.lua('vim.wait(2000, function() return _G._complete_items ~= nil end, 10)')
+    return child.lua_get('_G._complete_items')
+end
+
+T['footnote_completion'] = new_set({
+    hooks = {
+        pre_case = function()
+            setup_cmp_child([[{
+                modules = { cmp = true },
+                silent = true,
+            }]])
+        end,
+    },
+})
+
+T['footnote_completion']['finds single footnote definition'] = function()
+    local items = complete_footnote_items({
+        'Some text[^1] here.',
+        '',
+        '[^1]: First footnote',
+    })
+    eq(#items, 1)
+    eq(items[1].label, '[^1]')
+end
+
+T['footnote_completion']['finds multiple footnote definitions'] = function()
+    local items = complete_footnote_items({
+        'Text[^1] and[^2] and[^myref].',
+        '',
+        '[^1]: First',
+        '[^2]: Second',
+        '[^myref]: Third',
+    })
+    eq(#items, 3)
+    eq(items[1].label, '[^1]')
+    eq(items[2].label, '[^2]')
+    eq(items[3].label, '[^myref]')
+end
+
+T['footnote_completion']['extracts content as documentation'] = function()
+    local items = complete_footnote_items({
+        'Text[^note].',
+        '',
+        '[^note]: This is the footnote content',
+    })
+    eq(#items, 1)
+    eq(items[1].documentation.kind, 'markdown')
+    eq(items[1].documentation.value, 'This is the footnote content')
+end
+
+T['footnote_completion']['returns Reference kind'] = function()
+    local items = complete_footnote_items({
+        '[^1]: A footnote',
+    })
+    eq(#items, 1)
+    -- CompletionItemKind.Reference = 18 in our mock
+    eq(items[1].kind, 18)
+end
+
+T['footnote_completion']['returns empty for buffer with no footnotes'] = function()
+    local items = complete_footnote_items({
+        '# Heading',
+        '',
+        'Just some regular text.',
+    })
+    eq(#items, 0)
+end
+
+T['footnote_completion']['handles labels with hyphens and underscores'] = function()
+    local items = complete_footnote_items({
+        '[^my-note]: Hyphenated',
+        '[^my_note]: Underscored',
+    })
+    eq(#items, 2)
+    eq(items[1].label, '[^my-note]')
+    eq(items[2].label, '[^my_note]')
+end
+
+T['footnote_completion']['partial trigger is recognized'] = function()
+    local items = complete_footnote_items({
+        '[^foo]: Foo note',
+        '[^bar]: Bar note',
+    }, '[^fo')
+    eq(#items, 2) -- All definitions returned; nvim-cmp handles filtering
+end
+
+T['footnote_completion']['@ trigger does not return footnote items'] = function()
+    setup_cmp_child([[{
+        modules = { cmp = true },
+        silent = true,
+    }]])
+    child.lua([[
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+            '[^1]: A footnote definition',
+        })
+    ]])
+    local items = complete_items()
+    for _, item in ipairs(items) do
+        eq(item.label ~= '[^1]', true)
+    end
+end
+
+T['footnote_completion']['insertText omits leading bracket'] = function()
+    local items = complete_footnote_items({
+        '[^test]: Content',
+    })
+    eq(#items, 1)
+    eq(items[1].insertText, '^test]')
+end
+
+T['footnote_completion']['filterText omits leading bracket and closing bracket'] = function()
+    local items = complete_footnote_items({
+        '[^test]: Content',
+    })
+    eq(#items, 1)
+    eq(items[1].filterText, '^test')
+end
+
+T['footnote_completion']['no documentation when definition content is empty'] = function()
+    local items = complete_footnote_items({
+        '[^empty]: ',
+    })
+    eq(#items, 1)
+    eq(items[1].documentation == nil or items[1].documentation == vim.NIL, true)
+end
+
+T['footnote_completion']['definition with leading spaces'] = function()
+    local items = complete_footnote_items({
+        '   [^indented]: Indented definition',
+    })
+    eq(#items, 1)
+    eq(items[1].label, '[^indented]')
+    eq(items[1].documentation.value, 'Indented definition')
+end
+
 return T
