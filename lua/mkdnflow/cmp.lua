@@ -381,6 +381,143 @@ local function scan_undefined_refs()
     return items
 end
 
+--- Scan the current buffer for headings and return structured heading data.
+--- Skips headings inside fenced code blocks (backtick and tilde) and YAML frontmatter.
+--- For each heading, collects up to 5 non-empty context lines for the documentation preview.
+---@return table[] headings Array of {display, anchor, level, context}
+---@private
+local function scan_headings()
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local links_mod = require('mkdnflow.links')
+    local headings = {}
+    local in_fence = false
+    local start_idx = 1
+
+    -- Skip YAML frontmatter (--- delimited block starting at line 1)
+    if lines[1] and lines[1]:match('^%-%-%-$') then
+        for i = 2, #lines do
+            if lines[i]:match('^%-%-%-$') then
+                start_idx = i + 1
+                break
+            end
+        end
+    end
+
+    for i = start_idx, #lines do
+        local line = lines[i]
+        if line:match('^```') or line:match('^~~~') then
+            in_fence = not in_fence
+        end
+        if not in_fence and line:match('^#+%s') then
+            local display = line:gsub('^#+ *', '')
+            local anchor = links_mod.formatLink(line, nil, 2)
+
+            -- Collect context: up to 5 non-empty lines after the heading
+            local context_lines = {}
+            for j = i + 1, math.min(i + 10, #lines) do
+                local cl = lines[j]
+                if cl:match('^#+%s') then
+                    break
+                end
+                if cl:match('^```') or cl:match('^~~~') then
+                    break
+                end
+                if cl ~= '' then
+                    table.insert(context_lines, cl)
+                    if #context_lines >= 5 then
+                        break
+                    end
+                end
+            end
+
+            table.insert(headings, {
+                display = display,
+                anchor = anchor,
+                level = #line:match('^(#+)'),
+                context = context_lines,
+            })
+        end
+    end
+    return headings
+end
+
+--- Build heading completion items for markdown-style or wiki-style anchor triggers.
+---@param headings table[] Heading data from scan_headings()
+---@param style string 'markdown' or 'wiki'
+---@param has_title boolean Whether the link already has display text (markdown only)
+---@param has_closing boolean Whether the closing delimiter is already present after cursor
+---@param compact boolean Whether wiki links use compact style (wiki only)
+---@param title_insert_col? integer 0-indexed column to insert title (for additionalTextEdits)
+---@param cursor_row_0? integer 0-indexed cursor row (for additionalTextEdits)
+---@return table[] items Array of nvim-cmp completion items
+---@private
+local function build_heading_items(
+    headings,
+    style,
+    has_title,
+    has_closing,
+    compact,
+    title_insert_col,
+    cursor_row_0
+)
+    local items = {}
+
+    for _, h in ipairs(headings) do
+        -- Build documentation preview
+        local doc = { string.rep('#', h.level) .. ' ' .. h.display }
+        if #h.context > 0 then
+            table.insert(doc, '')
+            for _, cl in ipairs(h.context) do
+                table.insert(doc, cl)
+            end
+        end
+
+        local item = {
+            label = h.display,
+            filterText = '#' .. h.display,
+            kind = cmp.lsp.CompletionItemKind.Reference,
+            detail = 'H' .. h.level,
+            documentation = {
+                kind = cmp.lsp.MarkupKind.Markdown,
+                value = table.concat(doc, '\n'),
+            },
+        }
+
+        -- Strip leading # from anchor for insertText (the # is already typed)
+        local slug = h.anchor:sub(2) -- "my-heading" (without #)
+
+        -- Append slug to filterText so users can filter by either heading text or anchor slug
+        item.filterText = item.filterText .. ' ' .. slug
+
+        if style == 'wiki' then
+            if compact then
+                item.insertText = '#' .. slug .. (has_closing and '' or ']]')
+            else
+                item.insertText = '#' .. slug .. '|' .. h.display .. (has_closing and '' or ']]')
+            end
+        else
+            -- Markdown style
+            item.insertText = '#' .. slug .. (has_closing and '' or ')')
+            -- If no title text, add additionalTextEdits to fill in the display text
+            if not has_title and title_insert_col and cursor_row_0 then
+                item.additionalTextEdits = {
+                    {
+                        range = {
+                            start = { line = cursor_row_0, character = title_insert_col },
+                            ['end'] = { line = cursor_row_0, character = title_insert_col },
+                        },
+                        newText = h.display,
+                    },
+                }
+            end
+        end
+
+        table.insert(items, item)
+    end
+
+    return items
+end
+
 --- Build completion items from async results on the main thread.
 ---@param file_paths string[] Absolute paths discovered by async_scan_dir
 ---@param bib_results table<integer, {data: string|nil, path: string}> Bib file contents and paths
@@ -454,16 +591,18 @@ source.new = function()
 end
 
 --- Declare characters that should trigger completion.
---- Only `^` is declared (for footnote `[^` triggers). The existing `@` trigger
---- works without being declared here; adding it could change offset semantics.
+--- `^` triggers footnote `[^` completions; `#` triggers heading anchor `](#`
+--- and `[[#` completions. The existing `@` trigger works without being declared
+--- here; adding it could change offset semantics.
 ---@return string[]
 function source:get_trigger_characters()
-    return { '^' }
+    return { '^', '#' }
 end
 
---- Provide completion items when triggered by `@` (files + bib) or `[^` (footnotes).
+--- Provide completion items when triggered by `@` (files + bib), `[^` (footnotes),
+--- or `](#` / `[[#` (heading anchors).
 --- File scanning and bib reading are performed asynchronously via vim.uv to
---- avoid blocking the editor. Footnote scanning is synchronous (buffer-local).
+--- avoid blocking the editor. Footnote and heading scanning are synchronous (buffer-local).
 ---@param params table nvim-cmp completion parameters
 ---@param callback fun(items: table[]) Callback to return completion items
 function source:complete(params, callback)
@@ -482,6 +621,54 @@ function source:complete(params, callback)
         else
             callback(scan_footnote_defs())
         end
+        return
+    end
+
+    -- Markdown-style heading anchor trigger: ](#
+    -- Matches ](#  but NOT ](filename#  (requires # immediately after open-paren)
+    if line:match('%]%(#[^%)]*$') then
+        local after = (params.context.cursor_after_line or '')
+        local has_closing = after:match('^%)') ~= nil
+        local title = line:match('%[(.-)%]%(#[^%)]*$')
+        local has_title = title ~= nil and title ~= ''
+        local headings = scan_headings()
+
+        -- For the no-title case, compute where to insert the display text
+        local title_insert_col, cursor_row_0
+        if not has_title then
+            cursor_row_0 = params.context.cursor.line
+            -- Find the position of [ before ]( — the title goes right after [
+            local bracket_pos = line:find('%[%]%(#[^%)]*$')
+            if bracket_pos then
+                title_insert_col = bracket_pos -- 1-indexed in Lua, but [ is at pos, ] is at pos+1
+                -- LSP uses 0-indexed characters; Lua find returns 1-indexed byte offset
+                -- Insert position is after the [ character
+            end
+        end
+
+        callback(
+            build_heading_items(
+                headings,
+                'markdown',
+                has_title,
+                has_closing,
+                false,
+                title_insert_col,
+                cursor_row_0
+            )
+        )
+        return
+    end
+
+    -- Wiki-style heading anchor trigger: [[#
+    -- Matches [[#  but NOT [[filename#  (requires # immediately after [[)
+    if line:match('%[%[#[^%]|]*$') then
+        local after = (params.context.cursor_after_line or '')
+        local has_closing = after:match('^%]%]') ~= nil
+        local compact = require('mkdnflow').config.links.compact or false
+        local headings = scan_headings()
+
+        callback(build_heading_items(headings, 'wiki', true, has_closing, compact, nil, nil))
         return
     end
 

@@ -747,4 +747,290 @@ T['footnote_undefined']['leading spaces in trigger'] = function()
     eq(items[1].label, '[^1]')
 end
 
+-- =============================================================================
+-- Heading/anchor completions
+-- =============================================================================
+
+--- Helper: set buffer content in the child and call source:complete with a
+--- heading anchor trigger. Returns the completion items.
+---@param buffer_lines table Lines to set in the buffer
+---@param trigger string The cursor_before_line text (e.g., '](#' or 'text ](#')
+---@param after? string The cursor_after_line text (e.g., ')' for auto-pairs)
+---@return table[] items
+local function complete_heading_items(buffer_lines, trigger, after)
+    child.lua('vim.api.nvim_buf_set_lines(0, 0, -1, false, ' .. vim.inspect(buffer_lines) .. ')')
+    child.lua('_G._heading_trigger = ' .. vim.inspect(trigger))
+    child.lua('_G._heading_after = ' .. vim.inspect(after or ''))
+    child.lua([[
+        _G._complete_items = nil
+        local params = {
+            context = {
+                cursor_before_line = _G._heading_trigger,
+                cursor_after_line = _G._heading_after,
+                cursor = { line = 0, character = 0 },
+            },
+        }
+        _G._registered_source:complete(params, function(items)
+            _G._complete_items = items
+        end)
+    ]])
+    child.lua('vim.wait(2000, function() return _G._complete_items ~= nil end, 10)')
+    return child.lua_get('_G._complete_items')
+end
+
+T['heading_completion'] = new_set({
+    hooks = {
+        pre_case = function()
+            setup_cmp_child([[{
+                modules = { cmp = true },
+                silent = true,
+            }]])
+        end,
+    },
+})
+
+T['heading_completion']['finds headings at different levels'] = function()
+    local items = complete_heading_items({
+        '# Top Level',
+        '',
+        '## Second Level',
+        '',
+        '### Third Level',
+    }, '[text](#')
+    eq(#items, 3)
+    eq(items[1].label, 'Top Level')
+    eq(items[1].detail, 'H1')
+    eq(items[2].label, 'Second Level')
+    eq(items[2].detail, 'H2')
+    eq(items[3].label, 'Third Level')
+    eq(items[3].detail, 'H3')
+end
+
+T['heading_completion']['generates correct anchor slugs'] = function()
+    local items = complete_heading_items({
+        '## My Cool Heading',
+    }, '[text](#')
+    eq(#items, 1)
+    eq(items[1].insertText, '#my-cool-heading)')
+end
+
+T['heading_completion']['skips headings inside backtick code fences'] = function()
+    local items = complete_heading_items({
+        '## Real Heading',
+        '',
+        '```',
+        '## Fenced Heading',
+        '```',
+        '',
+        '## Another Real',
+    }, '[text](#')
+    eq(#items, 2)
+    eq(items[1].label, 'Real Heading')
+    eq(items[2].label, 'Another Real')
+end
+
+T['heading_completion']['skips headings inside tilde code fences'] = function()
+    local items = complete_heading_items({
+        '## Real Heading',
+        '',
+        '~~~',
+        '## Tilde Fenced',
+        '~~~',
+    }, '[text](#')
+    eq(#items, 1)
+    eq(items[1].label, 'Real Heading')
+end
+
+T['heading_completion']['skips YAML frontmatter comments'] = function()
+    local items = complete_heading_items({
+        '---',
+        '# Configuration',
+        'title: My Doc',
+        '---',
+        '',
+        '## Actual Heading',
+    }, '[text](#')
+    eq(#items, 1)
+    eq(items[1].label, 'Actual Heading')
+end
+
+T['heading_completion']['collects context lines in documentation'] = function()
+    local items = complete_heading_items({
+        '## Introduction',
+        '',
+        'This is the first paragraph.',
+        'And a second line.',
+    }, '[text](#')
+    eq(#items, 1)
+    -- Documentation should contain heading + context
+    local doc_value = items[1].documentation.value
+    eq(doc_value:find('## Introduction') ~= nil, true)
+    eq(doc_value:find('This is the first paragraph.') ~= nil, true)
+    eq(doc_value:find('And a second line.') ~= nil, true)
+end
+
+T['heading_completion']['context stops at next heading'] = function()
+    local items = complete_heading_items({
+        '## First',
+        'Content under first.',
+        '## Second',
+        'Content under second.',
+    }, '[text](#')
+    eq(#items, 2)
+    -- First heading's doc should NOT contain "Content under second."
+    local doc1 = items[1].documentation.value
+    eq(doc1:find('Content under first.') ~= nil, true)
+    eq(doc1:find('Content under second.') == nil, true)
+end
+
+T['heading_completion']['special characters produce correct anchor'] = function()
+    local items = complete_heading_items({
+        "## What's New in v2.0?",
+    }, '[text](#')
+    eq(#items, 1)
+    -- Punctuation stripped, spaces → hyphens
+    eq(items[1].insertText, '#whats-new-in-v20)')
+end
+
+T['heading_completion']['markdown with title: insertText has anchor + closing paren'] = function()
+    local items = complete_heading_items({
+        '## Target Heading',
+    }, '[My Link](#')
+    eq(#items, 1)
+    eq(items[1].insertText, '#target-heading)')
+end
+
+T['heading_completion']['markdown without title: has additionalTextEdits'] = function()
+    local items = complete_heading_items({
+        '## Target Heading',
+    }, '[](#')
+    eq(#items, 1)
+    eq(items[1].insertText, '#target-heading)')
+    -- Should have additionalTextEdits to fill in the display text
+    eq(items[1].additionalTextEdits ~= nil, true)
+    eq(#items[1].additionalTextEdits, 1)
+    eq(items[1].additionalTextEdits[1].newText, 'Target Heading')
+end
+
+T['heading_completion']['auto-pairs: omits closing paren when present'] = function()
+    local items = complete_heading_items({
+        '## Target Heading',
+    }, '[My Link](#', ')')
+    eq(#items, 1)
+    -- Should NOT include ) since it's already after the cursor
+    eq(items[1].insertText, '#target-heading')
+end
+
+T['heading_completion']['auto-pairs: includes closing paren when absent'] = function()
+    local items = complete_heading_items({
+        '## Target Heading',
+    }, '[My Link](#', '')
+    eq(#items, 1)
+    eq(items[1].insertText, '#target-heading)')
+end
+
+T['heading_completion']['wiki-style trigger'] = function()
+    local items = complete_heading_items({
+        '## Wiki Heading',
+    }, '[[#')
+    eq(#items, 1)
+    -- Non-compact: includes pipe and display text
+    eq(items[1].insertText, '#wiki-heading|Wiki Heading]]')
+end
+
+T['heading_completion']['wiki-style auto-pairs: omits closing brackets'] = function()
+    local items = complete_heading_items({
+        '## Wiki Heading',
+    }, '[[#', ']]')
+    eq(#items, 1)
+    eq(items[1].insertText, '#wiki-heading|Wiki Heading')
+end
+
+T['heading_completion']['wiki-style compact'] = function()
+    setup_cmp_child([[{
+        modules = { cmp = true },
+        links = { style = 'wiki', compact = true },
+        silent = true,
+    }]])
+    local items = complete_heading_items({
+        '## Compact Heading',
+    }, '[[#')
+    eq(#items, 1)
+    eq(items[1].insertText, '#compact-heading]]')
+end
+
+T['heading_completion']['empty buffer returns no items'] = function()
+    local items = complete_heading_items({
+        'Just regular text, no headings.',
+    }, '[text](#')
+    eq(#items, 0)
+end
+
+T['heading_completion']['non-matching trigger returns no heading items'] = function()
+    -- Bare # at line start (heading, not anchor trigger) — should not match
+    child.lua([[
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, { '## Some Heading' })
+        _G._complete_items = nil
+        local params = {
+            context = {
+                cursor_before_line = '# ',
+                cursor_after_line = '',
+                cursor = { line = 0, character = 0 },
+            },
+        }
+        _G._registered_source:complete(params, function(items)
+            _G._complete_items = items
+        end)
+    ]])
+    child.lua('vim.wait(2000, function() return _G._complete_items ~= nil end, 10)')
+    local items = child.lua_get('_G._complete_items')
+    eq(#items, 0)
+end
+
+T['heading_completion']['filterText includes heading text and slug for fuzzy matching'] = function()
+    local items = complete_heading_items({
+        '## My Heading',
+    }, '[text](#')
+    eq(#items, 1)
+    eq(items[1].filterText, '#My Heading my-heading')
+end
+
+T['heading_completion']['kind is Reference'] = function()
+    local items = complete_heading_items({
+        '## Test',
+    }, '[text](#')
+    eq(#items, 1)
+    -- CompletionItemKind.Reference = 18 in our mock
+    eq(items[1].kind, 18)
+end
+
+T['heading_completion']['partial typing after trigger still matches'] = function()
+    local items = complete_heading_items({
+        '## Alpha',
+        '## Beta',
+    }, '[text](#al')
+    eq(#items, 2) -- All headings returned; nvim-cmp handles filtering
+end
+
+T['heading_completion']['cross-file pattern does not trigger heading completion'] = function()
+    -- ](filename# should NOT trigger heading completions (only ](# does)
+    child.lua([[
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, { '## Some Heading' })
+        _G._complete_items = nil
+        local params = {
+            context = {
+                cursor_before_line = '[text](other-file#',
+                cursor_after_line = '',
+                cursor = { line = 0, character = 0 },
+            },
+        }
+        _G._registered_source:complete(params, function(items)
+            _G._complete_items = items
+        end)
+    ]])
+    child.lua('vim.wait(2000, function() return _G._complete_items ~= nil end, 10)')
+    local items = child.lua_get('_G._complete_items')
+    eq(#items, 0)
+end
+
 return T
