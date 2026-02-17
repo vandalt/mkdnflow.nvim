@@ -98,35 +98,40 @@ end
 --- If on a heading, folds the entire section. If inside a section, finds the nearest heading first.
 M.foldSection = function()
     local row, line = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_get_current_line()
-    -- See if the cursor is in an open fold. If so, and if it is not also on a heading, close the
-    -- open fold.
-    if vim.fn.foldlevel(row) > 0 and not (M.getHeadingLevel(line) < 99) then
+    -- If the cursor is on a fold that is already closed, do nothing (unfoldSection handles opening)
+    if vim.fn.foldclosed(row) ~= -1 then
         vim.cmd.foldclose()
-    else -- Otherwise, create a fold
-        -- Check if foldmethod allows manual fold creation
-        if not can_create_manual_folds() then
-            if not require('mkdnflow').config.silent then
-                vim.notify(
-                    "⬇️  Cannot create fold: 'foldmethod' must be 'manual' or 'marker'",
-                    vim.log.levels.WARN
-                )
-            end
-            return
+        return
+    end
+    -- If a fold already exists here (open), close it instead of creating a duplicate
+    if vim.fn.foldlevel(row) > 0 then
+        vim.cmd.foldclose()
+        return
+    end
+    -- No fold exists; create one
+    -- Check if foldmethod allows manual fold creation
+    if not can_create_manual_folds() then
+        if not require('mkdnflow').config.silent then
+            vim.notify(
+                "⬇️  Cannot create fold: 'foldmethod' must be 'manual' or 'marker'",
+                vim.log.levels.WARN
+            )
         end
-        local in_fenced_code_block = utils.cursorInCodeBlock(row)
-        -- See if the cursor is on a heading
-        if M.getHeadingLevel(line) < 99 and not in_fenced_code_block then
-            local range = get_section_range()
+        return
+    end
+    local in_fenced_code_block = utils.cursorInCodeBlock(row)
+    -- See if the cursor is on a heading
+    if M.getHeadingLevel(line) < 99 and not in_fenced_code_block then
+        local range = get_section_range()
+        if range then
+            vim.cmd(tostring(range[1]) .. ',' .. tostring(range[2]) .. 'fold')
+        end
+    else -- The cursor isn't on a heading, so find what the range of the fold should be
+        local start_row = get_nearest_heading()
+        if start_row then
+            local range = get_section_range(start_row)
             if range then
                 vim.cmd(tostring(range[1]) .. ',' .. tostring(range[2]) .. 'fold')
-            end
-        else -- The cursor isn't on a heading, so find what the range of the fold should be
-            local start_row = get_nearest_heading()
-            if start_row then
-                local range = get_section_range(start_row)
-                if range then
-                    vim.cmd(tostring(range[1]) .. ',' .. tostring(range[2]) .. 'fold')
-                end
             end
         end
     end

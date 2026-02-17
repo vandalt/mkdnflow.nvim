@@ -237,6 +237,24 @@ T['integration']['fold and unfold cycle'] = function()
     eq(child.lua_get('vim.fn.foldclosed(1)'), 1)
 end
 
+T['integration']['repeated fold/unfold does not stack folds (#162)'] = function()
+    set_lines({ '# Heading', 'Content 1', 'Content 2', '# Next' })
+    set_cursor(1, 0)
+
+    for _ = 1, 5 do
+        child.lua([[require('mkdnflow.folds').foldSection()]])
+        eq(child.lua_get('vim.fn.foldclosed(1)'), 1)
+        child.lua([[require('mkdnflow.folds').unfoldSection()]])
+        eq(child.lua_get('vim.fn.foldclosed(1)'), -1)
+    end
+
+    -- After 5 cycles, foldlevel should still be 1 (not 5)
+    eq(child.lua_get('vim.fn.foldlevel(1)'), 1)
+    -- A single zd should fully remove the fold
+    child.lua('vim.cmd("normal! zd")')
+    eq(child.lua_get('vim.fn.foldlevel(1)'), 0)
+end
+
 T['integration']['nested headings fold correctly'] = function()
     set_lines({
         '# Main',
