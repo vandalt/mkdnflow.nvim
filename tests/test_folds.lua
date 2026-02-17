@@ -255,6 +255,29 @@ T['integration']['repeated fold/unfold does not stack folds (#162)'] = function(
     eq(child.lua_get('vim.fn.foldlevel(1)'), 0)
 end
 
+T['integration']['re-fold after adding content covers new lines (#162)'] = function()
+    set_lines({ '# Heading', 'Line 1', 'Line 2', '# Next' })
+    set_cursor(1, 0)
+
+    -- Create initial fold (lines 1-3)
+    child.lua([[require('mkdnflow.folds').foldSection()]])
+    eq(child.lua_get('vim.fn.foldclosedend(1)'), 3)
+
+    -- Unfold and add lines inside the section
+    child.lua([[require('mkdnflow.folds').unfoldSection()]])
+    child.lua([[vim.api.nvim_buf_set_lines(0, 3, 3, false, {'New A', 'New B', 'New C'})]])
+    -- Buffer is now: Heading, Line 1, Line 2, New A, New B, New C, # Next
+
+    -- Re-fold: should cover the expanded section (lines 1-6), not the stale range (1-3)
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.folds').foldSection()]])
+    eq(child.lua_get('vim.fn.foldclosed(1)'), 1)
+    eq(child.lua_get('vim.fn.foldclosedend(1)'), 6)
+
+    -- Foldlevel should still be 1 (no stacking)
+    eq(child.lua_get('vim.fn.foldlevel(1)'), 1)
+end
+
 T['integration']['nested headings fold correctly'] = function()
     set_lines({
         '# Main',

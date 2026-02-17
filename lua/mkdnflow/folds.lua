@@ -94,21 +94,16 @@ local get_nearest_heading = function()
     end
 end
 
---- Fold the current markdown section or close an existing open fold
+--- Fold the current markdown section, replacing any stale fold with a fresh one
 --- If on a heading, folds the entire section. If inside a section, finds the nearest heading first.
+--- Deletes any existing fold before creating a new one to prevent stacking (#162) and ensure
+--- the fold range always reflects the current content.
 M.foldSection = function()
-    local row, line = vim.api.nvim_win_get_cursor(0)[1], vim.api.nvim_get_current_line()
-    -- If the cursor is on a fold that is already closed, do nothing (unfoldSection handles opening)
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    -- If the fold is already closed, nothing to do (unfoldSection handles opening)
     if vim.fn.foldclosed(row) ~= -1 then
-        vim.cmd.foldclose()
         return
     end
-    -- If a fold already exists here (open), close it instead of creating a duplicate
-    if vim.fn.foldlevel(row) > 0 then
-        vim.cmd.foldclose()
-        return
-    end
-    -- No fold exists; create one
     -- Check if foldmethod allows manual fold creation
     if not can_create_manual_folds() then
         if not require('mkdnflow').config.silent then
@@ -119,21 +114,28 @@ M.foldSection = function()
         end
         return
     end
+    -- Compute the section range
+    local line = vim.api.nvim_get_current_line()
     local in_fenced_code_block = utils.cursorInCodeBlock(row)
-    -- See if the cursor is on a heading
+    local range
     if M.getHeadingLevel(line) < 99 and not in_fenced_code_block then
-        local range = get_section_range()
-        if range then
-            vim.cmd(tostring(range[1]) .. ',' .. tostring(range[2]) .. 'fold')
-        end
-    else -- The cursor isn't on a heading, so find what the range of the fold should be
+        range = get_section_range()
+    else
         local start_row = get_nearest_heading()
         if start_row then
-            local range = get_section_range(start_row)
-            if range then
-                vim.cmd(tostring(range[1]) .. ',' .. tostring(range[2]) .. 'fold')
-            end
+            range = get_section_range(start_row)
         end
+    end
+    if range then
+        -- Delete any existing fold at the range start to prevent stacking and stale ranges
+        if vim.fn.foldlevel(range[1]) > 0 then
+            vim.api.nvim_win_set_cursor(0, { range[1], 0 })
+            pcall(function()
+                vim.cmd('normal! zd')
+            end)
+            vim.api.nvim_win_set_cursor(0, { row, 0 })
+        end
+        vim.cmd(tostring(range[1]) .. ',' .. tostring(range[2]) .. 'fold')
     end
 end
 
