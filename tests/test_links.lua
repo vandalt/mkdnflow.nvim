@@ -652,6 +652,65 @@ T['getLinkPart']['extracts source from angle bracket markdown link'] = function(
     eq(result, 'path with spaces.md')
 end
 
+-- Markdown links with parentheses in path (#316)
+T['getLinkPart']['extracts source with parens in directory name'] = function()
+    set_lines({ '[Notes](Projects/Solar Array (Phase 2)/notes.md)' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_source = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    local result = child.lua_get('_G.test_source')
+    eq(result, 'Projects/Solar Array (Phase 2)/notes.md')
+end
+
+T['getLinkPart']['extracts source with parens in filename'] = function()
+    set_lines({ '[Doc](file (copy).pdf)' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_source = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    local result = child.lua_get('_G.test_source')
+    eq(result, 'file (copy).pdf')
+end
+
+T['getLinkPart']['extracts source with multiple paren groups in path'] = function()
+    set_lines({ '[Doc](path (a) and (b)/file.md)' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_source = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    local result = child.lua_get('_G.test_source')
+    eq(result, 'path (a) and (b)/file.md')
+end
+
+T['getLinkPart']['extracts source with parens and anchor'] = function()
+    set_lines({ '[Doc](file (1).pdf#page=2)' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua(
+        '_G.test_source, _G.test_anchor = require("mkdnflow.links").getLinkPart(_G.test_link, "source")'
+    )
+    local source = child.lua_get('_G.test_source')
+    local anchor = child.lua_get('_G.test_anchor')
+    eq(source, 'file (1).pdf')
+    eq(anchor, '#page=2')
+end
+
+T['getLinkPart']['extracts source with parens when multiple links on line'] = function()
+    set_lines({ '[a](dir (x)/a.md) and [b](other.md)' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_source = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    local result = child.lua_get('_G.test_source')
+    eq(result, 'dir (x)/a.md')
+end
+
+T['getLinkPart']['extracts source from image link with parens in path'] = function()
+    set_lines({ '![Image](photos (vacation)/beach.png)' })
+    set_cursor(1, 5)
+    child.lua('_G.test_link = require("mkdnflow.links").getLinkUnderCursor()')
+    child.lua('_G.test_source = require("mkdnflow.links").getLinkPart(_G.test_link, "source")')
+    local result = child.lua_get('_G.test_source')
+    eq(result, 'photos (vacation)/beach.png')
+end
+
 -- Markdown links - name extraction
 T['getLinkPart']['extracts name from markdown link'] = function()
     set_lines({ '[display text](file.md)' })

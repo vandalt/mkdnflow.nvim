@@ -142,8 +142,8 @@ local part_patterns = {
         citation = '(@.*)',
     },
     source = {
-        image_link = { '!%b[](%b())', '%((.-)%)' },
-        md_link = { '%](%b())', '%((.-)%)' },
+        image_link = { '!%b[](%b())', '%((.*)%)' },
+        md_link = { '%](%b())', '%((.*)%)' },
         wiki_link = '%[%[(.-)|.-%]%]',
         wiki_link_no_bar = '%[%[(.-)%]%]',
         ref_style_link = '%]%[(.-)%]',
