@@ -44,6 +44,7 @@
     1. [Table management](#table-management)
     1. [Folds](#folds)
     1. [Yaml blocks](#yaml-blocks)
+    1. [Notebook primitives](#notebook-primitives)
     1. [Bibliography](#bibliography)
     1. [Statusline components](#statusline-components)
 7. [🤝 Contributing](#-contributing)
@@ -499,6 +500,7 @@ require('mkdnflow').setup({
         to_do = true,
         yaml = false,
         cmp = false,
+    notebook = true,
     }
 })
 ```
@@ -519,6 +521,7 @@ require('mkdnflow').setup({
 | `modules.templates` | `boolean` | **`true`** (default): `templates` module is enabled (required for new-file template formatting and injection when following links to non-existent files).<br>`false`: Disable `templates` module functionality. Template injection will be skipped even if `new_file_template.enabled` is `true`. |
 | `modules.yaml` | `boolean` | `true`: `yaml` module is enabled (required for parsing yaml headers).<br>**`false`** (default): Disable `yaml` module functionality. |
 | `modules.cmp` | `boolean` | `true`: `cmp` module is enabled (required if you wish to enable completion for `nvim-cmp`).<br>**`false`** (default): Disable `cmp` module functionality. |
+| `modules.notebook` | `boolean` | **`true`** (default): `notebook` module is enabled. Provides shared cross-file primitives for scanning notebook files, headings, and links. This module has zero cost at load time (no autocommands, keymaps, or side effects) and serves as infrastructure for other features.<br>`false`: Disable `notebook` module functionality. |
 
 ##### create_dirs
 
@@ -1322,8 +1325,9 @@ Below are the primary functions available:
 10. Table management ([Table management](#table-management))
 11. Folds ([Folds](#folds))
 12. Yaml blocks ([Yaml blocks](#yaml-blocks))
-13. Bibliography ([Bibliography](#bibliography))
-14. Statusline components ([Statusline components](#statusline-components))
+13. Notebook primitives ([Notebook primitives](#notebook-primitives))
+14. Bibliography ([Bibliography](#bibliography))
+15. Statusline components ([Statusline components](#statusline-components))
 
 ### Initialization
 
@@ -1745,6 +1749,83 @@ Parses and ingests a YAML block from the specified range.
 - **Parameters:**
     - `start`: (number) The starting line number.
     - `finish`: (number) The ending line number.
+
+### Notebook primitives
+
+The following functions provide shared cross-file primitives for scanning
+notebook files, headings, and links. Both synchronous and asynchronous
+variants are available. These serve as building blocks for features like
+backlinks, notebook indexing, and table-of-contents generation.
+
+`require('mkdnflow').paths.getBaseDir(buf_path)`
+
+Computes the resolution base directory for the current path resolution strategy.
+Consolidates the 3-way `root`/`first`/`current` logic. Falls back to the current
+working directory when the base cannot be determined.
+
+- **Parameters:**
+    - `buf_path`: (string|nil) Buffer path to use for the `'current'` strategy. If nil, the current buffer's name is used.
+
+`require('mkdnflow').notebook.readFileSync(filepath)`
+
+Reads a file synchronously and returns its lines. Returns nil if the file is not readable.
+
+- **Parameters:**
+    - `filepath`: (string) Absolute file path.
+
+`require('mkdnflow').notebook.scanFilesSync(dir, opts)`
+
+Recursively scans a directory for notebook files (`.md`, `.rmd`, etc.) synchronously.
+Filters by configured `notebook_extensions` by default.
+
+- **Parameters:**
+    - `dir`: (string) Base directory to scan.
+    - `opts`: (table|nil) Options for scanning.
+        - `extensions`: (table<string, boolean>|nil) Map of file extensions to include (e.g. `{md = true}`). Defaults to `notebook_extensions` from config.
+        - `max_depth`: (integer|nil) Maximum directory depth to recurse. Default `20`.
+        - `predicate`: (fun(name)|nil) Optional filter function called with each filename; return `true` to include.
+
+`require('mkdnflow').notebook.scanHeadings(lines, opts)`
+
+Scans an array of lines for markdown headings. Skips YAML frontmatter and fenced
+code blocks by default. Each returned entry contains the row number, heading level,
+text, and an optional anchor slug.
+
+- **Parameters:**
+    - `lines`: (string[]) Array of line strings (e.g. from `readFileSync`).
+    - `opts`: (table|nil) Options for scanning.
+        - `with_anchor`: (boolean|nil) Compute an anchor slug for each heading. Default: `true`.
+
+`require('mkdnflow').notebook.scanLinks(lines, opts)`
+
+Scans an array of lines for markdown links (markdown-style, wiki-style, image links,
+etc.). Skips YAML frontmatter and fenced code blocks by default. Returns plain data
+tables rather than Link objects.
+
+- **Parameters:**
+    - `lines`: (string[]) Array of line strings.
+    - `opts`: (table|nil) Options for scanning.
+        - `types`: (table<string, boolean>|nil) Filter by link type (e.g. `{md_link = true, wiki_link = true}`). Default includes all types.
+
+`require('mkdnflow').notebook.readFile(filepath, on_done)`
+
+Reads a file asynchronously using `libuv`. Does not wrap the callback in
+`vim.schedule` — callers are responsible for scheduling if they need Vim API access.
+
+- **Parameters:**
+    - `filepath`: (string) Absolute file path.
+    - `on_done`: (fun(lines)) Callback receiving an array of lines, or nil on error.
+
+`require('mkdnflow').notebook.scanFiles(dir, opts, on_done)`
+
+Recursively scans a directory for notebook files asynchronously using `libuv`.
+Supports a 2-argument form `scanFiles(dir, on_done)` with default options.
+Does not wrap the callback in `vim.schedule`.
+
+- **Parameters:**
+    - `dir`: (string) Base directory to scan.
+    - `opts`: (table|fun(filepaths)) Options table (same as `scanFilesSync`), or the `on_done` callback for the 2-argument form.
+    - `on_done`: (fun(filepaths)|nil) Callback receiving an array of absolute file paths. Required if `opts` is a table.
 
 ### Bibliography
 

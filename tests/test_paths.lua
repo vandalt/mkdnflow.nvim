@@ -1327,6 +1327,91 @@ T['external_files_e2e']['<CR> on PDF link does not open in buffer'] = function()
 end
 
 -- =============================================================================
+-- getBaseDir() - Compute resolution base directory
+-- =============================================================================
+T['getBaseDir'] = new_set()
+
+T['getBaseDir']['returns root_dir when primary=root'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.root_dir = '/fake/notebook'
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.paths').getBaseDir()]])
+    eq(result, '/fake/notebook')
+end
+
+T['getBaseDir']['returns initial_dir when primary=first'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'first' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+        init.initial_dir = '/fake/wiki'
+    ]])
+    local result = child.lua_get([[require('mkdnflow.paths').getBaseDir()]])
+    eq(result, '/fake/wiki')
+end
+
+T['getBaseDir']['falls back to initial_dir when root not found'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+        init.root_dir = nil
+        init.initial_dir = '/fake/wiki'
+    ]])
+    local result = child.lua_get([[require('mkdnflow.paths').getBaseDir()]])
+    eq(result, '/fake/wiki')
+end
+
+T['getBaseDir']['uses current buffer dir when primary=current'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'current' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+        vim.api.nvim_buf_set_name(0, '/some/dir/file.md')
+    ]])
+    local result = child.lua_get([[require('mkdnflow.paths').getBaseDir()]])
+    eq(result, '/some/dir')
+end
+
+T['getBaseDir']['uses buf_path argument for current strategy'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'current' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+    ]])
+    local result = child.lua_get([[require('mkdnflow.paths').getBaseDir('/other/path/note.md')]])
+    eq(result, '/other/path')
+end
+
+T['getBaseDir']['falls back to cwd when dirname is nil'] = function()
+    child.lua([[
+        local init = require('mkdnflow')
+        init.setup({
+            path_resolution = { primary = 'current' },
+            links = { transform_on_create = false, transform_on_follow = false },
+        })
+        -- Set buffer name to empty string so dirname returns nil/empty
+        vim.api.nvim_buf_set_name(0, '')
+    ]])
+    local result = child.lua_get([[require('mkdnflow.paths').getBaseDir()]])
+    local cwd = child.lua_get([[vim.fn.getcwd()]])
+    eq(result, cwd)
+end
+
+-- =============================================================================
 -- relativeToBase() - Compute path relative to resolution base
 -- =============================================================================
 T['relativeToBase'] = new_set()

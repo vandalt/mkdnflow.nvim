@@ -96,12 +96,11 @@ local resolve_notebook_path = function(path, sub_home_var)
     return derived_path
 end
 
---- Compute a path relative to the resolution base (inverse of resolve_notebook_path)
----@param abs_path string An absolute file path
----@return string relative_path The path relative to the configured resolution base
-M.relativeToBase = function(abs_path)
+--- Compute the resolution base directory for the current path resolution strategy.
+---@param buf_path? string Buffer path for 'current' strategy (defaults to current buffer)
+---@return string base_dir
+M.getBaseDir = function(buf_path)
     local path_resolution = cfg().path_resolution
-    local s = sep()
     local base
     if path_resolution.primary == 'root' and mkdn().root_dir then
         base = mkdn().root_dir
@@ -111,15 +110,26 @@ M.relativeToBase = function(abs_path)
     then
         base = mkdn().initial_dir
     else
-        base = vim.fs.dirname(vim.api.nvim_buf_get_name(0))
+        local cur_path = buf_path or vim.api.nvim_buf_get_name(0)
+        base = vim.fs.dirname(cur_path)
     end
-    if base then
-        if not base:match(s .. '$') then
-            base = base .. s
-        end
-        if abs_path:sub(1, #base) == base then
-            return abs_path:sub(#base + 1)
-        end
+    if not base or base == '' or base == '.' then
+        base = vim.fn.getcwd()
+    end
+    return base
+end
+
+--- Compute a path relative to the resolution base (inverse of resolve_notebook_path)
+---@param abs_path string An absolute file path
+---@return string relative_path The path relative to the configured resolution base
+M.relativeToBase = function(abs_path)
+    local s = sep()
+    local base = M.getBaseDir()
+    if not base:match(s .. '$') then
+        base = base .. s
+    end
+    if abs_path:sub(1, #base) == base then
+        return abs_path:sub(#base + 1)
     end
     return vim.fs.basename(abs_path)
 end

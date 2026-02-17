@@ -363,6 +363,7 @@ sections:
                               to_do = true,
                               yaml = false,
                               cmp = false,
+                          notebook = true,
                           }
                       })
                   - type: config_table
@@ -1094,6 +1095,7 @@ sections:
           - text: Table management (see `tablemanagement`)
           - text: Folds (see `folds`)
           - text: Yaml blocks (see `yamlblocks`)
+          - text: Notebook primitives (see `notebook`)
           - text: Bibliography (see `bibliography`)
           - text: Statusline components (see `statusline`)
     children:
@@ -1174,6 +1176,18 @@ sections:
         content:
           - type: api_section
             ref: yamlblocks
+
+      - title: Notebook primitives
+        tag: notebook
+        content:
+          - type: prose
+            text: |
+              The following functions provide shared cross-file primitives for scanning
+              notebook files, headings, and links. Both synchronous and asynchronous
+              variants are available. These serve as building blocks for features like
+              backlinks, notebook indexing, and table-of-contents generation.
+          - type: api_section
+            ref: notebook
 
       - title: Bibliography
         tag: bibliography

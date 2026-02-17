@@ -36,6 +36,7 @@ local default_config = {
         to_do = true,
         yaml = false,
         cmp = false,
+        notebook = true,
     },
     path_resolution = {
         primary = 'first',
@@ -553,6 +554,7 @@ local function activate()
     init.templates = load_module('templates', init.config.modules.templates)
     init.yaml = load_module('yaml', init.config.modules.yaml)
     init.cmp = load_module('cmp', init.config.modules.cmp)
+    init.notebook = load_module('notebook', init.config.modules.notebook)
     init.to_do = load_module('to_do', init.config.modules.to_do)
     -- Set up on_attach autocmd (fires per buffer, independent of maps module)
     local on_attach = init.config.on_attach

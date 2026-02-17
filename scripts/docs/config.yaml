@@ -86,6 +86,12 @@ modules:
       `true`: `cmp` module is enabled (required if you wish to enable completion for `nvim-cmp`).
       **`false`** (default): Disable `cmp` module functionality.
 
+  - name: modules.notebook
+    type: boolean
+    description: |
+      **`true`** (default): `notebook` module is enabled. Provides shared cross-file primitives for scanning notebook files, headings, and links. This module has zero cost at load time (no autocommands, keymaps, or side effects) and serves as infrastructure for other features.
+      `false`: Disable `notebook` module functionality.
+
 create_dirs:
   - name: create_dirs
     type: boolean

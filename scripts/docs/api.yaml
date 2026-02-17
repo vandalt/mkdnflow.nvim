@@ -520,6 +520,108 @@ statusline:
             type: string
             description: The full path to the notebook root directory.
 
+notebook:
+  - signature: "require('mkdnflow').paths.getBaseDir(buf_path)"
+    description: |
+      Computes the resolution base directory for the current path resolution strategy.
+      Consolidates the 3-way `root`/`first`/`current` logic. Falls back to the current
+      working directory when the base cannot be determined.
+    params:
+      - name: buf_path
+        type: string|nil
+        description: Buffer path to use for the `'current'` strategy. If nil, the current buffer's name is used.
+
+  - signature: "require('mkdnflow').notebook.readFileSync(filepath)"
+    description: Reads a file synchronously and returns its lines. Returns nil if the file is not readable.
+    params:
+      - name: filepath
+        type: string
+        description: Absolute file path.
+
+  - signature: "require('mkdnflow').notebook.scanFilesSync(dir, opts)"
+    description: |
+      Recursively scans a directory for notebook files (`.md`, `.rmd`, etc.) synchronously.
+      Filters by configured `notebook_extensions` by default.
+    params:
+      - name: dir
+        type: string
+        description: Base directory to scan.
+      - name: opts
+        type: table|nil
+        description: Options for scanning.
+        children:
+          - name: extensions
+            type: table<string, boolean>|nil
+            description: Map of file extensions to include (e.g. `{md = true}`). Defaults to `notebook_extensions` from config.
+          - name: max_depth
+            type: integer|nil
+            description: Maximum directory depth to recurse. Default `20`.
+          - name: predicate
+            type: fun(name)|nil
+            description: Optional filter function called with each filename; return `true` to include.
+
+  - signature: "require('mkdnflow').notebook.scanHeadings(lines, opts)"
+    description: |
+      Scans an array of lines for markdown headings. Skips YAML frontmatter and fenced
+      code blocks by default. Each returned entry contains the row number, heading level,
+      text, and an optional anchor slug.
+    params:
+      - name: lines
+        type: string[]
+        description: Array of line strings (e.g. from `readFileSync`).
+      - name: opts
+        type: table|nil
+        description: Options for scanning.
+        children:
+          - name: with_anchor
+            type: boolean|nil
+            description: "Compute an anchor slug for each heading. Default: `true`."
+
+  - signature: "require('mkdnflow').notebook.scanLinks(lines, opts)"
+    description: |
+      Scans an array of lines for markdown links (markdown-style, wiki-style, image links,
+      etc.). Skips YAML frontmatter and fenced code blocks by default. Returns plain data
+      tables rather than Link objects.
+    params:
+      - name: lines
+        type: string[]
+        description: Array of line strings.
+      - name: opts
+        type: table|nil
+        description: Options for scanning.
+        children:
+          - name: types
+            type: table<string, boolean>|nil
+            description: Filter by link type (e.g. `{md_link = true, wiki_link = true}`). Default includes all types.
+
+  - signature: "require('mkdnflow').notebook.readFile(filepath, on_done)"
+    description: |
+      Reads a file asynchronously using `libuv`. Does not wrap the callback in
+      `vim.schedule` — callers are responsible for scheduling if they need Vim API access.
+    params:
+      - name: filepath
+        type: string
+        description: Absolute file path.
+      - name: on_done
+        type: fun(lines)
+        description: Callback receiving an array of lines, or nil on error.
+
+  - signature: "require('mkdnflow').notebook.scanFiles(dir, opts, on_done)"
+    description: |
+      Recursively scans a directory for notebook files asynchronously using `libuv`.
+      Supports a 2-argument form `scanFiles(dir, on_done)` with default options.
+      Does not wrap the callback in `vim.schedule`.
+    params:
+      - name: dir
+        type: string
+        description: Base directory to scan.
+      - name: opts
+        type: table|fun(filepaths)
+        description: Options table (same as `scanFilesSync`), or the `on_done` callback for the 2-argument form.
+      - name: on_done
+        type: fun(filepaths)|nil
+        description: Callback receiving an array of absolute file paths. Required if `opts` is a table.
+
 bibliography:
   - signature: "require('mkdnflow').bib.handleCitation(citation)"
     description: Handles a citation, potentially linking to a bibliography entry or external source.
