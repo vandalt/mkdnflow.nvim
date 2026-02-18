@@ -246,7 +246,7 @@ local function walk(user, defaults, schema_node, prefix, diagnostics, is_dynamic
 
         -- 4. Recurse into dict-like sub-tables
         if type(user_value) == 'table' and not isArray(user_value) then
-            local child_dynamic = (key_schema and key_schema.dynamic) or false
+            local child_dynamic = (key_schema and key_schema.dynamic) or is_dynamic or false
             walk(
                 user_value,
                 (type(default_value) == 'table') and default_value or {},
