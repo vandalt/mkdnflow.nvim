@@ -1713,4 +1713,115 @@ T['uri_handlers_e2e']['<CR> on custom scheme link calls handler'] = function()
     eq(calls[1].uri, 'phd://papers/linguistics.pdf#3')
 end
 
+-- =============================================================================
+-- edit_dirs - Directory link behavior (inspired by PR #184)
+-- =============================================================================
+T['edit_dirs'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/subdir', 'p')
+                local tmpfile = _G._tmpdir .. '/index.md'
+                vim.fn.writefile({'[Dir Link](subdir)'}, tmpfile)
+                vim.cmd('e ' .. tmpfile)
+                vim.bo.filetype = 'markdown'
+            ]])
+        end,
+    },
+})
+
+T['edit_dirs']['default false prompts via vim.ui.input'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                edit_dirs = false,
+            },
+        })
+        _G._ui_input_called = false
+        vim.ui.input = function(opts, on_confirm)
+            _G._ui_input_called = true
+            on_confirm(nil)
+        end
+    ]])
+    child.lua([[require('mkdnflow.paths').handlePath('subdir')]])
+    local called = child.lua_get('_G._ui_input_called')
+    eq(called, true)
+end
+
+T['edit_dirs']['true opens directory with :edit'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                edit_dirs = true,
+            },
+        })
+    ]])
+    child.lua([[require('mkdnflow.paths').handlePath('subdir')]])
+    local buf_name = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    local tmpdir = child.lua_get('_G._tmpdir')
+    eq(buf_name, tmpdir .. '/subdir')
+end
+
+T['edit_dirs']['function receives absolute directory path'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                edit_dirs = function(path)
+                    _G._received_path = path
+                end,
+            },
+        })
+    ]])
+    child.lua([[require('mkdnflow.paths').handlePath('subdir')]])
+    local received = child.lua_get('_G._received_path')
+    local tmpdir = child.lua_get('_G._tmpdir')
+    eq(received, tmpdir .. '/subdir')
+end
+
+T['edit_dirs']['true pushes buffer stack for back navigation'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                edit_dirs = true,
+            },
+        })
+    ]])
+    local buf_before = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    child.lua([[require('mkdnflow.paths').handlePath('subdir')]])
+    -- Navigate back
+    child.lua([[require('mkdnflow.buffers').goBack()]])
+    local buf_after_back = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    eq(buf_before, buf_after_back)
+end
+
+T['edit_dirs']['function pushes buffer stack for back navigation'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            links = {
+                transform_on_create = false,
+                transform_on_follow = false,
+                edit_dirs = function(path)
+                    _G._received_path = path
+                end,
+            },
+        })
+    ]])
+    local buf_before = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    child.lua([[require('mkdnflow.paths').handlePath('subdir')]])
+    -- Navigate back
+    child.lua([[require('mkdnflow.buffers').goBack()]])
+    local buf_after_back = child.lua_get('vim.api.nvim_buf_get_name(0)')
+    eq(buf_before, buf_after_back)
+end
+
 return T

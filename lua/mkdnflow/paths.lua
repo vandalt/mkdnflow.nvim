@@ -195,8 +195,17 @@ local vim_open = function(path, anchor)
         path_w_ext = path
     end
     if exists(path, 'd') and not exists(path_w_ext, 'f') then
-        -- Looks like this links to a directory, possibly a notebook
-        enter_internal_path(path)
+        local edit_dirs = links_config.edit_dirs
+        if type(edit_dirs) == 'function' then
+            buffers.push(buffers.main, vim.api.nvim_win_get_buf(0))
+            edit_dirs(path)
+        elseif edit_dirs then
+            buffers.push(buffers.main, vim.api.nvim_win_get_buf(0))
+            vim.cmd.edit(vim.fn.fnameescape(path))
+            M.updateDirs()
+        else
+            enter_internal_path(path)
+        end
     else
         -- If the file doesn't exist and on_create_new is set, call the callback
         if not exists(path_w_ext, 'f') and type(links_config.on_create_new) == 'function' then

@@ -314,6 +314,35 @@ links:
 
       **`false`** (default): Use mkdnflow's built-in file creation.
 
+  - name: links.edit_dirs
+    type: "boolean | fun(path: string)"
+    description: |
+      Controls what happens when you follow a link that points to a directory
+      rather than a file. This is useful when your notebook has subdirectories
+      that you link to (e.g. `[recipes](recipes/)`) and you want your preferred
+      file browser plugin to handle them instead of the default filename prompt.
+
+      **`false`** (default): Prompt the user to type a filename within the directory.
+
+      `true`: Run `:edit` on the directory, which triggers whatever
+      directory-browsing plugin you have installed (netrw, oil.nvim, etc.).
+
+      `fun(path: string)`: Call the supplied function with the absolute
+      directory path. The return value is ignored. This is useful for file
+      browsers that don't hook into `:edit` and need their own API call.
+
+      In all non-default modes, the buffer stack is updated before the
+      directory is opened, so `MkdnGoBack` will return you to the previous
+      file.
+
+      Example:
+      ```lua
+      -- Open directories with mini.files
+      links = {
+          edit_dirs = require('mini.files').open,
+      }
+      ```
+
   - name: links.uri_handlers
     type: "table<string, fun(uri: string, scheme: string, path: string, anchor: string|nil)|'system'>"
     description: |

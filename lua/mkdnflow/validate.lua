@@ -123,6 +123,7 @@ M.schema = {
         transform_on_create = { types = { 'function' } },
         transform_scope = { enum = { 'path', 'filename' } },
         on_create_new = { types = { 'boolean', 'function' } },
+        edit_dirs = { types = { 'boolean', 'function' } },
         uri_handlers = { dynamic = true },
     },
     footnotes = {

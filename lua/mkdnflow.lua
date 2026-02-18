@@ -96,6 +96,7 @@ local default_config = {
         transform_scope = 'path',
         auto_create = true,
         on_create_new = false,
+        edit_dirs = false,
         uri_handlers = {},
     },
     footnotes = {
