@@ -360,49 +360,44 @@ the help files.
     to_do = {
         highlight = false,
         statuses = {
-            {
-                name = 'not_started',
-                symbol = ' ',
-                colors = {
+            not_started = {
+                marker = ' ',
+                highlight = {
                     marker = { link = 'Conceal' },
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 2, position = 'top' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) ... end,
                 },
             },
-            {
-                name = 'in_progress',
-                symbol = '-',
-                colors = {
+            in_progress = {
+                marker = '-',
+                highlight = {
                     marker = { link = 'WarningMsg' },
                     content = { bold = true },
                 },
                 sort = { section = 1, position = 'bottom' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) end,
                 },
             },
-            {
-                name = 'complete',
-                symbol = { 'X', 'x' },
-                colors = {
+            complete = {
+                marker = { 'X', 'x' },
+                highlight = {
                     marker = { link = 'String' },
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 3, position = 'top' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) ... end,
                 },
             },
         },
+        status_order = { 'not_started', 'in_progress', 'complete' },
         status_propagation = {
             up = true,
             down = true,
@@ -758,13 +753,18 @@ require('mkdnflow').setup({
 require('mkdnflow').setup({
     to_do = {
         highlight = false,
+        statuses = {
+            not_started = { marker = ' ', ... },
+            in_progress = { marker = '-', ... },
+            complete = { marker = { 'X', 'x' }, ... },
+        },
+        status_order = { 'not_started', 'in_progress', 'complete' },
         status_propagation = { up = true, down = true },
         sort = {
             on_status_change = false,
             recursive = false,
             cursor_behavior = { track = true },
         },
-        statuses = { ... },  -- See full default in docs
     },
 })
 ```
@@ -777,28 +777,30 @@ require('mkdnflow').setup({
 | `to_do.sort_on_status_change` | `boolean` | `true`: Sort a to-do list when an item's status is changed.<br>**`false`** (default): Leave all to-do items in their current position when an item's status is changed.<br>Note: This will not apply if the to-do item's status is changed manually (i.e. by typing or pasting in the status marker). |
 | `to_do.sort.recursive` | `boolean` | `true`: `sort_on_status_change` applies recursively, sorting the host list of each successive parent until the root of the list is reached.<br>**`false`** (default): `sort_on_status_change` only applies at the current to-do list level (not to the host list of the parent to-do item). |
 | `to_do.sort.cursor_behavior.track` | `boolean` | **`true`** (default): Move the cursor so that it remains on the same to-do item, even after a to-do list sort relocates the item.<br>`false`: The cursor remains on its current line number, even if the to-do item is relocated by sorting. |
-| `to_do.statuses` | `table` (array-like) | A list of tables, each of which represents a to-do status. See options in the following rows. An arbitrary number of to-do status tables can be provided. See default statuses in the settings table. |
-| `to_do.statuses[*].name` | `string` | The designated name of the to-do status. |
-| `to_do.statuses[*].marker` | `string` \| `table` | The marker symbol to use for the status. The marker's string width must be 1.<br>When provided as a string (e.g. `' '`), the string is used as both the recognized and written marker.<br>When provided as a table (e.g. `{ 'X', 'x' }`), the first element is the **primary** marker — the one written to the buffer when the status is set. Any additional elements are **legacy** markers that will be recognized as belonging to this status when read from a file, but will be replaced with the primary marker on the next toggle. This is useful for accepting alternate symbols from other tools or conventions without losing compatibility. |
-| `to_do.statuses[*].highlight.marker` | `table` (highlight definition) | A table of highlight definitions to apply to a status marker, including brackets. See the `{val}` parameter of `:h nvim_set_hl` for possible options. |
-| `to_do.statuses[*].highlight.content` | `table` (highlight definition) | A table of highlight definitions to apply to the to-do item content (everything following the status marker). See the `{val}` parameter of `:h nvim_set_hl` for possible options. |
-| `to_do.statuses[*].skip_on_toggle` | `boolean` | `true`: When toggling/rotating a to-do item's status, skip this status in the rotation.<br>`false`: Leave the status in the rotation.<br>Note: This setting is useful if there is a status marker that you never want to manually set and only want to apply when automatically updating ancestors or descendants.<br>Previously named `to_do.statuses[*].exclude_from_rotation`. |
-| `to_do.statuses[*].sort.section` | `integer` | The integer should represent the linear section of the list in which items of this status should be placed when sorted. A section refers to a segment of a to-do list. If you want items with the `'in_progress'` status to be first in the list, you would set this option to `1` for the status.<br>Note: Sections are not visually delineated in any way other than items with the same section number occurring on adjacent lines in the list. |
-| `to_do.statuses[*].sort.position` | `string` | Where in its assigned section a to-do item should be placed:<br>`'top'`: Place a sorted item at the top of its corresponding section.<br>`'bottom'`: Place a sorted item at the bottom of its corresponding section.<br>`'relative'`: Maintain the current relative order of the sorted item whose status was just changed (vs. other list items). |
-| `to_do.statuses[*].propagate.up` | `fun(to_do_list): string` \| `nil` | A function that accepts a to-do list instance and returns a valid to-do status name. The list passed in is the list that hosts the to-do item whose status was just changed. The return value should be the desired value of the parent. Return `nil` to leave the parent's status as is. |
-| `to_do.statuses[*].propagate.down` | `fun(to_do_list): string[]` | A function that accepts a to-do list instance and returns a list of valid to-do status names. The list passed in will be the child list of the to-do item whose status was just changed. Return `nil` or an empty table to leave the children's status as is. |
+| `to_do.statuses` | `table` (dict-like) | A dictionary of to-do statuses, keyed by status name (e.g. `'not_started'`, `'in_progress'`, `'complete'`). Each value is a table with the options described in the following rows. An arbitrary number of statuses can be defined. Users can partially override individual statuses — for example, overriding just the highlight of `not_started` while keeping all other defaults. See default statuses in the settings table. |
+| `to_do.statuses.<name>.marker` | `string` \| `table` | The marker symbol to use for the status. The marker's string width must be 1.<br>When provided as a string (e.g. `' '`), the string is used as both the recognized and written marker.<br>When provided as a table (e.g. `{ 'X', 'x' }`), the first element is the **primary** marker — the one written to the buffer when the status is set. Any additional elements are **legacy** markers that will be recognized as belonging to this status when read from a file, but will be replaced with the primary marker on the next toggle. This is useful for accepting alternate symbols from other tools or conventions without losing compatibility. |
+| `to_do.statuses.<name>.highlight.marker` | `table` (highlight definition) | A table of highlight definitions to apply to a status marker, including brackets. See the `{val}` parameter of `:h nvim_set_hl` for possible options. |
+| `to_do.statuses.<name>.highlight.content` | `table` (highlight definition) | A table of highlight definitions to apply to the to-do item content (everything following the status marker). See the `{val}` parameter of `:h nvim_set_hl` for possible options. |
+| `to_do.statuses.<name>.sort.section` | `integer` | The integer should represent the linear section of the list in which items of this status should be placed when sorted. A section refers to a segment of a to-do list. If you want items with the `'in_progress'` status to be first in the list, you would set this option to `1` for the status.<br>Note: Sections are not visually delineated in any way other than items with the same section number occurring on adjacent lines in the list. |
+| `to_do.statuses.<name>.sort.position` | `string` | Where in its assigned section a to-do item should be placed:<br>`'top'`: Place a sorted item at the top of its corresponding section.<br>`'bottom'`: Place a sorted item at the bottom of its corresponding section.<br>`'relative'`: Maintain the current relative order of the sorted item whose status was just changed (vs. other list items). |
+| `to_do.statuses.<name>.propagate.up` | `fun(to_do_list): string` \| `nil` | A function that accepts a to-do list instance and returns a valid to-do status name. The list passed in is the list that hosts the to-do item whose status was just changed. The return value should be the desired value of the parent. Return `nil` to leave the parent's status as is. |
+| `to_do.statuses.<name>.propagate.down` | `fun(to_do_list): string[]` | A function that accepts a to-do list instance and returns a list of valid to-do status names. The list passed in will be the child list of the to-do item whose status was just changed. Return `nil` or an empty table to leave the children's status as is. |
+| `to_do.status_order` | `table` (array-like) | An ordered list of status names that controls the toggle rotation order. When a to-do item is toggled, it cycles through the statuses in this order. A status defined in `to_do.statuses` but absent from `status_order` is still recognized when reading files, but excluded from toggle rotation (useful for statuses that should only be set via propagation).<br>Replaces the deprecated `to_do.statuses[*].skip_on_toggle` option. |
 
 > [!WARNING]
 > The following to-do configuration options are deprecated. Please use the
-> `to_do.statuses` table instead. Continued support for these options is
-> temporarily provided by a compatibility layer that will be removed in the
-> near future.
+> `to_do.statuses` dict and `to_do.status_order` instead. Continued support
+> for these options is temporarily provided by a compatibility layer that will
+> be removed in the near future.
 >
 > * `to_do.symbols` - A list of markers representing to-do completion statuses
 > * `to_do.not_started` - Which marker represents a not-yet-started to-do
 > * `to_do.in_progress` - Which marker represents an in-progress to-do
 > * `to_do.complete` - Which marker represents a complete to-do
 > * `to_do.update_parents` - Whether parent to-dos' statuses should be updated
+> * `to_do.statuses` (array form) - The old array-of-tables format for statuses
+> * `to_do.statuses[*].skip_on_toggle` - Use `status_order` membership instead
+> * `to_do.statuses[*].exclude_from_rotation` - Use `status_order` membership instead
 
 ##### foldtext
 

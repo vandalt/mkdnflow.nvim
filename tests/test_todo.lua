@@ -565,9 +565,9 @@ T['sort_to_do_list']['respects custom sort config'] = function()
         require('mkdnflow').setup({
             to_do = {
                 statuses = {
-                    { name = 'not_started', marker = ' ', sort = { section = 1, position = 'top' } },
-                    { name = 'in_progress', marker = '-', sort = { section = 2, position = 'top' } },
-                    { name = 'complete', marker = 'X', sort = { section = 3, position = 'top' } },
+                    not_started = { marker = ' ', sort = { section = 1, position = 'top' } },
+                    in_progress = { marker = '-', sort = { section = 2, position = 'top' } },
+                    complete = { marker = 'X', sort = { section = 3, position = 'top' } },
                 },
             },
         })
@@ -589,22 +589,31 @@ end
 T['custom_status_count'] = new_set()
 
 T['custom_status_count']['two statuses: cycles directly from not_started to complete'] = function()
-    -- Configure with only 2 statuses (no in_progress)
-    -- Array replacement in mergeTables allows this to work correctly
+    -- Configure with only 2 active statuses (no in_progress in rotation)
+    -- status_order controls which statuses participate in toggle rotation
     setup_fresh([[
         require('mkdnflow').setup({
             to_do = {
                 statuses = {
-                    { name = 'not_started', marker = ' ' },
-                    { name = 'complete', marker = 'X' },
+                    not_started = { marker = ' ' },
+                    complete = { marker = 'X' },
                 },
+                status_order = { 'not_started', 'complete' },
             },
         })
     ]])
 
-    -- Verify we have exactly 2 statuses
-    local num_statuses = child.lua_get('#require("mkdnflow").config.to_do.statuses')
-    eq(num_statuses, 2)
+    -- Verify we have exactly 2 active statuses (in_progress from defaults is still
+    -- present but with skip_on_toggle = true, plus our 2 active ones = 3 total;
+    -- but only 2 participate in rotation)
+    local num_active = child.lua_get([[(function()
+        local count = 0
+        for _, s in ipairs(require("mkdnflow").config.to_do.statuses) do
+            if not s.skip_on_toggle then count = count + 1 end
+        end
+        return count
+    end)()]])
+    eq(num_active, 2)
 
     set_lines({ '- [ ] task' })
     set_cursor(1, 0)
@@ -619,14 +628,15 @@ T['custom_status_count']['two statuses: cycles directly from not_started to comp
 end
 
 T['custom_status_count']['two statuses: full cycle with two toggles'] = function()
-    -- Configure with only 2 statuses
+    -- Configure with only 2 active statuses
     setup_fresh([[
         require('mkdnflow').setup({
             to_do = {
                 statuses = {
-                    { name = 'not_started', marker = ' ' },
-                    { name = 'complete', marker = 'X' },
+                    not_started = { marker = ' ' },
+                    complete = { marker = 'X' },
                 },
+                status_order = { 'not_started', 'complete' },
             },
         })
     ]])
@@ -645,11 +655,12 @@ T['custom_status_count']['four statuses: cycles through all four'] = function()
         require('mkdnflow').setup({
             to_do = {
                 statuses = {
-                    { name = 'not_started', marker = ' ' },
-                    { name = 'in_progress', marker = '-' },
-                    { name = 'blocked', marker = '!' },
-                    { name = 'complete', marker = 'X' },
+                    not_started = { marker = ' ' },
+                    in_progress = { marker = '-' },
+                    blocked = { marker = '!' },
+                    complete = { marker = 'X' },
                 },
+                status_order = { 'not_started', 'in_progress', 'blocked', 'complete' },
             },
         })
     ]])
@@ -679,11 +690,12 @@ T['custom_status_count']['four statuses: full cycle with four toggles'] = functi
         require('mkdnflow').setup({
             to_do = {
                 statuses = {
-                    { name = 'not_started', marker = ' ' },
-                    { name = 'in_progress', marker = '-' },
-                    { name = 'blocked', marker = '!' },
-                    { name = 'complete', marker = 'X' },
+                    not_started = { marker = ' ' },
+                    in_progress = { marker = '-' },
+                    blocked = { marker = '!' },
+                    complete = { marker = 'X' },
                 },
+                status_order = { 'not_started', 'in_progress', 'blocked', 'complete' },
             },
         })
     ]])

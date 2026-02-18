@@ -129,6 +129,9 @@ M.schema = {
     footnotes = {
         heading = { types = { 'boolean', 'string', 'table' } },
     },
+    to_do = {
+        statuses = { dynamic = true },
+    },
     new_file_template = {
         placeholders = { dynamic = true },
     },

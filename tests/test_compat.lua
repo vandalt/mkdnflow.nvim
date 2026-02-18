@@ -542,12 +542,17 @@ T['v2.10']['migrates exclude_from_rotation to skip_on_toggle'] = function()
             silent = true
         })
     ]])
+    -- After compat migration: array → dict → normalization → array
+    -- status_order = { 'not_started', 'complete' } (in_progress excluded)
+    -- Normalized order: not_started (1), complete (2), in_progress (3, skipped)
     local s1 = child.lua_get("require('mkdnflow').config.to_do.statuses[1].skip_on_toggle")
-    local s2 = child.lua_get("require('mkdnflow').config.to_do.statuses[2].skip_on_toggle")
+    local s1_name = child.lua_get("require('mkdnflow').config.to_do.statuses[1].name")
     local s3 = child.lua_get("require('mkdnflow').config.to_do.statuses[3].skip_on_toggle")
+    local s3_name = child.lua_get("require('mkdnflow').config.to_do.statuses[3].name")
+    eq(s1_name, 'not_started')
     eq(s1, false)
-    eq(s2, true)
-    eq(s3, false)
+    eq(s3_name, 'in_progress')
+    eq(s3, true)
 end
 
 T['v2.10']['migrates tables.style.mimic_alignment to apply_alignment'] = function()
@@ -605,6 +610,8 @@ T['v2.10']['exclude_from_rotation migration skips when skip_on_toggle present'] 
             silent = true
         })
     ]])
+    -- skip_on_toggle = false wins over exclude_from_rotation = true
+    -- After compat: skip_on_toggle = false → included in status_order → skip_on_toggle = false after normalization
     local sot = child.lua_get("require('mkdnflow').config.to_do.statuses[1].skip_on_toggle")
     eq(sot, false)
 end
@@ -621,6 +628,160 @@ T['v2.10']['full legacy chain: vimwd_heel migrates through to sync_cwd'] = funct
     ]])
     local sync = child.lua_get("require('mkdnflow').config.path_resolution.sync_cwd")
     eq(sync, true)
+end
+
+-- =============================================================================
+-- Dict-form statuses (new format)
+-- =============================================================================
+T['dict_statuses'] = new_set()
+
+T['dict_statuses']['new dict form works directly'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    not_started = { marker = ' ' },
+                    in_progress = { marker = '-' },
+                    complete = { marker = 'X' },
+                },
+                status_order = { 'not_started', 'in_progress', 'complete' },
+            },
+            silent = true,
+        })
+    ]])
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] task')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [X] task')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] task')
+end
+
+T['dict_statuses']['status_order excludes statuses from rotation'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    not_started = { marker = ' ' },
+                    in_progress = { marker = '-' },
+                    complete = { marker = 'X' },
+                },
+                status_order = { 'not_started', 'complete' },
+            },
+            silent = true,
+        })
+    ]])
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    -- Should skip in_progress and go directly to complete
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [X] task')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] task')
+end
+
+T['dict_statuses']['partial dict override merges correctly'] = function()
+    -- The original use case: override just one highlight, keep everything else
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    not_started = { highlight = { content = { link = 'String' } } },
+                },
+            },
+            silent = true,
+        })
+    ]])
+    -- Should still have all 3 statuses and toggle through them
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] task')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [X] task')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] task')
+    -- Verify the highlight was overridden
+    local hl = child.lua_get([[(function()
+        local statuses = require('mkdnflow').config.to_do.statuses
+        for _, s in ipairs(statuses) do
+            if s.name == 'not_started' then
+                return s.highlight.content.link
+            end
+        end
+    end)()]])
+    eq(hl, 'String')
+end
+
+T['dict_statuses']['propagation survives partial override'] = function()
+    -- Override just the highlight for not_started, verify propagation from defaults works
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    not_started = { highlight = { content = { link = 'String' } } },
+                },
+                status_propagation = { up = true, down = true },
+            },
+            silent = true,
+        })
+    ]])
+    -- Parent with two children, all complete → toggle parent → not_started
+    -- Propagation should reset children to not_started
+    set_lines({
+        '- [X] Parent',
+        '    - [X] Child 1',
+        '    - [X] Child 2',
+    })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] Parent')
+    eq(get_line(2), '    - [ ] Child 1')
+    eq(get_line(3), '    - [ ] Child 2')
+end
+
+T['dict_statuses']['oldest format migrates through full chain'] = function()
+    -- v1.x format: to_do.symbols
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                symbols = { ' ', '-', 'X' },
+            },
+            silent = true,
+        })
+    ]])
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] task')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [X] task')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [ ] task')
+end
+
+T['dict_statuses']['dict form with old field names migrates'] = function()
+    -- User provides new dict form but uses old field names
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    not_started = { symbol = ' ' },
+                    in_progress = { symbol = '-' },
+                    complete = { symbol = 'X' },
+                },
+            },
+            silent = true,
+        })
+    ]])
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] task')
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [X] task')
 end
 
 return T

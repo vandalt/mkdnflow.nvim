@@ -109,7 +109,7 @@ T['mergeTables']['replaces array-like tables entirely'] = function()
 end
 
 T['mergeTables']['replaces array of tables entirely'] = function()
-    -- This is the to_do.statuses use case
+    -- General array replacement: arrays are always replaced wholesale
     local defaults = {
         statuses = {
             { name = 'a', value = 1 },
@@ -143,6 +143,29 @@ T['mergeTables']['merges dict-like tables recursively'] = function()
     local result = utils.mergeTables(defaults, user)
     eq(result.config.a, 1) -- preserved from default
     eq(result.config.b, 3) -- overridden by user
+end
+
+T['mergeTables']['deep merges dict-like tables with partial override'] = function()
+    -- This is the new to_do.statuses use case (dict keyed by status name)
+    local defaults = {
+        statuses = {
+            not_started = { marker = ' ', sort = { section = 2 } },
+            in_progress = { marker = '-', sort = { section = 1 } },
+            complete = { marker = 'X', sort = { section = 3 } },
+        },
+    }
+    local user = {
+        statuses = {
+            not_started = { sort = { section = 1 } },
+        },
+    }
+    local result = utils.mergeTables(defaults, user)
+    -- User override merges into not_started
+    eq(result.statuses.not_started.marker, ' ') -- preserved from default
+    eq(result.statuses.not_started.sort.section, 1) -- overridden by user
+    -- Other statuses preserved from defaults
+    eq(result.statuses.in_progress.marker, '-')
+    eq(result.statuses.complete.marker, 'X')
 end
 
 T['mergeTables']['handles mixed array and dict siblings'] = function()

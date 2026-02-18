@@ -113,15 +113,13 @@ local default_config = {
     to_do = {
         highlight = false,
         statuses = {
-            {
-                name = 'not_started',
+            not_started = {
                 marker = ' ',
                 highlight = {
                     marker = { link = 'Conceal' },
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 2, position = 'top' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list)
                         local no_items_started = true
@@ -145,15 +143,13 @@ local default_config = {
                     end,
                 },
             },
-            {
-                name = 'in_progress',
+            in_progress = {
                 marker = '-',
                 highlight = {
                     marker = { link = 'WarningMsg' },
                     content = { bold = true },
                 },
                 sort = { section = 1, position = 'bottom' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list)
                         return 'in_progress'
@@ -161,15 +157,13 @@ local default_config = {
                     down = function(child_list) end,
                 },
             },
-            {
-                name = 'complete',
+            complete = {
                 marker = { 'X', 'x' },
                 highlight = {
                     marker = { link = 'String' },
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 3, position = 'top' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list)
                         local all_items_complete = true
@@ -194,6 +188,7 @@ local default_config = {
                 },
             },
         },
+        status_order = { 'not_started', 'in_progress', 'complete' },
         status_propagation = {
             up = true,
             down = true,
@@ -421,6 +416,66 @@ local function configure(user_config)
 
     -- Merge user config with defaults
     init.config = init.utils.mergeTables(default_config, user_config)
+
+    -- Normalize to_do.statuses: convert dict + status_order → ordered array
+    -- Internal code (core.lua, hl.lua) expects an array with .name and .skip_on_toggle
+    -- Only normalize if statuses is a dict (string keys). If it's already an array
+    -- (from a previous setup() call in the same process), skip normalization.
+    local td = init.config.to_do
+    local first_status_key = td and type(td.statuses) == 'table' and next(td.statuses)
+    if td and type(first_status_key) == 'string' then
+        local statuses_dict = td.statuses
+        local status_order = td.status_order or {}
+
+        -- Build set of ordered names for O(1) membership check
+        local ordered_set = {}
+        for _, name in ipairs(status_order) do
+            ordered_set[name] = true
+        end
+
+        -- Fallback: if status_order is empty, use all names in sorted order
+        if #status_order == 0 then
+            for name, _ in pairs(statuses_dict) do
+                table.insert(status_order, name)
+            end
+            table.sort(status_order)
+            for _, name in ipairs(status_order) do
+                ordered_set[name] = true
+            end
+        end
+
+        local statuses_array = {}
+
+        -- Statuses in status_order (participate in toggle rotation)
+        for _, name in ipairs(status_order) do
+            if statuses_dict[name] then
+                local status = vim.deepcopy(statuses_dict[name])
+                status.name = name
+                status.skip_on_toggle = false
+                table.insert(statuses_array, status)
+            elseif not init.config.silent then
+                vim.notify(
+                    string.format(
+                        "⬇️  status_order entry '%s' not found in to_do.statuses",
+                        name
+                    ),
+                    vim.log.levels.WARN
+                )
+            end
+        end
+
+        -- Remaining statuses NOT in status_order (recognized but excluded from rotation)
+        for name, _ in pairs(statuses_dict) do
+            if not ordered_set[name] then
+                local status = vim.deepcopy(statuses_dict[name])
+                status.name = name
+                status.skip_on_toggle = true
+                table.insert(statuses_array, status)
+            end
+        end
+
+        td.statuses = statuses_array
+    end
 
     -- Normalize footnotes.heading into a heading_lines array so that both
     -- single-line (ATX) and multi-line (setext) headings use one code path.

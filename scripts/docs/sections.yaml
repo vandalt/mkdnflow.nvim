@@ -585,13 +585,18 @@ sections:
                       require('mkdnflow').setup({
                           to_do = {
                               highlight = false,
+                              statuses = {
+                                  not_started = { marker = ' ', ... },
+                                  in_progress = { marker = '-', ... },
+                                  complete = { marker = { 'X', 'x' }, ... },
+                              },
+                              status_order = { 'not_started', 'in_progress', 'complete' },
                               status_propagation = { up = true, down = true },
                               sort = {
                                   on_status_change = false,
                                   recursive = false,
                                   cursor_behavior = { track = true },
                               },
-                              statuses = { ... },  -- See full default in docs
                           },
                       })
                   - type: config_table
@@ -600,15 +605,18 @@ sections:
                     kind: warning
                     content: |
                       The following to-do configuration options are deprecated. Please use the
-                      `to_do.statuses` table instead. Continued support for these options is
-                      temporarily provided by a compatibility layer that will be removed in the
-                      near future.
+                      `to_do.statuses` dict and `to_do.status_order` instead. Continued support
+                      for these options is temporarily provided by a compatibility layer that will
+                      be removed in the near future.
 
                       * `to_do.symbols` - A list of markers representing to-do completion statuses
                       * `to_do.not_started` - Which marker represents a not-yet-started to-do
                       * `to_do.in_progress` - Which marker represents an in-progress to-do
                       * `to_do.complete` - Which marker represents a complete to-do
                       * `to_do.update_parents` - Whether parent to-dos' statuses should be updated
+                      * `to_do.statuses` (array form) - The old array-of-tables format for statuses
+                      * `to_do.statuses[*].skip_on_toggle` - Use `status_order` membership instead
+                      * `to_do.statuses[*].exclude_from_rotation` - Use `status_order` membership instead
 
               - title: foldtext
                 tag: config-foldtext

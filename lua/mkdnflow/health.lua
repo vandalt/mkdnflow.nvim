@@ -301,18 +301,56 @@ function M.check()
 
         -- Check status-level deprecated keys
         if raw.to_do and raw.to_do.statuses and type(raw.to_do.statuses) == 'table' then
-            for i, status in ipairs(raw.to_do.statuses) do
-                for _, dep in ipairs(compat.status_deprecations) do
-                    if status[dep.key] ~= nil then
-                        vim.health.warn(
-                            string.format(
-                                '`to_do.statuses[%d].%s` is deprecated. Use `%s` instead.',
-                                i,
-                                dep.key,
-                                dep.new_key
+            if isArray(raw.to_do.statuses) then
+                -- Array form is itself deprecated
+                vim.health.warn(
+                    '`to_do.statuses` is in deprecated array form. '
+                        .. 'Use a dict keyed by status name with a `status_order` sibling.'
+                )
+                found_deprecated = true
+                -- Also check per-element deprecated keys
+                for i, status in ipairs(raw.to_do.statuses) do
+                    for _, dep in ipairs(compat.status_deprecations) do
+                        if status[dep.key] ~= nil then
+                            vim.health.warn(
+                                string.format(
+                                    '`to_do.statuses[%d].%s` is deprecated. Use `%s` instead.',
+                                    i,
+                                    dep.key,
+                                    dep.new_key
+                                )
                             )
-                        )
-                        found_deprecated = true
+                            found_deprecated = true
+                        end
+                    end
+                end
+            else
+                -- Dict form: check for deprecated keys within each status
+                for name, status in pairs(raw.to_do.statuses) do
+                    if type(status) == 'table' then
+                        for _, dep in ipairs(compat.status_deprecations) do
+                            if status[dep.key] ~= nil then
+                                vim.health.warn(
+                                    string.format(
+                                        '`to_do.statuses.%s.%s` is deprecated. Use `%s` instead.',
+                                        name,
+                                        dep.key,
+                                        dep.new_key
+                                    )
+                                )
+                                found_deprecated = true
+                            end
+                        end
+                        if status.skip_on_toggle ~= nil then
+                            vim.health.warn(
+                                string.format(
+                                    '`to_do.statuses.%s.skip_on_toggle` is ignored in dict form. '
+                                        .. 'To exclude a status from rotation, omit it from `status_order`.',
+                                    name
+                                )
+                            )
+                            found_deprecated = true
+                        end
                     end
                 end
             end

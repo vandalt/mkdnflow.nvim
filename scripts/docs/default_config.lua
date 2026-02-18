@@ -91,49 +91,44 @@
     to_do = {
         highlight = false,
         statuses = {
-            {
-                name = 'not_started',
-                symbol = ' ',
-                colors = {
+            not_started = {
+                marker = ' ',
+                highlight = {
                     marker = { link = 'Conceal' },
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 2, position = 'top' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) ... end,
                 },
             },
-            {
-                name = 'in_progress',
-                symbol = '-',
-                colors = {
+            in_progress = {
+                marker = '-',
+                highlight = {
                     marker = { link = 'WarningMsg' },
                     content = { bold = true },
                 },
                 sort = { section = 1, position = 'bottom' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) end,
                 },
             },
-            {
-                name = 'complete',
-                symbol = { 'X', 'x' },
-                colors = {
+            complete = {
+                marker = { 'X', 'x' },
+                highlight = {
                     marker = { link = 'String' },
                     content = { link = 'Conceal' },
                 },
                 sort = { section = 3, position = 'top' },
-                skip_on_toggle = false,
                 propagate = {
                     up = function(host_list) ... end,
                     down = function(child_list) ... end,
                 },
             },
         },
+        status_order = { 'not_started', 'in_progress', 'complete' },
         status_propagation = {
             up = true,
             down = true,

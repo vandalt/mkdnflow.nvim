@@ -48,6 +48,8 @@ local function isArray(t)
     return true
 end
 
+M.isArray = isArray
+
 --- Merge user_config into the default config table (in-place)
 --- Array-like tables are replaced entirely; dict-like tables are merged recursively
 ---@param defaults table The default configuration table (modified in-place)

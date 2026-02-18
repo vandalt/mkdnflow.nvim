@@ -358,49 +358,44 @@ the documentation for the configuration options below or in the help files.
         to_do = {
             highlight = false,
             statuses = {
-                {
-                    name = 'not_started',
-                    symbol = ' ',
-                    colors = {
+                not_started = {
+                    marker = ' ',
+                    highlight = {
                         marker = { link = 'Conceal' },
                         content = { link = 'Conceal' },
                     },
                     sort = { section = 2, position = 'top' },
-                    skip_on_toggle = false,
                     propagate = {
                         up = function(host_list) ... end,
                         down = function(child_list) ... end,
                     },
                 },
-                {
-                    name = 'in_progress',
-                    symbol = '-',
-                    colors = {
+                in_progress = {
+                    marker = '-',
+                    highlight = {
                         marker = { link = 'WarningMsg' },
                         content = { bold = true },
                     },
                     sort = { section = 1, position = 'bottom' },
-                    skip_on_toggle = false,
                     propagate = {
                         up = function(host_list) ... end,
                         down = function(child_list) end,
                     },
                 },
-                {
-                    name = 'complete',
-                    symbol = { 'X', 'x' },
-                    colors = {
+                complete = {
+                    marker = { 'X', 'x' },
+                    highlight = {
                         marker = { link = 'String' },
                         content = { link = 'Conceal' },
                     },
                     sort = { section = 3, position = 'top' },
-                    skip_on_toggle = false,
                     propagate = {
                         up = function(host_list) ... end,
                         down = function(child_list) ... end,
                     },
                 },
             },
+            status_order = { 'not_started', 'in_progress', 'complete' },
             status_propagation = {
                 up = true,
                 down = true,
@@ -1336,13 +1331,18 @@ to_do ~
     require('mkdnflow').setup({
         to_do = {
             highlight = false,
+            statuses = {
+                not_started = { marker = ' ', ... },
+                in_progress = { marker = '-', ... },
+                complete = { marker = { 'X', 'x' }, ... },
+            },
+            status_order = { 'not_started', 'in_progress', 'complete' },
             status_propagation = { up = true, down = true },
             sort = {
                 on_status_change = false,
                 recursive = false,
                 cursor_behavior = { track = true },
             },
-            statuses = { ... },  -- See full default in docs
         },
     })
 <
@@ -1406,18 +1406,16 @@ to_do.sort.cursor_behavior.track *Mkdnflow-config-to-do-sort-cursor-behavior-tra
     item is relocated by sorting.
 
 to_do.statuses                                *Mkdnflow-config-to-do-statuses*
-    Type: table` (array-like)
+    Type: table` (dict-like)
 
-    A list of tables, each of which represents a to-do status. See options in
-    the following rows. An arbitrary number of to-do status tables can be
-    provided. See default statuses in the settings table.
+    A dictionary of to-do statuses, keyed by status name (e.g.
+    `'not_started'`, `'in_progress'`, `'complete'`). Each value is a table
+    with the options described in the following rows. An arbitrary number of
+    statuses can be defined. Users can partially override individual statuses
+    — for example, overriding just the highlight of `not_started` while
+    keeping all other defaults. See default statuses in the settings table.
 
-to_do.statuses[*].name                *Mkdnflow-config-to-do-statuses[*]-name*
-    Type: string
-
-    The designated name of the to-do status.
-
-to_do.statuses[*].marker            *Mkdnflow-config-to-do-statuses[*]-marker*
+to_do.statuses.<name>.marker    *Mkdnflow-config-to-do-statuses-<name>-marker*
     Type: string` | `table
 
     The marker symbol to use for the status. The marker's string width must be
@@ -1434,35 +1432,21 @@ to_do.statuses[*].marker            *Mkdnflow-config-to-do-statuses[*]-marker*
     alternate symbols from other tools or conventions without losing
     compatibility.
 
-to_do.statuses[*].highlight.marker *Mkdnflow-config-to-do-statuses[*]-highlight-marker*
+to_do.statuses.<name>.highlight.marker *Mkdnflow-config-to-do-statuses-<name>-highlight-marker*
     Type: table` (highlight definition)
 
     A table of highlight definitions to apply to a status marker, including
     brackets. See the `{val}` parameter of `:h nvim_set_hl` for possible
     options.
 
-to_do.statuses[*].highlight.content *Mkdnflow-config-to-do-statuses[*]-highlight-content*
+to_do.statuses.<name>.highlight.content *Mkdnflow-config-to-do-statuses-<name>-highlight-content*
     Type: table` (highlight definition)
 
     A table of highlight definitions to apply to the to-do item content
     (everything following the status marker). See the `{val}` parameter of `:h
     nvim_set_hl` for possible options.
 
-to_do.statuses[*].skip_on_toggle *Mkdnflow-config-to-do-statuses[*]-skip-on-toggle*
-    Type: boolean
-
-    `true`: When toggling/rotating a to-do item's status, skip this status in
-    the rotation.
-
-    `false`: Leave the status in the rotation.
-
-    Note: This setting is useful if there is a status marker that you never
-    want to manually set and only want to apply when automatically updating
-    ancestors or descendants.
-
-    Previously named `to_do.statuses[*].exclude_from_rotation`.
-
-to_do.statuses[*].sort.section *Mkdnflow-config-to-do-statuses[*]-sort-section*
+to_do.statuses.<name>.sort.section *Mkdnflow-config-to-do-statuses-<name>-sort-section*
     Type: integer
 
     The integer should represent the linear section of the list in which items
@@ -1473,7 +1457,7 @@ to_do.statuses[*].sort.section *Mkdnflow-config-to-do-statuses[*]-sort-section*
     Note: Sections are not visually delineated in any way other than items
     with the same section number occurring on adjacent lines in the list.
 
-to_do.statuses[*].sort.position *Mkdnflow-config-to-do-statuses[*]-sort-position*
+to_do.statuses.<name>.sort.position *Mkdnflow-config-to-do-statuses-<name>-sort-position*
     Type: string
 
     Where in its assigned section a to-do item should be placed:
@@ -1486,7 +1470,7 @@ to_do.statuses[*].sort.position *Mkdnflow-config-to-do-statuses[*]-sort-position
     `'relative'`: Maintain the current relative order of the sorted item whose
     status was just changed (vs. other list items).
 
-to_do.statuses[*].propagate.up *Mkdnflow-config-to-do-statuses[*]-propagate-up*
+to_do.statuses.<name>.propagate.up *Mkdnflow-config-to-do-statuses-<name>-propagate-up*
     Type: fun(to_do_list): string` | `nil
 
     A function that accepts a to-do list instance and returns a valid to-do
@@ -1494,7 +1478,7 @@ to_do.statuses[*].propagate.up *Mkdnflow-config-to-do-statuses[*]-propagate-up*
     whose status was just changed. The return value should be the desired
     value of the parent. Return `nil` to leave the parent's status as is.
 
-to_do.statuses[*].propagate.down *Mkdnflow-config-to-do-statuses[*]-propagate-down*
+to_do.statuses.<name>.propagate.down *Mkdnflow-config-to-do-statuses-<name>-propagate-down*
     Type: fun(to_do_list): string[]
 
     A function that accepts a to-do list instance and returns a list of valid
@@ -1502,18 +1486,33 @@ to_do.statuses[*].propagate.down *Mkdnflow-config-to-do-statuses[*]-propagate-do
     item whose status was just changed. Return `nil` or an empty table to
     leave the children's status as is.
 
+to_do.status_order                        *Mkdnflow-config-to-do-status-order*
+    Type: table` (array-like)
+
+    An ordered list of status names that controls the toggle rotation order.
+    When a to-do item is toggled, it cycles through the statuses in this
+    order. A status defined in `to_do.statuses` but absent from `status_order`
+    is still recognized when reading files, but excluded from toggle rotation
+    (useful for statuses that should only be set via propagation).
+
+    Replaces the deprecated `to_do.statuses[*].skip_on_toggle` option.
+
 
 WARNING:
     The following to-do configuration options are deprecated. Please use the
-    `to_do.statuses` table instead. Continued support for these options is
-    temporarily provided by a compatibility layer that will be removed in the
-    near future.
+    `to_do.statuses` dict and `to_do.status_order` instead. Continued support
+    for these options is temporarily provided by a compatibility layer that
+    will be removed in the near future.
 
     * `to_do.symbols` - A list of markers representing to-do completion
     statuses * `to_do.not_started` - Which marker represents a not-yet-started
     to-do * `to_do.in_progress` - Which marker represents an in-progress to-do
     * `to_do.complete` - Which marker represents a complete to-do *
     `to_do.update_parents` - Whether parent to-dos' statuses should be updated
+    * `to_do.statuses` (array form) - The old array-of-tables format for
+    statuses * `to_do.statuses[*].skip_on_toggle` - Use `status_order`
+    membership instead * `to_do.statuses[*].exclude_from_rotation` - Use
+    `status_order` membership instead
 
 
 foldtext ~

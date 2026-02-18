@@ -199,7 +199,9 @@ M.userConfigCheck = function(user_config)
             )
         end
         -- COMPAT(added=v2.x, remove=v3.0): to_do.statuses[*].symbol → marker, colors → highlight
-        if user_config.to_do.statuses then
+        if user_config.to_do.statuses
+            and require('mkdnflow.utils').isArray(user_config.to_do.statuses)
+        then
             local warned_symbol = false
             local warned_colors = false
             for _, status in ipairs(user_config.to_do.statuses) do
@@ -221,6 +223,93 @@ M.userConfigCheck = function(user_config)
                             "⬇️  The 'colors' key in to_do.statuses is deprecated. Use 'highlight' instead. See :h mkdnflow-configuration."
                         )
                         warned_colors = true
+                    end
+                end
+            end
+        end
+
+        -- COMPAT(added=v2.10, remove=v3.0): exclude_from_rotation → skip_on_toggle
+        -- (moved here from the v2.10 renames section so it runs before array→dict conversion)
+        if user_config.to_do.statuses
+            and require('mkdnflow.utils').isArray(user_config.to_do.statuses)
+        then
+            for _, status in ipairs(user_config.to_do.statuses) do
+                if status.exclude_from_rotation ~= nil and status.skip_on_toggle == nil then
+                    status.skip_on_toggle = status.exclude_from_rotation
+                    status.exclude_from_rotation = nil
+                end
+            end
+        end
+
+        -- COMPAT(added=v2.19, remove=v3.0): array-form statuses → dict-form + status_order
+        if user_config.to_do.statuses
+            and require('mkdnflow.utils').isArray(user_config.to_do.statuses)
+        then
+            warn(
+                "⬇️  'to_do.statuses' is in deprecated array form. Use a dict keyed by status name with a 'status_order' sibling. See :h mkdnflow-configuration."
+            )
+            local dict = {}
+            local order = {}
+            for _, status in ipairs(user_config.to_do.statuses) do
+                local name = status.name
+                if name then
+                    local entry = {}
+                    for k, v in pairs(status) do
+                        if k ~= 'name' and k ~= 'skip_on_toggle' then
+                            entry[k] = v
+                        end
+                    end
+                    dict[name] = entry
+                    if not status.skip_on_toggle then
+                        table.insert(order, name)
+                    end
+                end
+            end
+            user_config.to_do.statuses = dict
+            if not user_config.to_do.status_order then
+                user_config.to_do.status_order = order
+            end
+        end
+
+        -- COMPAT(added=v2.19, remove=v3.0): dict-form statuses with old field names
+        if user_config.to_do.statuses
+            and not require('mkdnflow.utils').isArray(user_config.to_do.statuses)
+        then
+            for name, status in pairs(user_config.to_do.statuses) do
+                if type(status) == 'table' then
+                    if status.symbol ~= nil and status.marker == nil then
+                        status.marker = status.symbol
+                        status.symbol = nil
+                        warn(
+                            "⬇️  'to_do.statuses."
+                                .. name
+                                .. ".symbol' is deprecated. Use 'marker' instead."
+                        )
+                    end
+                    if status.colors ~= nil and status.highlight == nil then
+                        status.highlight = status.colors
+                        status.colors = nil
+                        warn(
+                            "⬇️  'to_do.statuses."
+                                .. name
+                                .. ".colors' is deprecated. Use 'highlight' instead."
+                        )
+                    end
+                    if status.exclude_from_rotation ~= nil then
+                        status.exclude_from_rotation = nil
+                        warn(
+                            "⬇️  'to_do.statuses."
+                                .. name
+                                .. ".exclude_from_rotation' is deprecated. Use status_order instead."
+                        )
+                    end
+                    if status.skip_on_toggle ~= nil then
+                        status.skip_on_toggle = nil
+                        warn(
+                            "⬇️  'to_do.statuses."
+                                .. name
+                                .. ".skip_on_toggle' is ignored in dict form. To exclude a status from rotation, omit it from status_order."
+                        )
                     end
                 end
             end
@@ -350,15 +439,7 @@ M.userConfigCheck = function(user_config)
         end
     end
 
-    -- COMPAT(added=v2.10, remove=v3.0): to_do, tables, new_file_template renames
-    if user_config.to_do and user_config.to_do.statuses then
-        for _, status in ipairs(user_config.to_do.statuses) do
-            if status.exclude_from_rotation ~= nil and status.skip_on_toggle == nil then
-                status.skip_on_toggle = status.exclude_from_rotation
-                status.exclude_from_rotation = nil
-            end
-        end
-    end
+    -- COMPAT(added=v2.10, remove=v3.0): tables, new_file_template renames
     if user_config.tables and user_config.tables.style then
         local s = user_config.tables.style
         if s.mimic_alignment ~= nil and s.apply_alignment == nil then

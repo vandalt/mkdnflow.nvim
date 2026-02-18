@@ -221,27 +221,25 @@ T['checkhealth']['reports redundant defaults'] = function()
     eq(has_redundant, true)
 end
 
-T['checkhealth']['does not report individual array element fields as redundant'] = function()
-    -- to_do.statuses is an array that mergeTables replaces wholesale. Individual
-    -- fields inside array elements (like statuses[1].name) must NOT be reported as
-    -- redundant, because the user can't remove them independently — they'd need to
-    -- remove the entire statuses array or keep all of it.
+T['checkhealth']['partial dict override does not report per-status fields as redundant'] = function()
+    -- With dict-form statuses, partial overrides merge with defaults.
+    -- Only the overridden fields should appear in the user_config, and
+    -- redundancy detection should handle dict-vs-dict comparison correctly.
     child.lua([[
         require('mkdnflow').setup({
             to_do = {
                 statuses = {
-                    { name = 'not_started', marker = ' ' },
-                    { name = 'in_progress', marker = '-' },
-                    { name = 'complete', marker = 'x' },
-                }
+                    not_started = { marker = '~' },
+                },
             },
             silent = true,
         })
     ]])
     child.lua([[vim.cmd('checkhealth mkdnflow')]])
     local text = get_buf_text()
-    -- Should NOT report individual fields like statuses.1.name
-    local has_element_field = text:find('statuses%.%d+%.') ~= nil
+    -- The marker '~' is not redundant (differs from default ' ')
+    -- Should not report false redundancy on individual status fields
+    local has_element_field = text:find('statuses%.not_started%.marker') ~= nil
     eq(has_element_field, false)
 end
 
@@ -265,6 +263,24 @@ T['checkhealth']['reports whole array value as redundant when it matches default
     -- But not as individual elements like mappings.MkdnNextLink.1
     local has_element = text:find('MkdnNextLink%.%d') ~= nil
     eq(has_element, false)
+end
+
+T['checkhealth']['detects array-form statuses as deprecated'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            to_do = {
+                statuses = {
+                    { name = 'not_started', marker = ' ' },
+                    { name = 'complete', marker = 'X' },
+                },
+            },
+            silent = true,
+        })
+    ]])
+    child.lua([[vim.cmd('checkhealth mkdnflow')]])
+    local text = get_buf_text()
+    local has_warn = text:find('array form') ~= nil
+    eq(has_warn, true)
 end
 
 T['checkhealth']['reports no deprecated keys for clean config'] = function()
@@ -424,17 +440,15 @@ T['cleanconfig']['marks function values with placeholder'] = function()
     eq(has_placeholder, true)
 end
 
-T['cleanconfig']['preserves custom statuses array intact'] = function()
-    -- Arrays are replaced wholesale by mergeTables, so MkdnCleanConfig must keep
-    -- the entire array even when some element fields happen to match defaults.
+T['cleanconfig']['preserves custom statuses dict override'] = function()
+    -- Dict-form statuses are merged recursively, so partial overrides with
+    -- non-default values should be preserved in cleanconfig output.
     child.lua([[
         require('mkdnflow').setup({
             to_do = {
                 statuses = {
-                    { name = 'not_started', marker = ' ' },
-                    { name = 'in_progress', marker = '-' },
-                    { name = 'complete', marker = 'x' },
-                }
+                    not_started = { marker = '~' },
+                },
             },
             silent = true,
         })
@@ -444,17 +458,11 @@ T['cleanconfig']['preserves custom statuses array intact'] = function()
         vim.cmd('MkdnCleanConfig')
     ]])
     local text = get_buf_text()
-    -- The statuses array should appear in the output (it differs from default
-    -- because the default statuses have more fields like highlight, sort, etc.)
+    -- The statuses dict should appear in the output (marker '~' differs from default)
     local has_statuses = text:find('statuses') ~= nil
     eq(has_statuses, true)
-    -- All three names should be present — none stripped as "redundant"
     local has_not_started = text:find('not_started') ~= nil
-    local has_in_progress = text:find('in_progress') ~= nil
-    local has_complete = text:find('complete') ~= nil
     eq(has_not_started, true)
-    eq(has_in_progress, true)
-    eq(has_complete, true)
 end
 
 T['cleanconfig']['buffer is not modifiable'] = function()
