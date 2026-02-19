@@ -657,7 +657,8 @@ local open_review = function(changes, new_abs_path)
         })
     end
 
-    vim.fn.setqflist(items)
+    local title = 'Update ' .. #items .. ' reference(s) to ' .. changes[1].source
+    vim.fn.setqflist({}, ' ', { items = items, title = title })
     vim.cmd.copen()
 
     local qf_bufnr = vim.api.nvim_get_current_buf()
