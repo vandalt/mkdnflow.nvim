@@ -1846,6 +1846,7 @@ T['moveSource_references']['find_references finds matching links'] = function()
         require('mkdnflow.paths')._test.find_references_async(
             _G._tmpdir .. '/page.md',
             _G._tmpdir .. '/index.md',
+            {},
             function(refs) _G._refs = refs end
         )
         vim.wait(5000, function() return _G._refs ~= nil end, 50)
@@ -1868,6 +1869,7 @@ T['moveSource_references']['find_references skips current file'] = function()
         require('mkdnflow.paths')._test.find_references_async(
             _G._tmpdir .. '/page.md',
             _G._tmpdir .. '/index.md',
+            {},
             function(refs) _G._refs = refs end
         )
         vim.wait(5000, function() return _G._refs ~= nil end, 50)
@@ -1890,6 +1892,7 @@ T['moveSource_references']['find_references skips non-matching links'] = functio
         require('mkdnflow.paths')._test.find_references_async(
             _G._tmpdir .. '/page.md',
             _G._tmpdir .. '/index.md',
+            {},
             function(refs) _G._refs = refs end
         )
         vim.wait(5000, function() return _G._refs ~= nil end, 50)
@@ -1911,6 +1914,7 @@ T['moveSource_references']['find_references handles ref_definition'] = function(
         require('mkdnflow.paths')._test.find_references_async(
             _G._tmpdir .. '/page.md',
             _G._tmpdir .. '/index.md',
+            {},
             function(refs) _G._refs = refs end
         )
         vim.wait(5000, function() return _G._refs ~= nil end, 50)
@@ -2094,6 +2098,7 @@ T['moveSource_references']['wiki links are found'] = function()
         require('mkdnflow.paths')._test.find_references_async(
             _G._tmpdir .. '/page.md',
             _G._tmpdir .. '/index.md',
+            {},
             function(refs) _G._refs = refs end
         )
         vim.wait(5000, function() return _G._refs ~= nil end, 50)
@@ -2129,6 +2134,7 @@ T['moveSource_references']['find_references handles empty results'] = function()
         require('mkdnflow.paths')._test.find_references_async(
             _G._tmpdir .. '/orphan.md',
             _G._tmpdir .. '/index.md',
+            {},
             function(refs) _G._refs = refs end
         )
         vim.wait(5000, function() return _G._refs ~= nil end, 50)
