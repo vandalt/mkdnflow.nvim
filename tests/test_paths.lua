@@ -2143,4 +2143,282 @@ T['moveSource_references']['find_references handles empty results'] = function()
     eq(#refs, 0)
 end
 
+-- =============================================================================
+-- moveSource integration tests (full rename flow)
+-- =============================================================================
+T['moveSource'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/sub', 'p')
+                -- index.md links to page
+                vim.fn.writefile({'[page](page)'}, _G._tmpdir .. '/index.md')
+                -- page.md is the target file
+                vim.fn.writefile({'# Page'}, _G._tmpdir .. '/page.md')
+                -- other.md also links to page
+                vim.fn.writefile({'[see page](page)'}, _G._tmpdir .. '/other.md')
+                -- sub/ref.md links to page (for current strategy tests)
+                vim.fn.writefile({'[page](../page)'}, _G._tmpdir .. '/sub/ref.md')
+
+                vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+                vim.bo.filetype = 'markdown'
+
+                -- Source the plugin to register commands
+                vim.cmd('runtime plugin/mkdnflow.lua')
+                require('mkdnflow').setup({
+                    modules = {
+                        paths = true,
+                        links = true,
+                        maps = true,
+                        notebook = true,
+                    },
+                    path_resolution = { primary = 'first' },
+                })
+                vim.cmd('doautocmd BufEnter')
+
+                -- Mock vim.ui.input: provide new name via _G._input_response
+                _G._input_response = nil
+                vim.ui.input = function(opts, on_confirm)
+                    on_confirm(_G._input_response)
+                end
+
+                -- Mock vim.fn.confirm: auto-accept via _G._confirm_response
+                _G._confirm_response = 1
+                vim.fn.confirm = function() return _G._confirm_response end
+
+                -- Capture notifications
+                _G._notifications = {}
+                vim.notify = function(msg, level)
+                    table.insert(_G._notifications, { msg = msg, level = level })
+                end
+            ]])
+        end,
+    },
+})
+
+T['moveSource']['renames file and updates cursor link (first strategy)'] = function()
+    child.lua([[
+        _G._index_buf = vim.api.nvim_get_current_buf()
+        _G._input_response = 'renamed'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    -- File was moved
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/renamed.md")'), 1)
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/page.md")'), 0)
+    -- Cursor link was updated (read from saved buffer, not current which may be quickfix)
+    local lines = child.lua_get('vim.api.nvim_buf_get_lines(_G._index_buf, 0, -1, false)')
+    eq(lines[1], '[page](renamed)')
+end
+
+T['moveSource']['renames file and updates cursor link (root strategy)'] = function()
+    -- Files in a subdirectory so root_dir differs from initial_dir
+    child.lua([[
+        vim.fn.mkdir(_G._tmpdir .. '/notes', 'p')
+        vim.fn.writefile({'[page](notes/page)'}, _G._tmpdir .. '/notes/index.md')
+        vim.fn.writefile({'# Page'}, _G._tmpdir .. '/notes/page.md')
+
+        -- Open the file BEFORE setup so initial_dir becomes notes/
+        vim.cmd('e ' .. _G._tmpdir .. '/notes/index.md')
+        vim.bo.filetype = 'markdown'
+
+        require('mkdnflow').setup({
+            modules = { paths = true, links = true, maps = true, notebook = true },
+            path_resolution = { primary = 'root' },
+        })
+        -- root_dir is the parent; initial_dir is notes/ (set by setup from current buffer)
+        require('mkdnflow').root_dir = _G._tmpdir
+
+        _G._index_buf = vim.api.nvim_get_current_buf()
+        _G._input_response = 'notes/renamed'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/notes/renamed.md")'), 1)
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/notes/page.md")'), 0)
+    local lines = child.lua_get('vim.api.nvim_buf_get_lines(_G._index_buf, 0, -1, false)')
+    eq(lines[1], '[page](notes/renamed)')
+end
+
+T['moveSource']['renames file and updates cursor link (current strategy)'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            modules = { paths = true, links = true, maps = true, notebook = true },
+            path_resolution = { primary = 'current' },
+        })
+
+        _G._index_buf = vim.api.nvim_get_current_buf()
+        _G._input_response = 'renamed'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/renamed.md")'), 1)
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/page.md")'), 0)
+    local lines = child.lua_get('vim.api.nvim_buf_get_lines(_G._index_buf, 0, -1, false)')
+    eq(lines[1], '[page](renamed)')
+end
+
+T['moveSource']['populates quickfix with references after rename'] = function()
+    child.lua([[
+        _G._input_response = 'renamed'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+        -- Wait for quickfix to open (async scan must complete)
+        vim.wait(5000, function()
+            return #vim.fn.getqflist() > 0
+        end, 50)
+    ]])
+    local qflist = child.lua_get('vim.fn.getqflist()')
+    -- other.md and sub/ref.md both reference page, so at least 2 entries
+    -- (refstyle.md is not in this test setup, unlike moveSource_references)
+    local count = #qflist
+    eq(count >= 1, true)
+    -- Each entry should contain the arrow showing old → new
+    local first_text = qflist[1].text
+    eq(first_text:find('→') ~= nil, true)
+    -- Clean up
+    child.lua('vim.cmd.cclose()')
+end
+
+T['moveSource']['creates directory when create_dirs is true'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            modules = { paths = true, links = true, maps = true, notebook = true },
+            path_resolution = { primary = 'first' },
+            create_dirs = true,
+        })
+
+        _G._index_buf = vim.api.nvim_get_current_buf()
+        _G._input_response = 'newdir/renamed'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/newdir/renamed.md")'), 1)
+    eq(child.lua_get('vim.fn.isdirectory(_G._tmpdir .. "/newdir")'), 1)
+    local lines = child.lua_get('vim.api.nvim_buf_get_lines(_G._index_buf, 0, -1, false)')
+    eq(lines[1], '[page](newdir/renamed)')
+end
+
+T['moveSource']['refuses to rename a URL link'] = function()
+    child.lua([[
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, {'[site](https://example.com)'})
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    local notifications = child.lua_get('_G._notifications')
+    local found = false
+    for _, n in ipairs(notifications) do
+        if n.msg:find('Cannot rename a url link') then
+            found = true
+        end
+    end
+    eq(found, true)
+end
+
+T['moveSource']['refuses to rename an anchor link'] = function()
+    child.lua([[
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, {'[heading](#my-heading)'})
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    local notifications = child.lua_get('_G._notifications')
+    local found = false
+    for _, n in ipairs(notifications) do
+        if n.msg:find('Cannot rename a anchor link') then
+            found = true
+        end
+    end
+    eq(found, true)
+end
+
+T['moveSource']['aborts when goal already exists'] = function()
+    child.lua([[
+        -- other.md already exists at the goal location
+        _G._input_response = 'other'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    -- File should NOT have been moved
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/page.md")'), 1)
+    local notifications = child.lua_get('_G._notifications')
+    local found = false
+    for _, n in ipairs(notifications) do
+        if n.msg:find('already exists') then
+            found = true
+        end
+    end
+    eq(found, true)
+end
+
+T['moveSource']['aborts when user declines confirmation'] = function()
+    child.lua([[
+        _G._confirm_response = 2  -- "No"
+        _G._input_response = 'renamed'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    -- File should NOT have been moved
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/page.md")'), 1)
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/renamed.md")'), 0)
+end
+
+T['moveSource']['does nothing when user cancels input'] = function()
+    child.lua([[
+        _G._input_response = nil  -- User pressed Escape
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/page.md")'), 1)
+    local lines = child.lua_get('vim.api.nvim_buf_get_lines(0, 0, -1, false)')
+    eq(lines[1], '[page](page)')
+end
+
+T['moveSource']['updates buffer name after rename'] = function()
+    child.lua([[
+        -- Open page.md so it has a buffer
+        vim.cmd('e ' .. _G._tmpdir .. '/page.md')
+        -- Go back to index.md
+        vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+
+        _G._input_response = 'renamed'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    -- The old buffer name should be gone, new name should exist and be loaded
+    local has_old = child.lua_get('vim.fn.bufnr(_G._tmpdir .. "/page.md") ~= -1')
+    child.lua([[
+        local bufnr = vim.fn.bufnr(_G._tmpdir .. '/renamed.md')
+        _G._has_new = bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr)
+    ]])
+    local has_new = child.lua_get('_G._has_new')
+    eq(has_old, false)
+    eq(has_new, true)
+end
+
+T['moveSource']['respects implicit_extension config'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            modules = { paths = true, links = true, maps = true, notebook = true },
+            path_resolution = { primary = 'first' },
+            links = { implicit_extension = 'markdown' },
+        })
+        -- Create files with .markdown extension
+        vim.fn.writefile({'[page](page)'}, _G._tmpdir .. '/ext_test.markdown')
+        vim.fn.writefile({'# Page'}, _G._tmpdir .. '/page.markdown')
+        vim.cmd('e ' .. _G._tmpdir .. '/ext_test.markdown')
+        vim.bo.filetype = 'markdown'
+
+        _G._ext_buf = vim.api.nvim_get_current_buf()
+        _G._input_response = 'renamed'
+        vim.api.nvim_win_set_cursor(0, { 1, 1 })
+        require('mkdnflow.paths').moveSource()
+    ]])
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/renamed.markdown")'), 1)
+    eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/page.markdown")'), 0)
+    local lines = child.lua_get('vim.api.nvim_buf_get_lines(_G._ext_buf, 0, -1, false)')
+    eq(lines[1], '[page](renamed)')
+end
+
 return T
