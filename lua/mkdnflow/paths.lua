@@ -828,7 +828,7 @@ end
 
 --- Interactively rename/move the file referenced by the link under the cursor
 M.moveSource = function()
-    local derive_path = function(source, _type)
+    local resolve_source_path = function(source)
         source = source:gsub('^file:', '')
         return resolve_notebook_path(source, true)
     end
@@ -840,8 +840,8 @@ M.moveSource = function()
         return path
     end
     local confirm_and_execute = function(opts)
-        local rel_source = M.relativeToBase(opts.derived_source)
-        local rel_goal = M.relativeToBase(opts.derived_goal)
+        local rel_source = M.relativeToBase(opts.source_path)
+        local rel_goal = M.relativeToBase(opts.goal_path)
         local choice = vim.fn.confirm(
             '⬇️  Move file?\n  ' .. rel_source .. '\n→ ' .. rel_goal,
             '&Yes\n&No'
@@ -851,19 +851,19 @@ M.moveSource = function()
             return
         end
         -- Capture resolved path while file still exists (before rename)
-        local resolved_source = vim.fn.resolve(opts.derived_source)
-        local ok = vim.fn.rename(opts.derived_source, opts.derived_goal)
+        local resolved_source = vim.fn.resolve(opts.source_path)
+        local ok = vim.fn.rename(opts.source_path, opts.goal_path)
         if ok ~= 0 then
             vim.notify('⬇️  Failed to move file (cross-filesystem?)', vim.log.levels.ERROR)
             return
         end
         -- Update buffer name so statusline, :w, etc. use the new path
-        local old_bufnr = vim.fn.bufnr(opts.derived_source)
+        local old_bufnr = vim.fn.bufnr(opts.source_path)
         if old_bufnr ~= -1 and vim.api.nvim_buf_is_loaded(old_bufnr) then
-            vim.api.nvim_buf_set_name(old_bufnr, opts.derived_goal)
+            vim.api.nvim_buf_set_name(old_bufnr, opts.goal_path)
             -- nvim_buf_set_name leaves an unlisted ghost buffer with the
             -- old name; wipe it to avoid confusion
-            local ghost = vim.fn.bufnr(opts.derived_source)
+            local ghost = vim.fn.bufnr(opts.source_path)
             if ghost ~= -1 then
                 vim.api.nvim_buf_delete(ghost, { force = true })
             end
@@ -877,7 +877,7 @@ M.moveSource = function()
             opts.end_col,
             { opts.location .. opts.anchor }
         )
-        vim.notify('⬇️  Success! File moved to ' .. opts.derived_goal, vim.log.levels.INFO)
+        vim.notify('⬇️  Success! File moved to ' .. opts.goal_path, vim.log.levels.INFO)
         -- Scan notebook for other references to the old path
         if cfg().modules.notebook ~= false then
             local cur_file = vim.api.nvim_buf_get_name(0)
@@ -894,7 +894,7 @@ M.moveSource = function()
             end
             find_references_async(resolved_source, cur_file, buf_cache, function(refs)
                 if #refs > 0 then
-                    open_review(refs, opts.derived_goal)
+                    open_review(refs, opts.goal_path)
                 end
             end)
         end
@@ -908,9 +908,32 @@ M.moveSource = function()
         vim.notify("⬇️  Couldn't find a link under the cursor to rename!", vim.log.levels.WARN)
         return
     end
+    -- Refuse to rename link types that don't point to files
+    local source_type = M.pathType(source, anchor, link_type)
+    if
+        source_type == 'url'
+        or source_type == 'citation'
+        or source_type == 'anchor'
+        or source_type == 'uri_handler'
+    then
+        vim.notify('⬇️  Cannot rename a ' .. source_type .. ' link', vim.log.levels.WARN)
+        return
+    end
     -- Modify source path in the same way as when links are interpreted
-    local derived_source = ensure_extension(M.transformPath(source))
-    derived_source = derive_path(derived_source, M.pathType(source))
+    local source_path = ensure_extension(M.transformPath(source))
+    source_path = resolve_source_path(source_path)
+    -- Warn if the resolved file is outside the notebook root
+    local notebook_root = mkdn().root_dir or mkdn().initial_dir or vim.fn.getcwd()
+    if not vim.startswith(vim.fn.resolve(source_path), vim.fn.resolve(notebook_root)) then
+        local choice = vim.fn.confirm(
+            "⬇️  This file is outside the notebook. References in other notebooks won't be updated. Continue?",
+            '&Yes\n&No'
+        )
+        if choice ~= 1 then
+            vim.notify('⬇️  Aborted', vim.log.levels.WARN)
+            return
+        end
+    end
     -- Ask user to edit name in console (only display what's in the link)
     vim.ui.input({
         prompt = '⬇️  Move to: ',
@@ -921,25 +944,25 @@ M.moveSource = function()
             return
         end
 
-        local derived_goal = ensure_extension(M.transformPath(location))
-        derived_goal = derive_path(derived_goal, M.pathType(derived_goal))
+        local goal_path = ensure_extension(M.transformPath(location))
+        goal_path = resolve_source_path(goal_path)
 
-        if exists(derived_goal, 'f') then
+        if exists(goal_path, 'f') then
             vim.notify(
                 "⬇️  '" .. location .. "' already exists! Aborting.",
                 vim.log.levels.WARN
             )
             return
         end
-        if not exists(derived_source, 'f') then
+        if not exists(source_path, 'f') then
             vim.notify(
-                '⬇️  ' .. derived_source .. " doesn't seem to exist! Aborting.",
+                '⬇️  ' .. source_path .. " doesn't seem to exist! Aborting.",
                 vim.log.levels.WARN
             )
             return
         end
 
-        local dir = vim.fs.dirname(derived_goal)
+        local dir = vim.fs.dirname(goal_path)
         if dir and not exists(dir, 'd') then
             if not create_dirs then
                 vim.notify(
@@ -952,9 +975,9 @@ M.moveSource = function()
         end
 
         confirm_and_execute({
-            derived_source = derived_source,
+            source_path = source_path,
             source = source,
-            derived_goal = derived_goal,
+            goal_path = goal_path,
             anchor = anchor,
             location = location,
             start_row = start_row,
