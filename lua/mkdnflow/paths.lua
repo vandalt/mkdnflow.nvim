@@ -456,33 +456,6 @@ M.handlePath = function(path, anchor, link_type)
     end
 end
 
---- Truncate a path for display by showing only the divergent suffix
----@param oldpath string The original path (used to determine the common prefix)
----@param newpath string The new path to truncate
----@return string difference The truncated portion of newpath
----@private
-local truncate_path = function(oldpath, newpath)
-    local difference = ''
-    local last_slash = string.find(string.reverse(newpath), sep())
-    last_slash = last_slash and #newpath - last_slash + 1 or nil
-    local continue = true
-    local char = 1
-    while continue do
-        local newpath_char = newpath:sub(char, char)
-        if oldpath:sub(char, char) ~= newpath_char and char <= #newpath then
-            continue = false
-        else
-            char = char + 1
-        end
-    end
-    if last_slash and char > last_slash then
-        difference = string.sub(newpath, last_slash)
-    else
-        difference = string.sub(newpath, char)
-    end
-    return difference
-end
-
 --- Resolve a link's source text to an absolute path.
 --- Mirrors the flow in moveSource: raw source -> transformPath -> add extension -> resolve.
 ---@param source string The link source text
@@ -854,80 +827,53 @@ M.moveSource = function()
         end_row,
         end_col
     )
-        local truncated_goal = '...' .. truncate_path(derived_source, derived_goal)
-        local prompt = "⬇️  Move '"
-            .. derived_source
-            .. "' ("
-            .. source
-            .. ") to '"
-            .. truncated_goal
-            .. "' ("
-            .. location
-            .. ')? [y/n] '
-        local cmdheight = vim.o.cmdheight
-        local str_width, win_width = vim.api.nvim_strwidth(prompt), vim.api.nvim_win_get_width(0)
-        local rows_needed = str_width / win_width
-        if rows_needed / math.floor(rows_needed) > 1.0 then
-            rows_needed = math.floor(rows_needed) + 1
-        else
-            rows_needed = math.floor(rows_needed)
+        local rel_source = M.relativeToBase(derived_source)
+        local rel_goal = M.relativeToBase(derived_goal)
+        local choice = vim.fn.confirm(
+            '⬇️  Move file?\n  ' .. rel_source .. '\n→ ' .. rel_goal,
+            '&Yes\n&No'
+        )
+        if choice ~= 1 then
+            vim.notify('⬇️  Aborted', vim.log.levels.WARN)
+            return
         end
-        vim.o.cmdheight = rows_needed
-        vim.ui.input({ prompt = prompt }, function(response)
-            if response == 'y' then
-                -- Capture resolved path while file still exists (before rename)
-                local resolved_source = vim.fn.resolve(derived_source)
-                local ok = vim.fn.rename(derived_source, derived_goal)
-                if ok ~= 0 then
-                    vim.notify(
-                        '⬇️  Failed to move file (cross-filesystem?)',
-                        vim.log.levels.ERROR
-                    )
-                    vim.o.cmdheight = cmdheight
-                    return
-                end
-                -- Update buffer name so statusline, :w, etc. use the new path
-                local old_bufnr = vim.fn.bufnr(derived_source)
-                if old_bufnr ~= -1 and vim.api.nvim_buf_is_loaded(old_bufnr) then
-                    vim.api.nvim_buf_set_name(old_bufnr, derived_goal)
-                    -- nvim_buf_set_name leaves an unlisted ghost buffer with the
-                    -- old name; wipe it to avoid confusion
-                    local ghost = vim.fn.bufnr(derived_source)
-                    if ghost ~= -1 then
-                        vim.api.nvim_buf_delete(ghost, { force = true })
-                    end
-                end
-                -- Change the link content
-                vim.api.nvim_buf_set_text(
-                    0,
-                    start_row - 1,
-                    start_col - 1,
-                    end_row - 1,
-                    end_col,
-                    { location .. anchor }
-                )
-                -- Clear the prompt & print sth
-                -- Reset cmdheight value
-                vim.cmd('normal! :')
-                vim.o.cmdheight = cmdheight
-                vim.notify('⬇️  Success! File moved to ' .. derived_goal, vim.log.levels.INFO)
-                -- Scan notebook for other references to the old path
-                if cfg().modules.notebook ~= false then
-                    local cur_file = vim.api.nvim_buf_get_name(0)
-                    find_references_async(resolved_source, cur_file, function(refs)
-                        if #refs > 0 then
-                            open_review(refs, derived_goal)
-                        end
-                    end)
-                end
-            else
-                -- Clear the prompt & print sth
-                -- Reset cmdheight value
-                vim.cmd('normal! :')
-                vim.o.cmdheight = cmdheight
-                vim.notify('⬇️  Aborted', vim.log.levels.WARN)
+        -- Capture resolved path while file still exists (before rename)
+        local resolved_source = vim.fn.resolve(derived_source)
+        local ok = vim.fn.rename(derived_source, derived_goal)
+        if ok ~= 0 then
+            vim.notify('⬇️  Failed to move file (cross-filesystem?)', vim.log.levels.ERROR)
+            return
+        end
+        -- Update buffer name so statusline, :w, etc. use the new path
+        local old_bufnr = vim.fn.bufnr(derived_source)
+        if old_bufnr ~= -1 and vim.api.nvim_buf_is_loaded(old_bufnr) then
+            vim.api.nvim_buf_set_name(old_bufnr, derived_goal)
+            -- nvim_buf_set_name leaves an unlisted ghost buffer with the
+            -- old name; wipe it to avoid confusion
+            local ghost = vim.fn.bufnr(derived_source)
+            if ghost ~= -1 then
+                vim.api.nvim_buf_delete(ghost, { force = true })
             end
-        end)
+        end
+        -- Change the link content
+        vim.api.nvim_buf_set_text(
+            0,
+            start_row - 1,
+            start_col - 1,
+            end_row - 1,
+            end_col,
+            { location .. anchor }
+        )
+        vim.notify('⬇️  Success! File moved to ' .. derived_goal, vim.log.levels.INFO)
+        -- Scan notebook for other references to the old path
+        if cfg().modules.notebook ~= false then
+            local cur_file = vim.api.nvim_buf_get_name(0)
+            find_references_async(resolved_source, cur_file, function(refs)
+                if #refs > 0 then
+                    open_review(refs, derived_goal)
+                end
+            end)
+        end
     end
     -- Retrieve source from link
     local links = mkdn().links
