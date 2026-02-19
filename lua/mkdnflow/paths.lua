@@ -955,6 +955,17 @@ M.moveSource = function()
                         if not to_dir_exists then
                             if create_dirs then
                                 vim.fn.mkdir(dir, 'p')
+                                confirm_and_execute(
+                                    derived_source,
+                                    source,
+                                    derived_goal,
+                                    anchor,
+                                    location,
+                                    start_row,
+                                    start_col,
+                                    end_row,
+                                    end_col
+                                )
                             else
                                 vim.cmd('normal! :')
                                 vim.notify(
