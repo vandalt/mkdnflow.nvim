@@ -489,14 +489,14 @@ local resolve_link_source = function(source, from_filepath)
     end
 end
 
---- Compute a relative path from one file's directory to another file.
----@param from_file string The file whose directory is the starting point
+--- Compute a relative path from a directory to a target file.
+---@param from_dir string The starting directory
 ---@param to_file string The target file
 ---@return string relative_path
 ---@private
-local compute_relative_path = function(from_file, to_file)
+local compute_relative_path = function(from_dir, to_file)
     local s = sep()
-    local from_dir = vim.fn.resolve(vim.fs.dirname(from_file))
+    from_dir = vim.fn.resolve(from_dir)
     local to_resolved = vim.fn.resolve(to_file)
     local from_parts = vim.split(from_dir, s, { plain = true })
     local to_parts = vim.split(to_resolved, s, { plain = true })
@@ -536,16 +536,18 @@ local compute_new_source = function(old_source, new_abs_path, from_filepath)
     local had_extension = basename:match('%..+$') ~= nil
     local new_source
 
+    local base_dir
     if path_resolution.primary == 'root' and mkdn().root_dir then
-        new_source = M.relativeToBase(new_abs_path)
+        base_dir = mkdn().root_dir
     elseif
         path_resolution.primary == 'first'
         or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
     then
-        new_source = M.relativeToBase(new_abs_path)
+        base_dir = mkdn().initial_dir
     else
-        new_source = compute_relative_path(from_filepath, new_abs_path)
+        base_dir = vim.fs.dirname(from_filepath)
     end
+    new_source = compute_relative_path(base_dir, new_abs_path)
 
     if not had_extension then
         local ext = implicit_extension or 'md'

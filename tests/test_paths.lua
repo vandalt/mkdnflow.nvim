@@ -2012,7 +2012,7 @@ end
 T['moveSource_references']['compute_relative_path same directory'] = function()
     local result = child.lua_get([[
         require('mkdnflow.paths')._test.compute_relative_path(
-            '/a/b/from.md', '/a/b/to.md'
+            '/a/b', '/a/b/to.md'
         )
     ]])
     eq(result, 'to.md')
@@ -2021,7 +2021,7 @@ end
 T['moveSource_references']['compute_relative_path parent directory'] = function()
     local result = child.lua_get([[
         require('mkdnflow.paths')._test.compute_relative_path(
-            '/a/b/c/from.md', '/a/b/to.md'
+            '/a/b/c', '/a/b/to.md'
         )
     ]])
     eq(result, '../to.md')
@@ -2030,7 +2030,7 @@ end
 T['moveSource_references']['compute_relative_path child directory'] = function()
     local result = child.lua_get([[
         require('mkdnflow.paths')._test.compute_relative_path(
-            '/a/b/from.md', '/a/b/c/to.md'
+            '/a/b', '/a/b/c/to.md'
         )
     ]])
     eq(result, 'c/to.md')
