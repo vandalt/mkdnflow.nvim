@@ -144,6 +144,12 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             paths.moveSource()
         end
     end, {})
+    user_command('MkdnDeadLinks', function(opts)
+        local paths = require_module('paths')
+        if paths then
+            paths.deadLinks(opts.fargs[1])
+        end
+    end, { nargs = '?' })
     user_command('MkdnNextLink', function(opts)
         local cursor = require_module('cursor')
         if cursor then

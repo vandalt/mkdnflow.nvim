@@ -2405,6 +2405,303 @@ T['moveSource']['updates buffer name after rename'] = function()
     eq(has_new, true)
 end
 
+-- =============================================================================
+-- deadLinks - Dead link detection
+-- =============================================================================
+T['deadLinks'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([=[
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/sub', 'p')
+                -- index.md has a mix of valid and dead links
+                vim.fn.writefile({
+                    '[valid](page)',
+                    '[dead](missing)',
+                    '![image](screenshot.png)',
+                    '[url](https://example.com)',
+                    '[anchor](#heading)',
+                    '[@citation]()',
+                    '[ref]: page.md',
+                    '[deadref]: nonexistent.md',
+                }, _G._tmpdir .. '/index.md')
+                -- page.md exists
+                vim.fn.writefile({'# Page'}, _G._tmpdir .. '/page.md')
+                -- screenshot.png exists
+                vim.fn.writefile({'fake image'}, _G._tmpdir .. '/screenshot.png')
+                -- other.md has only dead links
+                vim.fn.writefile({
+                    '[broken](no-such-file)',
+                    '[[also-missing]]',
+                }, _G._tmpdir .. '/other.md')
+                -- clean.md has only valid links
+                vim.fn.writefile({
+                    '[page](page)',
+                }, _G._tmpdir .. '/clean.md')
+
+                vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+                vim.bo.filetype = 'markdown'
+
+                require('mkdnflow').setup({
+                    modules = { paths = true, links = true },
+                    path_resolution = { primary = 'first' },
+                })
+
+                -- Capture notifications
+                _G._notifications = {}
+                vim.notify = function(msg, level)
+                    table.insert(_G._notifications, { msg = msg, level = level })
+                end
+            ]=])
+        end,
+    },
+})
+
+T['deadLinks']['buffer scope finds dead links'] = function()
+    child.lua([[
+        require('mkdnflow.paths').deadLinks()
+    ]])
+    local qflist = child.lua_get('vim.fn.getqflist()')
+    -- 'missing' and 'nonexistent.md' are dead; 'page' and 'page.md' exist
+    -- URL, anchor, citation should be skipped
+    local dead_texts = {}
+    for _, item in ipairs(qflist) do
+        table.insert(dead_texts, item.text)
+    end
+    -- Should find dead links for 'missing' and 'nonexistent.md'
+    eq(#qflist >= 2, true)
+    -- Clean up
+    child.lua('vim.cmd.cclose()')
+end
+
+T['deadLinks']['buffer scope skips URLs'] = function()
+    child.lua([[
+        require('mkdnflow.paths').deadLinks()
+    ]])
+    local qflist = child.lua_get('vim.fn.getqflist()')
+    local found_url = false
+    for _, item in ipairs(qflist) do
+        if item.text:find('https://') then
+            found_url = true
+        end
+    end
+    eq(found_url, false)
+    child.lua('vim.cmd.cclose()')
+end
+
+T['deadLinks']['buffer scope skips anchors'] = function()
+    child.lua([[
+        require('mkdnflow.paths').deadLinks()
+    ]])
+    local qflist = child.lua_get('vim.fn.getqflist()')
+    local found_anchor = false
+    for _, item in ipairs(qflist) do
+        if item.text:find('#heading') and not item.text:find('%[') then
+            found_anchor = true
+        end
+    end
+    eq(found_anchor, false)
+    child.lua('vim.cmd.cclose()')
+end
+
+T['deadLinks']['buffer scope skips citations'] = function()
+    child.lua([[
+        require('mkdnflow.paths').deadLinks()
+    ]])
+    local qflist = child.lua_get('vim.fn.getqflist()')
+    local found_citation = false
+    for _, item in ipairs(qflist) do
+        if item.text:find('@citation') then
+            found_citation = true
+        end
+    end
+    eq(found_citation, false)
+    child.lua('vim.cmd.cclose()')
+end
+
+T['deadLinks']['buffer scope checks image links'] = function()
+    -- screenshot.png exists, so it should not be in quickfix
+    -- But if we had a dead image link, it should show up
+    child.lua([[
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+            '![missing](no-image.png)',
+            '![exists](screenshot.png)',
+        })
+        require('mkdnflow.paths').deadLinks()
+    ]])
+    local qflist = child.lua_get('vim.fn.getqflist()')
+    local found_missing = false
+    local found_exists = false
+    for _, item in ipairs(qflist) do
+        if item.text:find('no%-image%.png') then
+            found_missing = true
+        end
+        if item.text:find('screenshot%.png') then
+            found_exists = true
+        end
+    end
+    eq(found_missing, true)
+    eq(found_exists, false)
+    child.lua('vim.cmd.cclose()')
+end
+
+T['deadLinks']['buffer scope notifies when all links valid'] = function()
+    child.lua([[
+        vim.cmd('e ' .. _G._tmpdir .. '/clean.md')
+        vim.bo.filetype = 'markdown'
+        _G._notifications = {}
+        require('mkdnflow.paths').deadLinks()
+    ]])
+    local notifications = child.lua_get('_G._notifications')
+    local found = false
+    for _, n in ipairs(notifications) do
+        if n.msg:find('No dead links found') then
+            found = true
+        end
+    end
+    eq(found, true)
+end
+
+T['deadLinks']['invalid scope shows warning'] = function()
+    child.lua([[
+        _G._notifications = {}
+        require('mkdnflow.paths').deadLinks('invalid')
+    ]])
+    local notifications = child.lua_get('_G._notifications')
+    local found = false
+    for _, n in ipairs(notifications) do
+        if n.msg:find('Unknown scope') then
+            found = true
+        end
+    end
+    eq(found, true)
+end
+
+T['deadLinks']['notebook scope finds dead links across files'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            modules = { paths = true, links = true, notebook = true },
+            path_resolution = { primary = 'first' },
+        })
+        _G._notifications = {}
+        require('mkdnflow.paths').deadLinks('notebook')
+        -- Wait for async scan to complete
+        vim.wait(5000, function()
+            return #vim.fn.getqflist() > 0
+        end, 50)
+    ]])
+    local qflist = child.lua_get('vim.fn.getqflist()')
+    -- Should find dead links from index.md and other.md
+    eq(#qflist >= 3, true)
+    -- Should contain entries from multiple files
+    local files = {}
+    for _, item in ipairs(qflist) do
+        local bufname = child.lua_get('vim.api.nvim_buf_get_name(' .. item.bufnr .. ')')
+        files[bufname] = true
+    end
+    local file_count = 0
+    for _ in pairs(files) do
+        file_count = file_count + 1
+    end
+    eq(file_count >= 2, true)
+    child.lua('vim.cmd.cclose()')
+end
+
+T['deadLinks']['notebook scope notifies when no dead links'] = function()
+    child.lua([[
+        -- Create a clean notebook with only valid links
+        local clean_dir = vim.fn.resolve(vim.fn.tempname())
+        vim.fn.mkdir(clean_dir, 'p')
+        vim.fn.writefile({'[page](page)'}, clean_dir .. '/index.md')
+        vim.fn.writefile({'# Page'}, clean_dir .. '/page.md')
+
+        vim.cmd('e ' .. clean_dir .. '/index.md')
+        vim.bo.filetype = 'markdown'
+        require('mkdnflow').setup({
+            modules = { paths = true, links = true, notebook = true },
+            path_resolution = { primary = 'first' },
+        })
+
+        _G._notifications = {}
+        require('mkdnflow.paths').deadLinks('notebook')
+        -- Wait for async scan to complete
+        vim.wait(5000, function()
+            for _, n in ipairs(_G._notifications) do
+                if n.msg:find('No dead links found') then
+                    return true
+                end
+            end
+            return false
+        end, 50)
+    ]])
+    local notifications = child.lua_get('_G._notifications')
+    local found = false
+    for _, n in ipairs(notifications) do
+        if n.msg:find('No dead links found') then
+            found = true
+        end
+    end
+    eq(found, true)
+end
+
+T['deadLinks']['notebook scope warns when notebook module disabled'] = function()
+    child.lua([[
+        require('mkdnflow').setup({
+            modules = { paths = true, links = true, notebook = false },
+            path_resolution = { primary = 'first' },
+        })
+        _G._notifications = {}
+        require('mkdnflow.paths').deadLinks('notebook')
+    ]])
+    local notifications = child.lua_get('_G._notifications')
+    local found = false
+    for _, n in ipairs(notifications) do
+        if n.msg:find('Enable the notebook module') then
+            found = true
+        end
+    end
+    eq(found, true)
+end
+
+T['deadLinks']['is_checkable_link unit tests'] = function()
+    -- URL
+    local url_result = child.lua_get([[
+        require('mkdnflow.paths')._test.is_checkable_link('https://example.com', nil)
+    ]])
+    eq(url_result, false)
+
+    -- Citation
+    local cite_result = child.lua_get([[
+        require('mkdnflow.paths')._test.is_checkable_link('@citekey', nil)
+    ]])
+    eq(cite_result, false)
+
+    -- Empty source
+    local empty_result = child.lua_get([[
+        require('mkdnflow.paths')._test.is_checkable_link('', nil)
+    ]])
+    eq(empty_result, false)
+
+    -- Normal file link
+    local file_result = child.lua_get([[
+        require('mkdnflow.paths')._test.is_checkable_link('page', nil)
+    ]])
+    eq(file_result, true)
+
+    -- Image link
+    local img_result = child.lua_get([[
+        require('mkdnflow.paths')._test.is_checkable_link('image.png', nil)
+    ]])
+    eq(img_result, true)
+
+    -- file: prefix
+    local file_prefix = child.lua_get([[
+        require('mkdnflow.paths')._test.is_checkable_link('file:doc.pdf', nil)
+    ]])
+    eq(file_prefix, true)
+end
+
 T['moveSource']['respects implicit_extension config'] = function()
     child.lua([[
         require('mkdnflow').setup({

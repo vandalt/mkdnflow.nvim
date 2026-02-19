@@ -24,6 +24,7 @@ local descriptions = {
     MkdnGoBack = 'Go back to previous buffer',
     MkdnGoForward = 'Go forward to next buffer',
     MkdnMoveSource = 'Move link source file and update references',
+    MkdnDeadLinks = 'Find dead links in buffer or notebook',
     MkdnNextLink = 'Jump to next link',
     MkdnPrevLink = 'Jump to previous link',
     MkdnFollowLink = 'Follow link under cursor',

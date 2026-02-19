@@ -64,6 +64,12 @@ local groups = {
             cmd = 'MkdnMoveSource',
             desc = 'Move link source file and update references',
         },
+        {
+            action = 'dead-links',
+            cmd = 'MkdnDeadLinks',
+            desc = 'Find dead links to non-existent files',
+            complete = 'scope',
+        },
     },
     nav = {
         { action = 'back', cmd = 'MkdnGoBack', desc = 'Go back to previous buffer' },
@@ -281,6 +287,9 @@ local completers = {
     end,
     list_type = function()
         return { 'ul', 'ol', 'ultd', 'oltd' }
+    end,
+    scope = function()
+        return { 'notebook' }
     end,
 }
 

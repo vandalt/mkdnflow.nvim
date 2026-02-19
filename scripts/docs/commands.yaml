@@ -104,6 +104,17 @@ commands:
       found, a quickfix list opens with proposed link updates. Use `a` to
       apply a change, `s` to skip, `A` to apply all, or `q` to quit.
 
+  - name: "MkdnDeadLinks (notebook)"
+    default_mapping: null
+    description: |
+      Scan for dead links — links whose target files do not exist on disk. Results are shown in a read-only quickfix list. Navigate with standard quickfix commands (`:cnext`, `:cprev`, `<CR>` to jump).
+
+      Without arguments, checks only the current buffer. Pass `notebook` to scan all files in the notebook (requires the `notebook` module).
+
+      Checked link types: markdown links (`[text](path)`), wiki links (`[[path]]`), image links (`![alt](path.png)`), and reference definitions (`[label]: path`). Image links and non-notebook extensions (`.pdf`, `.csv`, etc.) are checked for file existence.
+
+      Skipped: URLs, citations (`@citekey`), same-file anchors (`#heading`), and links using registered `uri_handler` schemes.
+
   - name: MkdnYankAnchorLink
     default_mapping: "{ 'n', 'yaa' }"
     description: |

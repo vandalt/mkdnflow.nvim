@@ -996,12 +996,186 @@ M.moveSource = function()
     end)
 end
 
+--- Check whether a link should be validated for dead link detection.
+--- Skips URLs, citations, same-file anchors, and registered URI handler schemes.
+---@param source string The link source text
+---@param anchor string|nil The anchor fragment
+---@return boolean true if the link should be checked for existence
+---@private
+local function is_checkable_link(source, anchor)
+    if not source or source == '' then
+        return false
+    end
+    -- Skip same-file anchors (source is empty, anchor is present)
+    if source == '' and anchor then
+        return false
+    end
+    -- Skip URLs
+    if mkdn().links.hasUrl(source) then
+        return false
+    end
+    -- Skip citations
+    if source:match('^@') then
+        return false
+    end
+    -- Skip registered URI handler schemes
+    local scheme = extractScheme(source)
+    if scheme then
+        local handlers = cfg().links.uri_handlers
+        if handlers and handlers[scheme] then
+            return false
+        end
+    end
+    return true
+end
+
+--- Find dead links (links to non-existent files) in the current buffer or notebook.
+---@param scope? string 'notebook' to scan all files, nil/omitted for current buffer only
+M.deadLinks = function(scope)
+    local luv = vim.uv or vim.loop
+
+    -- Validate scope argument
+    if scope and scope ~= 'notebook' then
+        vim.notify(
+            '⬇️  Unknown scope: ' .. scope .. '. Use "notebook" or omit for current buffer.',
+            vim.log.levels.WARN
+        )
+        return
+    end
+
+    local notebook = require('mkdnflow.notebook')
+    local link_types = {
+        md_link = true,
+        wiki_link = true,
+        image_link = true,
+        ref_definition = true,
+    }
+
+    local function check_links(filepath, lines, use_luv)
+        local dead = {}
+        local links = notebook.scanLinks(lines, { types = link_types })
+        for _, link in ipairs(links) do
+            if link.source and link.source ~= '' then
+                if is_checkable_link(link.source, link.anchor) then
+                    local source = link.source:gsub('^file:', '')
+                    local resolved = resolve_link_source(source, filepath)
+                    local is_dead
+                    if use_luv then
+                        is_dead = not luv.fs_stat(resolved)
+                    else
+                        is_dead = vim.fn.filereadable(resolved) ~= 1
+                    end
+                    if is_dead then
+                        table.insert(dead, {
+                            filename = filepath,
+                            lnum = link.row,
+                            col = link.col,
+                            text = link.match,
+                        })
+                    end
+                end
+            end
+        end
+        return dead
+    end
+
+    if not scope then
+        -- Buffer scope: synchronous
+        local filepath = vim.api.nvim_buf_get_name(0)
+        local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+        local dead_links = check_links(filepath, lines, false)
+        if #dead_links > 0 then
+            vim.fn.setqflist(dead_links)
+            vim.cmd.copen()
+        else
+            vim.notify('⬇️  No dead links found', vim.log.levels.INFO)
+        end
+        return
+    end
+
+    -- Notebook scope: async
+    if cfg().modules.notebook == false then
+        vim.notify(
+            '⬇️  Enable the notebook module to scan the notebook for dead links',
+            vim.log.levels.WARN
+        )
+        return
+    end
+
+    vim.notify('⬇️  Scanning notebook for dead links...', vim.log.levels.INFO)
+    local base_dir = mkdn().root_dir or mkdn().initial_dir or vim.fn.getcwd()
+
+    -- Snapshot loaded buffer content before entering async
+    local buf_cache = {}
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(bufnr) then
+            local name = vim.api.nvim_buf_get_name(bufnr)
+            if name ~= '' then
+                buf_cache[name] = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            end
+        end
+    end
+
+    local dead_links = {}
+
+    notebook.scanFiles(base_dir, function(files)
+        local pending = #files
+
+        if pending == 0 then
+            vim.schedule(function()
+                vim.notify('⬇️  No dead links found', vim.log.levels.INFO)
+            end)
+            return
+        end
+
+        local function file_done()
+            pending = pending - 1
+            if pending == 0 then
+                vim.schedule(function()
+                    if #dead_links > 0 then
+                        vim.fn.setqflist(dead_links)
+                        vim.cmd.copen()
+                    else
+                        vim.notify('⬇️  No dead links found', vim.log.levels.INFO)
+                    end
+                end)
+            end
+        end
+
+        local function process_lines(filepath, lines)
+            local dead = check_links(filepath, lines, true)
+            for _, entry in ipairs(dead) do
+                table.insert(dead_links, entry)
+            end
+        end
+
+        for _, filepath in ipairs(files) do
+            local real_filepath = luv.fs_realpath(filepath)
+            local cached = buf_cache[filepath] or (real_filepath and buf_cache[real_filepath])
+            if cached then
+                process_lines(filepath, cached)
+                file_done()
+            else
+                notebook.readFile(filepath, function(lines)
+                    if not lines then
+                        file_done()
+                        return
+                    end
+                    process_lines(filepath, lines)
+                    file_done()
+                end)
+            end
+        end
+    end)
+end
+
 M._test = {
     resolve_link_source = resolve_link_source,
     compute_relative_path = compute_relative_path,
     compute_new_source = compute_new_source,
     find_references_async = find_references_async,
     open_review = open_review,
+    is_checkable_link = is_checkable_link,
 }
 
 -- Return all the functions added to the table M!
