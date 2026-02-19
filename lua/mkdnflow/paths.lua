@@ -691,10 +691,8 @@ local open_review = function(changes, new_abs_path)
     local ns_id = vim.api.nvim_create_namespace('mkdnflow_review')
 
     vim.api.nvim_buf_set_extmark(qf_bufnr, ns_id, 0, 0, {
-        virt_lines_above = true,
-        virt_lines = {
-            { { ' a = apply  s = skip  A = apply all  q = quit ', 'Comment' } },
-        },
+        virt_text = { { '  a=apply  s=skip  A=all  q=quit', 'Comment' } },
+        virt_text_pos = 'eol',
     })
 
     local function replace_on_line(line, col, old_match, new_match)
