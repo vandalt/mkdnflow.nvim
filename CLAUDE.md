@@ -178,6 +178,22 @@ See `tests/test_todo.lua` for examples of integration tests with buffer manipula
 
 **When tests fail:** Tests define expected behavior. If a test fails, fix the **code**, not the test. Never modify a test to make it pass when the underlying bug still exists. If a bug can't be fixed immediately, leave the test failing and document the issue.
 
+### Mutation Testing (Test the Test)
+
+For non-trivial tests, verify the test actually catches failures by temporarily breaking the code under test and confirming the test fails. If it doesn't fail, investigate — you may have found a test gap, a wrong assumption in the test setup, or even a bug in the production code.
+
+**When to do this:**
+- Integration/E2E tests with complex setup (mocks, temp directories, multi-step init)
+- Tests where multiple config options or code branches produce the same result in the test environment but differ in production (e.g., two path resolution strategies that happen to resolve identically when `initial_dir == current_file_dir`)
+- Tests with indirect assertions (checking side effects like file existence or notifications rather than direct return values)
+- Tests for new or recently refactored code that hasn't yet caught a real regression
+
+**When to skip:**
+- Pure unit tests with direct input/output assertions
+- Tests where the assertion is tightly coupled to the code path (a wrong result would be obviously different)
+
+**How:** Introduce a targeted mutation in the production code (swap a variable, change a conditional, use the wrong strategy), run the test, and confirm it fails. Then revert. If the test still passes, fix the test setup so the code paths are actually distinguishable.
+
 ### CI Environment Limitations
 
 GitHub Actions runners (ubuntu-latest) have limited capabilities compared to local development:
