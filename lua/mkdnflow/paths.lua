@@ -832,19 +832,16 @@ M.moveSource = function()
         source = source:gsub('^file:', '')
         return resolve_notebook_path(source, true)
     end
-    local confirm_and_execute = function(
-        derived_source,
-        source,
-        derived_goal,
-        anchor,
-        location,
-        start_row,
-        start_col,
-        end_row,
-        end_col
-    )
-        local rel_source = M.relativeToBase(derived_source)
-        local rel_goal = M.relativeToBase(derived_goal)
+    local implicit_extension = cfg().links.implicit_extension
+    local ensure_extension = function(path)
+        if not path:match('%..+$') then
+            return path .. '.' .. (implicit_extension or 'md')
+        end
+        return path
+    end
+    local confirm_and_execute = function(opts)
+        local rel_source = M.relativeToBase(opts.derived_source)
+        local rel_goal = M.relativeToBase(opts.derived_goal)
         local choice = vim.fn.confirm(
             '⬇️  Move file?\n  ' .. rel_source .. '\n→ ' .. rel_goal,
             '&Yes\n&No'
@@ -854,19 +851,19 @@ M.moveSource = function()
             return
         end
         -- Capture resolved path while file still exists (before rename)
-        local resolved_source = vim.fn.resolve(derived_source)
-        local ok = vim.fn.rename(derived_source, derived_goal)
+        local resolved_source = vim.fn.resolve(opts.derived_source)
+        local ok = vim.fn.rename(opts.derived_source, opts.derived_goal)
         if ok ~= 0 then
             vim.notify('⬇️  Failed to move file (cross-filesystem?)', vim.log.levels.ERROR)
             return
         end
         -- Update buffer name so statusline, :w, etc. use the new path
-        local old_bufnr = vim.fn.bufnr(derived_source)
+        local old_bufnr = vim.fn.bufnr(opts.derived_source)
         if old_bufnr ~= -1 and vim.api.nvim_buf_is_loaded(old_bufnr) then
-            vim.api.nvim_buf_set_name(old_bufnr, derived_goal)
+            vim.api.nvim_buf_set_name(old_bufnr, opts.derived_goal)
             -- nvim_buf_set_name leaves an unlisted ghost buffer with the
             -- old name; wipe it to avoid confusion
-            local ghost = vim.fn.bufnr(derived_source)
+            local ghost = vim.fn.bufnr(opts.derived_source)
             if ghost ~= -1 then
                 vim.api.nvim_buf_delete(ghost, { force = true })
             end
@@ -874,13 +871,13 @@ M.moveSource = function()
         -- Change the link content
         vim.api.nvim_buf_set_text(
             0,
-            start_row - 1,
-            start_col - 1,
-            end_row - 1,
-            end_col,
-            { location .. anchor }
+            opts.start_row - 1,
+            opts.start_col - 1,
+            opts.end_row - 1,
+            opts.end_col,
+            { opts.location .. opts.anchor }
         )
-        vim.notify('⬇️  Success! File moved to ' .. derived_goal, vim.log.levels.INFO)
+        vim.notify('⬇️  Success! File moved to ' .. opts.derived_goal, vim.log.levels.INFO)
         -- Scan notebook for other references to the old path
         if cfg().modules.notebook ~= false then
             local cur_file = vim.api.nvim_buf_get_name(0)
@@ -897,121 +894,75 @@ M.moveSource = function()
             end
             find_references_async(resolved_source, cur_file, buf_cache, function(refs)
                 if #refs > 0 then
-                    open_review(refs, derived_goal)
+                    open_review(refs, opts.derived_goal)
                 end
             end)
         end
     end
     -- Retrieve source from link
     local links = mkdn().links
-    local implicit_extension = cfg().links.implicit_extension
     local create_dirs = cfg().create_dirs
     local source, anchor, link_type, start_row, start_col, end_row, end_col =
         links.getLinkPart(links.getLinkUnderCursor(), 'source')
-    if source then
-        -- Determine type of source
-        local source_type = M.pathType(source)
-        -- Modify source path in the same way as when links are interpreted
-        local derived_source = M.transformPath(source)
-        if not derived_source:match('%..+$') then
-            if implicit_extension then
-                derived_source = derived_source .. '.' .. implicit_extension
-            else
-                derived_source = derived_source .. '.md'
-            end
-        end
-        -- If it's a file, determine the full path of the source using perspective
-        derived_source = derive_path(derived_source, source_type)
-        -- Ask user to edit name in console (only display what's in the link)
-        local input_opts = {
-            prompt = '⬇️  Move to: ',
-            default = source,
-            completion = 'file',
-        }
-        -- Determine what to do based on user input
-        vim.ui.input(input_opts, function(location)
-            if location then
-                local derived_goal = M.transformPath(location)
-                if not derived_goal:match('%..+$') then
-                    if implicit_extension then
-                        derived_goal = derived_goal .. '.' .. implicit_extension
-                    else
-                        derived_goal = derived_goal .. '.md'
-                    end
-                end
-                derived_goal = derive_path(derived_goal, M.pathType(derived_goal))
-                local source_exists = exists(derived_source, 'f')
-                local goal_exists = exists(derived_goal, 'f')
-                local dir = vim.fs.dirname(derived_goal)
-                if goal_exists then -- If the goal location already exists, abort
-                    vim.cmd('normal! :')
-                    vim.notify(
-                        "⬇️  '" .. location .. "' already exists! Aborting.",
-                        vim.log.levels.WARN
-                    )
-                elseif source_exists then -- If the source location exists, proceed
-                    if dir then -- If there's a directory in the goal location, ...
-                        local to_dir_exists = exists(dir, 'd')
-                        if not to_dir_exists then
-                            if create_dirs then
-                                vim.fn.mkdir(dir, 'p')
-                                confirm_and_execute(
-                                    derived_source,
-                                    source,
-                                    derived_goal,
-                                    anchor,
-                                    location,
-                                    start_row,
-                                    start_col,
-                                    end_row,
-                                    end_col
-                                )
-                            else
-                                vim.cmd('normal! :')
-                                vim.notify(
-                                    "⬇️  The goal directory doesn't exist. Set create_dirs to true for automatic directory creation.",
-                                    vim.log.levels.WARN
-                                )
-                            end
-                        else
-                            confirm_and_execute(
-                                derived_source,
-                                source,
-                                derived_goal,
-                                anchor,
-                                location,
-                                start_row,
-                                start_col,
-                                end_row,
-                                end_col
-                            )
-                        end
-                    else -- Move
-                        confirm_and_execute(
-                            derived_source,
-                            source,
-                            derived_goal,
-                            anchor,
-                            location,
-                            start_row,
-                            start_col,
-                            end_row,
-                            end_col
-                        )
-                    end
-                else -- Otherwise, the file we're trying to move must not exist
-                    -- Clear the prompt & send a warning
-                    vim.cmd('normal! :')
-                    vim.notify(
-                        '⬇️  ' .. derived_source .. " doesn't seem to exist! Aborting.",
-                        vim.log.levels.WARN
-                    )
-                end
-            end
-        end)
-    else
+    if not source then
         vim.notify("⬇️  Couldn't find a link under the cursor to rename!", vim.log.levels.WARN)
+        return
     end
+    -- Modify source path in the same way as when links are interpreted
+    local derived_source = ensure_extension(M.transformPath(source))
+    derived_source = derive_path(derived_source, M.pathType(source))
+    -- Ask user to edit name in console (only display what's in the link)
+    vim.ui.input({
+        prompt = '⬇️  Move to: ',
+        default = source,
+        completion = 'file',
+    }, function(location)
+        if not location then
+            return
+        end
+
+        local derived_goal = ensure_extension(M.transformPath(location))
+        derived_goal = derive_path(derived_goal, M.pathType(derived_goal))
+
+        if exists(derived_goal, 'f') then
+            vim.notify(
+                "⬇️  '" .. location .. "' already exists! Aborting.",
+                vim.log.levels.WARN
+            )
+            return
+        end
+        if not exists(derived_source, 'f') then
+            vim.notify(
+                '⬇️  ' .. derived_source .. " doesn't seem to exist! Aborting.",
+                vim.log.levels.WARN
+            )
+            return
+        end
+
+        local dir = vim.fs.dirname(derived_goal)
+        if dir and not exists(dir, 'd') then
+            if not create_dirs then
+                vim.notify(
+                    "⬇️  The goal directory doesn't exist. Set create_dirs to true for automatic directory creation.",
+                    vim.log.levels.WARN
+                )
+                return
+            end
+            vim.fn.mkdir(dir, 'p')
+        end
+
+        confirm_and_execute({
+            derived_source = derived_source,
+            source = source,
+            derived_goal = derived_goal,
+            anchor = anchor,
+            location = location,
+            start_row = start_row,
+            start_col = start_col,
+            end_row = end_row,
+            end_col = end_col,
+        })
+    end)
 end
 
 M._test = {
