@@ -886,6 +886,17 @@ M.moveSource = function()
                     vim.o.cmdheight = cmdheight
                     return
                 end
+                -- Update buffer name so statusline, :w, etc. use the new path
+                local old_bufnr = vim.fn.bufnr(derived_source)
+                if old_bufnr ~= -1 and vim.api.nvim_buf_is_loaded(old_bufnr) then
+                    vim.api.nvim_buf_set_name(old_bufnr, derived_goal)
+                    -- nvim_buf_set_name leaves an unlisted ghost buffer with the
+                    -- old name; wipe it to avoid confusion
+                    local ghost = vim.fn.bufnr(derived_source)
+                    if ghost ~= -1 then
+                        vim.api.nvim_buf_delete(ghost, { force = true })
+                    end
+                end
                 -- Change the link content
                 vim.api.nvim_buf_set_text(
                     0,
