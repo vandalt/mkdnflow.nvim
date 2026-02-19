@@ -1371,11 +1371,11 @@ T['getBaseDir']['falls back to initial_dir when root not found'] = function()
     eq(result, '/fake/wiki')
 end
 
-T['getBaseDir']['uses current buffer dir when primary=current'] = function()
+T['getBaseDir']['uses current buffer dir with root fallback to current'] = function()
     child.lua([[
         local init = require('mkdnflow')
         init.setup({
-            path_resolution = { primary = 'current' },
+            path_resolution = { primary = 'root', fallback = 'current' },
             links = { transform_on_create = false, transform_on_follow = false },
         })
         vim.api.nvim_buf_set_name(0, '/some/dir/file.md')
@@ -1384,11 +1384,11 @@ T['getBaseDir']['uses current buffer dir when primary=current'] = function()
     eq(result, '/some/dir')
 end
 
-T['getBaseDir']['uses buf_path argument for current strategy'] = function()
+T['getBaseDir']['uses buf_path argument with root fallback to current'] = function()
     child.lua([[
         local init = require('mkdnflow')
         init.setup({
-            path_resolution = { primary = 'current' },
+            path_resolution = { primary = 'root', fallback = 'current' },
             links = { transform_on_create = false, transform_on_follow = false },
         })
     ]])
@@ -1400,7 +1400,7 @@ T['getBaseDir']['falls back to cwd when dirname is nil'] = function()
     child.lua([[
         local init = require('mkdnflow')
         init.setup({
-            path_resolution = { primary = 'current' },
+            path_resolution = { primary = 'root', fallback = 'current' },
             links = { transform_on_create = false, transform_on_follow = false },
         })
         -- Set buffer name to empty string so dirname returns nil/empty
@@ -1966,8 +1966,8 @@ T['moveSource_references']['compute_new_source keeps explicit extension'] = func
     eq(result, 'renamed.md')
 end
 
--- compute_new_source: current strategy computes relative paths
-T['moveSource_references']['compute_new_source current strategy'] = new_set({
+-- compute_new_source: current fallback computes relative paths per-file
+T['moveSource_references']['compute_new_source current fallback'] = new_set({
     hooks = {
         pre_case = function()
             child.restart({ '-u', 'scripts/minimal_init.lua' })
@@ -1979,14 +1979,14 @@ T['moveSource_references']['compute_new_source current strategy'] = new_set({
                 vim.bo.filetype = 'markdown'
                 require('mkdnflow').setup({
                     modules = { paths = true, links = true },
-                    path_resolution = { primary = 'current' },
+                    path_resolution = { primary = 'root', fallback = 'current' },
                 })
             ]])
         end,
     },
 })
 
-T['moveSource_references']['compute_new_source current strategy']['relative path from root'] = function()
+T['moveSource_references']['compute_new_source current fallback']['relative path from root'] = function()
     local result = child.lua_get([[
             require('mkdnflow.paths')._test.compute_new_source(
                 'page',
@@ -1997,7 +1997,7 @@ T['moveSource_references']['compute_new_source current strategy']['relative path
     eq(result, 'sub/renamed')
 end
 
-T['moveSource_references']['compute_new_source current strategy']['relative path from subdir'] = function()
+T['moveSource_references']['compute_new_source current fallback']['relative path from subdir'] = function()
     local result = child.lua_get([[
             require('mkdnflow.paths')._test.compute_new_source(
                 '../page',
@@ -2242,22 +2242,30 @@ T['moveSource']['renames file and updates cursor link (root strategy)'] = functi
     eq(lines[1], '[page](notes/renamed)')
 end
 
-T['moveSource']['renames file and updates cursor link (current strategy)'] = function()
+T['moveSource']['renames file and updates cursor link (current fallback)'] = function()
+    -- Setup from index.md (initial_dir = tmpdir) with root fallback to current,
+    -- then switch to sub/ref.md. The link ../page must resolve relative to
+    -- sub/ (not initial_dir), distinguishing current fallback from first strategy.
     child.lua([[
+        -- pre_case opened index.md; re-setup with root + current fallback
         require('mkdnflow').setup({
             modules = { paths = true, links = true, maps = true, notebook = true },
-            path_resolution = { primary = 'current' },
+            path_resolution = { primary = 'root', fallback = 'current' },
         })
+        -- initial_dir = tmpdir (from index.md), root_dir = nil (no marker)
 
-        _G._index_buf = vim.api.nvim_get_current_buf()
-        _G._input_response = 'renamed'
+        vim.cmd('e ' .. _G._tmpdir .. '/sub/ref.md')
+        vim.bo.filetype = 'markdown'
+
+        _G._ref_buf = vim.api.nvim_get_current_buf()
+        _G._input_response = '../renamed'
         vim.api.nvim_win_set_cursor(0, { 1, 1 })
         require('mkdnflow.paths').moveSource()
     ]])
     eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/renamed.md")'), 1)
     eq(child.lua_get('vim.fn.filereadable(_G._tmpdir .. "/page.md")'), 0)
-    local lines = child.lua_get('vim.api.nvim_buf_get_lines(_G._index_buf, 0, -1, false)')
-    eq(lines[1], '[page](renamed)')
+    local lines = child.lua_get('vim.api.nvim_buf_get_lines(_G._ref_buf, 0, -1, false)')
+    eq(lines[1], '[page](../renamed)')
 end
 
 T['moveSource']['populates quickfix with references after rename'] = function()

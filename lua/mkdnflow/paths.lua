@@ -469,7 +469,10 @@ local resolve_link_source = function(source, from_filepath)
 
     local resolved = M.transformPath(source)
 
-    if not resolved:match('%..+$') then
+    -- Check basename only; plain '%..+$' would false-positive on relative
+    -- paths like '../page' where the dots are path separators.
+    local basename = resolved:match('[^/\\]+$') or resolved
+    if not basename:match('%..+$') then
         resolved = resolved .. '.' .. (implicit_extension or 'md')
     end
 
@@ -836,7 +839,10 @@ M.moveSource = function()
     end
     local implicit_extension = cfg().links.implicit_extension
     local ensure_extension = function(path)
-        if not path:match('%..+$') then
+        -- Check basename only; plain '%..+$' would false-positive on relative
+        -- paths like '../page' where the dots are path separators.
+        local bn = path:match('[^/\\]+$') or path
+        if not bn:match('%..+$') then
             return path .. '.' .. (implicit_extension or 'md')
         end
         return path
