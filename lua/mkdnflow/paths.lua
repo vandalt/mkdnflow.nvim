@@ -483,6 +483,362 @@ local truncate_path = function(oldpath, newpath)
     return difference
 end
 
+--- Resolve a link's source text to an absolute path.
+--- Mirrors the flow in moveSource: raw source -> transformPath -> add extension -> resolve.
+---@param source string The link source text
+---@param from_filepath string The file containing the link (used for 'current' strategy)
+---@return string abs_path The resolved absolute path
+---@private
+local resolve_link_source = function(source, from_filepath)
+    local path_resolution = cfg().path_resolution
+    local implicit_extension = cfg().links.implicit_extension
+    local s = sep()
+
+    local resolved = M.transformPath(source)
+
+    if not resolved:match('%..+$') then
+        resolved = resolved .. '.' .. (implicit_extension or 'md')
+    end
+
+    if resolved:match('^/') or resolved:match('^~/') then
+        return resolved
+    end
+
+    if path_resolution.primary == 'root' and mkdn().root_dir then
+        return mkdn().root_dir .. s .. resolved
+    elseif
+        path_resolution.primary == 'first'
+        or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
+    then
+        return mkdn().initial_dir .. s .. resolved
+    else
+        return vim.fs.dirname(from_filepath) .. s .. resolved
+    end
+end
+
+--- Compute a relative path from one file's directory to another file.
+---@param from_file string The file whose directory is the starting point
+---@param to_file string The target file
+---@return string relative_path
+---@private
+local compute_relative_path = function(from_file, to_file)
+    local s = sep()
+    local from_dir = vim.fn.resolve(vim.fs.dirname(from_file))
+    local to_resolved = vim.fn.resolve(to_file)
+    local from_parts = vim.split(from_dir, s, { plain = true })
+    local to_parts = vim.split(to_resolved, s, { plain = true })
+
+    local common = 0
+    for i = 1, math.min(#from_parts, #to_parts) do
+        if from_parts[i] == to_parts[i] then
+            common = i
+        else
+            break
+        end
+    end
+
+    local parts = {}
+    for _ = 1, #from_parts - common do
+        table.insert(parts, '..')
+    end
+    for i = common + 1, #to_parts do
+        table.insert(parts, to_parts[i])
+    end
+
+    return table.concat(parts, s)
+end
+
+--- Compute the new link source text for a reference in a given file.
+---@param old_source string The original link source text
+---@param new_abs_path string The new absolute path of the moved file
+---@param from_filepath string The file containing the reference
+---@return string new_source The new link source text
+---@private
+local compute_new_source = function(old_source, new_abs_path, from_filepath)
+    local path_resolution = cfg().path_resolution
+    local implicit_extension = cfg().links.implicit_extension
+    -- Check the basename for an extension; plain '%..+$' would false-positive
+    -- on relative paths like '../page' where the dots are path components.
+    local basename = old_source:match('[^/\\]+$') or old_source
+    local had_extension = basename:match('%..+$') ~= nil
+    local new_source
+
+    if path_resolution.primary == 'root' and mkdn().root_dir then
+        new_source = M.relativeToBase(new_abs_path)
+    elseif
+        path_resolution.primary == 'first'
+        or (path_resolution.primary == 'root' and path_resolution.fallback == 'first')
+    then
+        new_source = M.relativeToBase(new_abs_path)
+    else
+        new_source = compute_relative_path(from_filepath, new_abs_path)
+    end
+
+    if not had_extension then
+        local ext = implicit_extension or 'md'
+        new_source = new_source:gsub('%.' .. vim.pesc(ext) .. '$', '')
+    end
+
+    return new_source
+end
+
+--- Asynchronously scan the notebook for links pointing to a given absolute path.
+---@param old_abs_path string Resolved absolute path of the moved file (pre-rename)
+---@param skip_filepath string Absolute path of the current file (already updated)
+---@param on_done fun(refs: table[]) Called with array of reference entries
+---@private
+local find_references_async = function(old_abs_path, skip_filepath, on_done)
+    local luv = vim.uv or vim.loop
+    local notebook = require('mkdnflow.notebook')
+    local base_dir = mkdn().root_dir or mkdn().initial_dir or vim.fn.getcwd()
+
+    old_abs_path = vim.fn.resolve(old_abs_path)
+    skip_filepath = vim.fn.resolve(skip_filepath)
+
+    local references = {}
+
+    notebook.scanFiles(base_dir, function(files)
+        local pending = 0
+        for _, filepath in ipairs(files) do
+            local real = luv.fs_realpath(filepath)
+            if (real or filepath) ~= skip_filepath then
+                pending = pending + 1
+            end
+        end
+
+        if pending == 0 then
+            vim.schedule(function()
+                on_done(references)
+            end)
+            return
+        end
+
+        local function file_done()
+            pending = pending - 1
+            if pending == 0 then
+                vim.schedule(function()
+                    on_done(references)
+                end)
+            end
+        end
+
+        for _, filepath in ipairs(files) do
+            local real_filepath = luv.fs_realpath(filepath)
+            if (real_filepath or filepath) ~= skip_filepath then
+                notebook.readFile(filepath, function(lines)
+                    if not lines then
+                        file_done()
+                        return
+                    end
+
+                    local links = notebook.scanLinks(lines, {
+                        types = {
+                            md_link = true,
+                            wiki_link = true,
+                            image_link = true,
+                            ref_definition = true,
+                        },
+                    })
+
+                    for _, link in ipairs(links) do
+                        if link.source and link.source ~= '' then
+                            local resolved = resolve_link_source(link.source, filepath)
+                            local real_resolved = luv.fs_realpath(resolved)
+                            if (real_resolved or resolved) == old_abs_path then
+                                table.insert(references, {
+                                    filepath = filepath,
+                                    lnum = link.row,
+                                    col = link.col,
+                                    match = link.match,
+                                    source = link.source,
+                                    anchor = link.anchor or '',
+                                    type = link.type,
+                                })
+                            end
+                        end
+                    end
+
+                    file_done()
+                end)
+            end
+        end
+    end)
+end
+
+--- Open a quickfix list with proposed link changes and set up interactive review keybindings.
+---@param changes table[] Array of reference entries from find_references_async
+---@param new_abs_path string The new absolute path of the moved file
+---@private
+local open_review = function(changes, new_abs_path)
+    for _, change in ipairs(changes) do
+        change.new_source = compute_new_source(change.source, new_abs_path, change.filepath)
+    end
+
+    local items = {}
+    for _, change in ipairs(changes) do
+        table.insert(items, {
+            filename = change.filepath,
+            lnum = change.lnum,
+            col = change.col,
+            text = change.source .. ' → ' .. change.new_source,
+        })
+    end
+
+    vim.fn.setqflist(items)
+    vim.cmd.copen()
+
+    local qf_bufnr = vim.api.nvim_get_current_buf()
+    local ns_id = vim.api.nvim_create_namespace('mkdnflow_review')
+
+    vim.api.nvim_buf_set_extmark(qf_bufnr, ns_id, 0, 0, {
+        virt_lines_above = true,
+        virt_lines = {
+            { { ' a = apply  s = skip  A = apply all  q = quit ', 'Comment' } },
+        },
+    })
+
+    local function replace_on_line(line, col, old_match, new_match)
+        local before = line:sub(1, col - 1)
+        local after = line:sub(col)
+        local new_after = after:gsub(vim.pesc(old_match), function()
+            return new_match
+        end, 1)
+        return before .. new_after
+    end
+
+    local function apply_change(change)
+        local old_ref = change.source .. change.anchor
+        local new_ref = change.new_source .. change.anchor
+        local new_match = change.match:gsub(vim.pesc(old_ref), function()
+            return new_ref
+        end, 1)
+
+        local bufnr = vim.fn.bufnr(change.filepath)
+        if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
+            local line = vim.api.nvim_buf_get_lines(bufnr, change.lnum - 1, change.lnum, false)[1]
+            local new_line = replace_on_line(line, change.col, change.match, new_match)
+            vim.api.nvim_buf_set_lines(bufnr, change.lnum - 1, change.lnum, false, { new_line })
+        else
+            local lines = vim.fn.readfile(change.filepath)
+            if lines and lines[change.lnum] then
+                lines[change.lnum] =
+                    replace_on_line(lines[change.lnum], change.col, change.match, new_match)
+                vim.fn.writefile(lines, change.filepath)
+            end
+        end
+        change.applied = true
+    end
+
+    local function update_display()
+        local cur_line = vim.fn.line('.')
+        local new_items = {}
+        for _, change in ipairs(changes) do
+            local prefix = ''
+            if change.applied then
+                prefix = '✓ '
+            elseif change.skipped then
+                prefix = '⊘ '
+            end
+            table.insert(new_items, {
+                filename = change.filepath,
+                lnum = change.lnum,
+                col = change.col,
+                text = prefix .. change.source .. ' → ' .. change.new_source,
+            })
+        end
+        vim.fn.setqflist(new_items, 'r')
+        pcall(vim.api.nvim_win_set_cursor, 0, { cur_line, 0 })
+    end
+
+    local cleaned_up = false
+
+    local function cleanup()
+        cleaned_up = true
+        local applied_count = 0
+        for _, c in ipairs(changes) do
+            if c.applied then
+                applied_count = applied_count + 1
+            end
+        end
+        pcall(vim.api.nvim_buf_clear_namespace, qf_bufnr, ns_id, 0, -1)
+        vim.cmd.cclose()
+        if applied_count > 0 then
+            vim.notify('⬇️  Updated ' .. applied_count .. ' reference(s)', vim.log.levels.INFO)
+        end
+    end
+
+    local function next_pending()
+        local cur = vim.fn.line('.')
+        for i = cur + 1, #changes do
+            if not changes[i].applied and not changes[i].skipped then
+                vim.api.nvim_win_set_cursor(0, { i, 0 })
+                return
+            end
+        end
+        cleanup()
+    end
+
+    vim.api.nvim_create_autocmd('BufWipeout', {
+        buffer = qf_bufnr,
+        once = true,
+        callback = function()
+            if cleaned_up then
+                return
+            end
+            local applied_count = 0
+            for _, c in ipairs(changes) do
+                if c.applied then
+                    applied_count = applied_count + 1
+                end
+            end
+            if applied_count > 0 then
+                vim.schedule(function()
+                    vim.notify(
+                        '⬇️  Updated ' .. applied_count .. ' reference(s)',
+                        vim.log.levels.INFO
+                    )
+                end)
+            end
+        end,
+    })
+
+    local map_opts = { buffer = qf_bufnr, nowait = true }
+
+    vim.keymap.set('n', 'a', function()
+        local idx = vim.fn.line('.')
+        local change = changes[idx]
+        if change and not change.applied and not change.skipped then
+            apply_change(change)
+            update_display()
+        end
+        next_pending()
+    end, map_opts)
+
+    vim.keymap.set('n', 's', function()
+        local idx = vim.fn.line('.')
+        local change = changes[idx]
+        if change then
+            change.skipped = true
+            update_display()
+        end
+        next_pending()
+    end, map_opts)
+
+    vim.keymap.set('n', 'A', function()
+        for _, change in ipairs(changes) do
+            if not change.applied and not change.skipped then
+                apply_change(change)
+            end
+        end
+        update_display()
+        cleanup()
+    end, map_opts)
+
+    vim.keymap.set('n', 'q', function()
+        cleanup()
+    end, map_opts)
+end
+
 --- Interactively rename/move the file referenced by the link under the cursor
 M.moveSource = function()
     local derive_path = function(source, _type)
@@ -521,6 +877,8 @@ M.moveSource = function()
         vim.o.cmdheight = rows_needed
         vim.ui.input({ prompt = prompt }, function(response)
             if response == 'y' then
+                -- Capture resolved path while file still exists (before rename)
+                local resolved_source = vim.fn.resolve(derived_source)
                 local ok = vim.fn.rename(derived_source, derived_goal)
                 if ok ~= 0 then
                     vim.notify(
@@ -544,6 +902,15 @@ M.moveSource = function()
                 vim.cmd('normal! :')
                 vim.o.cmdheight = cmdheight
                 vim.notify('⬇️  Success! File moved to ' .. derived_goal, vim.log.levels.INFO)
+                -- Scan notebook for other references to the old path
+                if cfg().modules.notebook ~= false then
+                    local cur_file = vim.api.nvim_buf_get_name(0)
+                    find_references_async(resolved_source, cur_file, function(refs)
+                        if #refs > 0 then
+                            open_review(refs, derived_goal)
+                        end
+                    end)
+                end
             else
                 -- Clear the prompt & print sth
                 -- Reset cmdheight value
@@ -653,6 +1020,14 @@ M.moveSource = function()
         vim.notify("⬇️  Couldn't find a link under the cursor to rename!", vim.log.levels.WARN)
     end
 end
+
+M._test = {
+    resolve_link_source = resolve_link_source,
+    compute_relative_path = compute_relative_path,
+    compute_new_source = compute_new_source,
+    find_references_async = find_references_async,
+    open_review = open_review,
+}
 
 -- Return all the functions added to the table M!
 return M

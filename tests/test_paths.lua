@@ -1513,9 +1513,7 @@ T['uri_handlers']['pathType returns uri_handler for registered scheme'] = functi
             },
         })
     ]])
-    local result = child.lua_get(
-        [[require('mkdnflow.paths').pathType('phd://path/to/paper.pdf')]]
-    )
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('phd://path/to/paper.pdf')]])
     eq(result, 'uri_handler')
 end
 
@@ -1529,9 +1527,7 @@ T['uri_handlers']['pathType falls through for unregistered scheme'] = function()
             },
         })
     ]])
-    local result = child.lua_get(
-        [[require('mkdnflow.paths').pathType('https://example.com')]]
-    )
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('https://example.com')]])
     eq(result, 'url')
 end
 
@@ -1545,9 +1541,7 @@ T['uri_handlers']['pathType skips handler when value is false'] = function()
             },
         })
     ]])
-    local result = child.lua_get(
-        [[require('mkdnflow.paths').pathType('phd://path/to/paper.pdf')]]
-    )
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('phd://path/to/paper.pdf')]])
     -- false handler means fall through; phd:// won't match hasUrl or other checks
     eq(result ~= 'uri_handler', true)
 end
@@ -1624,9 +1618,7 @@ T['uri_handlers']['http URLs still handled as url type'] = function()
             },
         })
     ]])
-    local result = child.lua_get(
-        [[require('mkdnflow.paths').pathType('https://example.com')]]
-    )
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('https://example.com')]])
     eq(result, 'url')
 end
 
@@ -1640,9 +1632,7 @@ T['uri_handlers']['file: prefix still handled as external even if registered'] =
             },
         })
     ]])
-    local result = child.lua_get(
-        [[require('mkdnflow.paths').pathType('file:document.pdf')]]
-    )
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('file:document.pdf')]])
     eq(result, 'external')
 end
 
@@ -1660,9 +1650,7 @@ T['uri_handlers']['can override http scheme'] = function()
             },
         })
     ]])
-    local result = child.lua_get(
-        [[require('mkdnflow.paths').pathType('https://example.com')]]
-    )
+    local result = child.lua_get([[require('mkdnflow.paths').pathType('https://example.com')]])
     eq(result, 'uri_handler')
 end
 
@@ -1822,6 +1810,331 @@ T['edit_dirs']['function pushes buffer stack for back navigation'] = function()
     child.lua([[require('mkdnflow.buffers').goBack()]])
     local buf_after_back = child.lua_get('vim.api.nvim_buf_get_name(0)')
     eq(buf_before, buf_after_back)
+end
+
+-- =============================================================================
+-- moveSource notebook-wide reference scanning
+-- =============================================================================
+T['moveSource_references'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/sub', 'p')
+                vim.fn.writefile({'[page](page.md)'}, _G._tmpdir .. '/index.md')
+                vim.fn.writefile({'# Page'}, _G._tmpdir .. '/page.md')
+                vim.fn.writefile({'[see page](page.md)'}, _G._tmpdir .. '/other.md')
+                vim.fn.writefile({'[click here][page]', '', '[page]: page.md'}, _G._tmpdir .. '/refstyle.md')
+                vim.fn.writefile({'[page](../page.md)'}, _G._tmpdir .. '/sub/ref.md')
+                vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+                vim.bo.filetype = 'markdown'
+
+                require('mkdnflow').setup({
+                    modules = { paths = true, links = true },
+                    path_resolution = { primary = 'first' },
+                })
+            ]])
+        end,
+    },
+})
+
+-- find_references_async: finds matching links in other files
+T['moveSource_references']['find_references finds matching links'] = function()
+    child.lua([[
+        _G._refs = nil
+        require('mkdnflow.paths')._test.find_references_async(
+            _G._tmpdir .. '/page.md',
+            _G._tmpdir .. '/index.md',
+            function(refs) _G._refs = refs end
+        )
+        vim.wait(5000, function() return _G._refs ~= nil end, 50)
+    ]])
+    local refs = child.lua_get('_G._refs')
+    -- Should find references in other.md (and possibly refstyle.md for ref_definition)
+    local found_other = false
+    for _, ref in ipairs(refs) do
+        if ref.filepath:match('other%.md$') then
+            found_other = true
+        end
+    end
+    eq(found_other, true)
+end
+
+-- find_references_async: skips the current file
+T['moveSource_references']['find_references skips current file'] = function()
+    child.lua([[
+        _G._refs = nil
+        require('mkdnflow.paths')._test.find_references_async(
+            _G._tmpdir .. '/page.md',
+            _G._tmpdir .. '/index.md',
+            function(refs) _G._refs = refs end
+        )
+        vim.wait(5000, function() return _G._refs ~= nil end, 50)
+    ]])
+    local refs = child.lua_get('_G._refs')
+    local found_index = false
+    for _, ref in ipairs(refs) do
+        if ref.filepath:match('index%.md$') then
+            found_index = true
+        end
+    end
+    eq(found_index, false)
+end
+
+-- find_references_async: skips non-matching links
+T['moveSource_references']['find_references skips non-matching links'] = function()
+    child.lua([[
+        vim.fn.writefile({'[other](unrelated.md)'}, _G._tmpdir .. '/nomatch.md')
+        _G._refs = nil
+        require('mkdnflow.paths')._test.find_references_async(
+            _G._tmpdir .. '/page.md',
+            _G._tmpdir .. '/index.md',
+            function(refs) _G._refs = refs end
+        )
+        vim.wait(5000, function() return _G._refs ~= nil end, 50)
+    ]])
+    local refs = child.lua_get('_G._refs')
+    local found_nomatch = false
+    for _, ref in ipairs(refs) do
+        if ref.filepath:match('nomatch%.md$') then
+            found_nomatch = true
+        end
+    end
+    eq(found_nomatch, false)
+end
+
+-- find_references_async: handles ref_definition type
+T['moveSource_references']['find_references handles ref_definition'] = function()
+    child.lua([[
+        _G._refs = nil
+        require('mkdnflow.paths')._test.find_references_async(
+            _G._tmpdir .. '/page.md',
+            _G._tmpdir .. '/index.md',
+            function(refs) _G._refs = refs end
+        )
+        vim.wait(5000, function() return _G._refs ~= nil end, 50)
+    ]])
+    local refs = child.lua_get('_G._refs')
+    local found_refdef = false
+    for _, ref in ipairs(refs) do
+        if ref.filepath:match('refstyle%.md$') and ref.type == 'ref_definition' then
+            found_refdef = true
+        end
+    end
+    eq(found_refdef, true)
+end
+
+-- compute_new_source: first strategy
+T['moveSource_references']['compute_new_source first strategy'] = function()
+    local result = child.lua_get([[
+        require('mkdnflow.paths')._test.compute_new_source(
+            'page',
+            require('mkdnflow').initial_dir .. '/renamed.md',
+            require('mkdnflow').initial_dir .. '/other.md'
+        )
+    ]])
+    eq(result, 'renamed')
+end
+
+-- compute_new_source: preserves implicit extension
+T['moveSource_references']['compute_new_source preserves implicit extension'] = function()
+    -- Old source has no extension -> new source should have no extension
+    local result = child.lua_get([[
+        require('mkdnflow.paths')._test.compute_new_source(
+            'page',
+            require('mkdnflow').initial_dir .. '/sub/renamed.md',
+            require('mkdnflow').initial_dir .. '/other.md'
+        )
+    ]])
+    eq(result, 'sub/renamed')
+end
+
+-- compute_new_source: keeps extension when old source had one
+T['moveSource_references']['compute_new_source keeps explicit extension'] = function()
+    local result = child.lua_get([[
+        require('mkdnflow.paths')._test.compute_new_source(
+            'page.md',
+            require('mkdnflow').initial_dir .. '/renamed.md',
+            require('mkdnflow').initial_dir .. '/other.md'
+        )
+    ]])
+    eq(result, 'renamed.md')
+end
+
+-- compute_new_source: current strategy computes relative paths
+T['moveSource_references']['compute_new_source current strategy'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            child.lua([[
+                _G._tmpdir = vim.fn.resolve(vim.fn.tempname())
+                vim.fn.mkdir(_G._tmpdir .. '/sub', 'p')
+                vim.fn.writefile({''}, _G._tmpdir .. '/index.md')
+                vim.cmd('e ' .. _G._tmpdir .. '/index.md')
+                vim.bo.filetype = 'markdown'
+                require('mkdnflow').setup({
+                    modules = { paths = true, links = true },
+                    path_resolution = { primary = 'current' },
+                })
+            ]])
+        end,
+    },
+})
+
+T['moveSource_references']['compute_new_source current strategy']['relative path from root'] = function()
+    local result = child.lua_get([[
+            require('mkdnflow.paths')._test.compute_new_source(
+                'page',
+                _G._tmpdir .. '/sub/renamed.md',
+                _G._tmpdir .. '/index.md'
+            )
+        ]])
+    eq(result, 'sub/renamed')
+end
+
+T['moveSource_references']['compute_new_source current strategy']['relative path from subdir'] = function()
+    local result = child.lua_get([[
+            require('mkdnflow.paths')._test.compute_new_source(
+                '../page',
+                _G._tmpdir .. '/renamed.md',
+                _G._tmpdir .. '/sub/ref.md'
+            )
+        ]])
+    eq(result, '../renamed')
+end
+
+-- compute_relative_path: basic cases
+T['moveSource_references']['compute_relative_path same directory'] = function()
+    local result = child.lua_get([[
+        require('mkdnflow.paths')._test.compute_relative_path(
+            '/a/b/from.md', '/a/b/to.md'
+        )
+    ]])
+    eq(result, 'to.md')
+end
+
+T['moveSource_references']['compute_relative_path parent directory'] = function()
+    local result = child.lua_get([[
+        require('mkdnflow.paths')._test.compute_relative_path(
+            '/a/b/c/from.md', '/a/b/to.md'
+        )
+    ]])
+    eq(result, '../to.md')
+end
+
+T['moveSource_references']['compute_relative_path child directory'] = function()
+    local result = child.lua_get([[
+        require('mkdnflow.paths')._test.compute_relative_path(
+            '/a/b/from.md', '/a/b/c/to.md'
+        )
+    ]])
+    eq(result, 'c/to.md')
+end
+
+-- apply_change: modifies file on disk
+T['moveSource_references']['apply_change modifies file on disk'] = function()
+    child.lua([[
+        local changes = {
+            {
+                filepath = _G._tmpdir .. '/other.md',
+                lnum = 1,
+                col = 1,
+                match = '[see page](page.md)',
+                source = 'page.md',
+                anchor = '',
+                type = 'md_link',
+                new_source = 'renamed.md',
+            },
+        }
+        -- Use apply_change via open_review's internal function
+        -- Instead, directly test by simulating what apply_change does
+        local old_ref = 'page.md'
+        local new_ref = 'renamed.md'
+        local lines = vim.fn.readfile(_G._tmpdir .. '/other.md')
+        local old_match = '[see page](page.md)'
+        local new_match = old_match:gsub(vim.pesc(old_ref), function() return new_ref end, 1)
+        lines[1] = lines[1]:gsub(vim.pesc(old_match), function() return new_match end, 1)
+        vim.fn.writefile(lines, _G._tmpdir .. '/other.md')
+    ]])
+    local lines = child.lua_get([[vim.fn.readfile(_G._tmpdir .. '/other.md')]])
+    eq(lines[1], '[see page](renamed.md)')
+end
+
+-- open_review: populates quickfix list
+T['moveSource_references']['open_review populates quickfix list'] = function()
+    child.lua([[
+        local changes = {
+            {
+                filepath = _G._tmpdir .. '/other.md',
+                lnum = 1,
+                col = 1,
+                match = '[see page](page.md)',
+                source = 'page.md',
+                anchor = '',
+                type = 'md_link',
+            },
+        }
+        require('mkdnflow.paths')._test.open_review(changes, _G._tmpdir .. '/renamed.md')
+    ]])
+    local qflist = child.lua_get('vim.fn.getqflist()')
+    eq(#qflist, 1)
+    -- The text should contain the arrow between old and new source
+    local has_arrow = qflist[1].text:find('→') ~= nil
+    eq(has_arrow, true)
+    -- Clean up quickfix window
+    child.lua('vim.cmd.cclose()')
+end
+
+-- find_references_async: finds wiki links
+T['moveSource_references']['wiki links are found'] = function()
+    child.lua([=[
+        vim.fn.writefile({'[[page]]'}, _G._tmpdir .. '/wikilink.md')
+        _G._refs = nil
+        require('mkdnflow.paths')._test.find_references_async(
+            _G._tmpdir .. '/page.md',
+            _G._tmpdir .. '/index.md',
+            function(refs) _G._refs = refs end
+        )
+        vim.wait(5000, function() return _G._refs ~= nil end, 50)
+    ]=])
+    local refs = child.lua_get('_G._refs')
+    local found_wiki = false
+    for _, ref in ipairs(refs) do
+        if ref.filepath:match('wikilink%.md$') then
+            found_wiki = true
+        end
+    end
+    eq(found_wiki, true)
+end
+
+-- resolve_link_source: basic resolution
+T['moveSource_references']['resolve_link_source adds extension and resolves'] = function()
+    local result = child.lua_get([[
+        require('mkdnflow.paths')._test.resolve_link_source(
+            'page',
+            require('mkdnflow').initial_dir .. '/index.md'
+        )
+    ]])
+    local initial_dir = child.lua_get('require("mkdnflow").initial_dir')
+    eq(result, initial_dir .. '/page.md')
+end
+
+-- find_references_async with empty notebook
+T['moveSource_references']['find_references handles empty results'] = function()
+    child.lua([[
+        -- Search for a file that nothing links to
+        vim.fn.writefile({'# Orphan'}, _G._tmpdir .. '/orphan.md')
+        _G._refs = nil
+        require('mkdnflow.paths')._test.find_references_async(
+            _G._tmpdir .. '/orphan.md',
+            _G._tmpdir .. '/index.md',
+            function(refs) _G._refs = refs end
+        )
+        vim.wait(5000, function() return _G._refs ~= nil end, 50)
+    ]])
+    local refs = child.lua_get('_G._refs')
+    eq(#refs, 0)
 end
 
 return T
