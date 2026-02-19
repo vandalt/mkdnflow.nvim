@@ -658,6 +658,10 @@ local open_review = function(changes, new_abs_path)
     end
 
     local title = 'Update ' .. #items .. ' reference(s) to ' .. changes[1].source
+    vim.notify(
+        '⬇️  Found ' .. #items .. ' outdated reference(s). Review below:',
+        vim.log.levels.INFO
+    )
     vim.fn.setqflist({}, ' ', { items = items, title = title })
     vim.cmd.copen()
 
