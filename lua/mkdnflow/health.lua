@@ -523,42 +523,30 @@ function M.cleanConfig()
         end
     end
 
-    -- Create a scratch buffer
-    local buf = vim.api.nvim_create_buf(false, true)
-    vim.bo[buf].filetype = 'lua'
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, flat_lines)
-    vim.bo[buf].modifiable = false
-
     -- Size the floating window to fit content, capped to 80% of the editor
     local max_width = math.floor(vim.o.columns * 0.8)
     local max_height = math.floor(vim.o.lines * 0.8)
-    local width = 0
+    local content_width = 0
     for _, line in ipairs(flat_lines) do
-        width = math.max(width, #line)
+        content_width = math.max(content_width, #line)
     end
-    width = math.min(width + 2, max_width)
-    local height = math.min(#flat_lines, max_height)
+    content_width = math.min(content_width + 2, max_width)
+    local content_height = math.min(#flat_lines, max_height)
 
-    local win = vim.api.nvim_open_win(buf, true, {
-        relative = 'editor',
-        row = math.floor((vim.o.lines - height) / 2),
-        col = math.floor((vim.o.columns - width) / 2),
-        width = width,
-        height = height,
-        style = 'minimal',
-        border = 'rounded',
+    require('mkdnflow.panels').open({
+        name = 'clean_config',
+        lines = flat_lines,
+        position = 'float',
+        filetype = 'lua',
+        modifiable = false,
+        close_maps = { 'q', '<Esc>' },
         title = ' MkdnCleanConfig ',
-        title_pos = 'center',
+        float = {
+            border = 'rounded',
+            width = content_width,
+            height = content_height,
+        },
     })
-
-    -- Close the float with q or <Esc>
-    local close = function()
-        if vim.api.nvim_win_is_valid(win) then
-            vim.api.nvim_win_close(win, true)
-        end
-    end
-    vim.keymap.set('n', 'q', close, { buffer = buf, nowait = true })
-    vim.keymap.set('n', '<Esc>', close, { buffer = buf, nowait = true })
 end
 
 return M

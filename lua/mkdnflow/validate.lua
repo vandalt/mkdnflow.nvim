@@ -129,6 +129,12 @@ M.schema = {
     footnotes = {
         heading = { types = { 'boolean', 'string', 'table' } },
     },
+    panels = {
+        position = { enum = { 'right', 'left', 'bottom', 'top', 'float' } },
+        float = {
+            border = { types = { 'string', 'table' } },
+        },
+    },
     to_do = {
         statuses = { dynamic = true },
     },

@@ -214,6 +214,18 @@ local default_config = {
             apply_alignment = true,
         },
     },
+    panels = {
+        position = 'right',
+        width = 40,
+        height = 15,
+        close_maps = { 'q' },
+        focus = true,
+        float = {
+            border = 'rounded',
+            width = 0.6,
+            height = 0.7,
+        },
+    },
     yaml = {
         bib = { override = false },
     },
