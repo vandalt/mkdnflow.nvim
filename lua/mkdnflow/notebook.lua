@@ -100,6 +100,7 @@ M.scanFilesSync = function(dir, opts)
     local max_depth = opts.max_depth or 20
     local predicate = opts.predicate
     local results = {}
+    local seen = {}
 
     local function scan(path, depth)
         if depth > max_depth then
@@ -118,7 +119,11 @@ M.scanFilesSync = function(dir, opts)
                 local ext_match = ext and extensions[ext:lower()] or false
                 if ext_match then
                     if not predicate or predicate(name) then
-                        table.insert(results, full_path)
+                        local real = vim.fn.resolve(full_path)
+                        if not seen[real] then
+                            seen[real] = true
+                            table.insert(results, full_path)
+                        end
                     end
                 end
             end
@@ -257,6 +262,7 @@ M.scanFiles = function(dir, opts, on_done)
     local extensions = opts.extensions or cfg().notebook_extensions or { md = true }
     local max_depth = opts.max_depth or 20
     local results = {}
+    local seen = {}
     local pending = 0
 
     local function process_entry(full_path, resolved_type, depth)
@@ -267,7 +273,11 @@ M.scanFiles = function(dir, opts, on_done)
             if name then
                 local ext = name:match('%.([^%.]+)$')
                 if ext and extensions[ext:lower()] then
-                    table.insert(results, full_path)
+                    local real = uv.fs_realpath(full_path)
+                    if real and not seen[real] then
+                        seen[real] = true
+                        table.insert(results, full_path)
+                    end
                 end
             end
         end
