@@ -489,6 +489,18 @@ if vim.fn.exists('g:loaded_mkdnflow') == 0 then
             folds.unfoldSection()
         end
     end, {})
+    user_command('MkdnBacklinks', function(opts)
+        local backlinks = require_module('backlinks')
+        if backlinks then
+            backlinks.toggleBacklinks()
+        end
+    end, {})
+    user_command('MkdnBacklinksRefresh', function(opts)
+        local backlinks = require_module('backlinks')
+        if backlinks then
+            backlinks.refreshBacklinks()
+        end
+    end, {})
     user_command('MkdnCleanConfig', function()
         require('mkdnflow.health').cleanConfig()
     end, {})

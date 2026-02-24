@@ -20,6 +20,67 @@ local M = {}
 ---@type table<string, { buf: integer, win: integer, name: string, position: string }>
 local registry = {}
 
+--- Namespace for panel highlights
+local ns = vim.api.nvim_create_namespace('mkdnflow_panels')
+
+--- Shared highlight groups for all panels (default = true so users can override)
+local highlight_groups = {
+    MkdnflowPanelHeader = { link = 'Title' },
+    MkdnflowPanelSeparator = { link = 'Comment' },
+    MkdnflowPanelFile = { link = 'Directory' },
+    MkdnflowPanelLineNr = { link = 'LineNr' },
+    MkdnflowPanelMatch = { link = 'Comment' },
+    MkdnflowPanelCount = { link = 'Number' },
+    MkdnflowPanelEmpty = { link = 'NonText' },
+}
+
+for group, opts in pairs(highlight_groups) do
+    opts.default = true
+    vim.api.nvim_set_hl(0, group, opts)
+end
+
+--- Render lines into a buffer, supporting both plain strings and rich lines.
+--- Each element of `lines` can be:
+---   - A string (plain line, no highlights)
+---   - An array of chunks, where each chunk is either a string or { text, hl_group }
+---@param buf integer Buffer handle
+---@param lines (string | (string | string[])[])[] Lines to render
+---@private
+local function render_lines(buf, lines)
+    local plain = {}
+    local highlights = {}
+
+    for i, line in ipairs(lines) do
+        if type(line) == 'string' then
+            plain[i] = line
+        else
+            local parts = {}
+            local col = 0
+            for _, chunk in ipairs(line) do
+                local text, hl
+                if type(chunk) == 'string' then
+                    text = chunk
+                else
+                    text = chunk[1]
+                    hl = chunk[2]
+                end
+                table.insert(parts, text)
+                if hl and #text > 0 then
+                    table.insert(highlights, { i - 1, col, col + #text, hl })
+                end
+                col = col + #text
+            end
+            plain[i] = table.concat(parts)
+        end
+    end
+
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, plain)
+    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+    for _, hl in ipairs(highlights) do
+        vim.api.nvim_buf_add_highlight(buf, ns, hl[4], hl[1], hl[2], hl[3])
+    end
+end
+
 --- Fallback defaults used when require('mkdnflow').config is unavailable
 local defaults = {
     position = 'right',
@@ -205,9 +266,9 @@ M.open = function(opts)
         vim.bo[buf].filetype = cfg.filetype
     end
 
-    -- Set initial content
+    -- Set initial content (supports both plain strings and rich lines)
     if cfg.lines then
-        vim.api.nvim_buf_set_lines(buf, 0, -1, false, cfg.lines)
+        render_lines(buf, cfg.lines)
     end
     if not cfg.modifiable then
         vim.bo[buf].modifiable = false
@@ -227,6 +288,13 @@ M.open = function(opts)
         end
         return nil
     end
+
+    -- Disable gutter and wrap so panel width is fully usable for content
+    vim.wo[win].number = false
+    vim.wo[win].relativenumber = false
+    vim.wo[win].signcolumn = 'no'
+    vim.wo[win].foldcolumn = '0'
+    vim.wo[win].wrap = false
 
     -- Register in the internal registry
     local handle = { buf = buf, win = win, name = name, position = cfg.position }
@@ -277,8 +345,9 @@ M.close = function(name)
 end
 
 --- Refresh a panel's content. Only updates buffer lines; never replaces the window.
+--- Supports both plain strings and rich lines (same format as M.open).
 ---@param name string The panel name
----@param lines string[] New content lines
+---@param lines (string | (string | string[])[])[] New content lines
 ---@return boolean success Whether the panel exists and was updated
 M.refresh = function(name, lines)
     local handle = registry[name]
@@ -287,7 +356,7 @@ M.refresh = function(name, lines)
     end
     local was_modifiable = vim.bo[handle.buf].modifiable
     vim.bo[handle.buf].modifiable = true
-    vim.api.nvim_buf_set_lines(handle.buf, 0, -1, false, lines)
+    render_lines(handle.buf, lines)
     vim.bo[handle.buf].modifiable = was_modifiable
     return true
 end
@@ -322,7 +391,8 @@ M.isOpen = function(name)
     return true
 end
 
---- Expose internal registry for testing
+--- Expose internals for testing
 M._registry = registry
+M._ns = ns
 
 return M

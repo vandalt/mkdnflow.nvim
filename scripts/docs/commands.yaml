@@ -115,6 +115,16 @@ commands:
 
       Skipped: URLs, citations (`@citekey`), same-file anchors (`#heading`), and links using registered `uri_handler` schemes.
 
+  - name: MkdnBacklinks
+    default_mapping: null
+    description: |
+      Toggle the backlinks panel, which shows all files in the notebook that contain links pointing to the current buffer's file. Press `<CR>` on a result line to jump to that location. The panel auto-refreshes when you switch buffers (configurable via `backlinks.auto_refresh`). Requires the `notebook` module.
+
+  - name: MkdnBacklinksRefresh
+    default_mapping: null
+    description: |
+      Force a refresh of the backlinks panel content. Useful when `backlinks.auto_refresh` is disabled or after editing files externally. The panel must already be open.
+
   - name: MkdnYankAnchorLink
     default_mapping: "{ 'n', 'yaa' }"
     description: |
@@ -332,7 +342,7 @@ commands:
       `:Mkdnflow <group> <action> [args]` to execute a command.
 
       Available groups: `link`, `nav`, `heading`, `todo`, `list`, `table`,
-      `fold`, `yank`, `start`, `config`, `enter`, `tab`, `shift-tab`.
+      `fold`, `yank`, `view`, `start`, `config`, `enter`, `tab`, `shift-tab`.
 
       Examples:
 

@@ -560,9 +560,25 @@ local compute_new_source = function(old_source, new_abs_path, from_filepath)
     return new_source
 end
 
+--- Snapshot all loaded, named buffers into a cache table.
+---@return table<string, string[]> Map of absolute path to buffer lines
+---@private
+local function snapshot_buffers()
+    local cache = {}
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(bufnr) then
+            local name = vim.api.nvim_buf_get_name(bufnr)
+            if name ~= '' then
+                cache[name] = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            end
+        end
+    end
+    return cache
+end
+
 --- Asynchronously scan the notebook for links pointing to a given absolute path.
 ---@param old_abs_path string Resolved absolute path of the moved file (pre-rename)
----@param skip_filepath string Absolute path of the current file (already updated)
+---@param skip_filepath? string Absolute path to skip (nil = skip nothing)
 ---@param buffer_cache table<string, string[]> Map of absolute path to buffer lines for loaded buffers
 ---@param on_done fun(refs: table[]) Called with array of reference entries
 ---@private
@@ -572,7 +588,9 @@ local find_references_async = function(old_abs_path, skip_filepath, buffer_cache
     local base_dir = mkdn().root_dir or mkdn().initial_dir or vim.fn.getcwd()
 
     old_abs_path = vim.fn.resolve(old_abs_path)
-    skip_filepath = vim.fn.resolve(skip_filepath)
+    if skip_filepath then
+        skip_filepath = vim.fn.resolve(skip_filepath)
+    end
 
     local references = {}
 
@@ -891,15 +909,7 @@ M.moveSource = function()
             local cur_file = vim.api.nvim_buf_get_name(0)
             -- Snapshot loaded buffers so the scan sees in-memory content
             -- (which may differ from disk if apply_change modified them)
-            local buf_cache = {}
-            for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-                if vim.api.nvim_buf_is_loaded(bufnr) then
-                    local name = vim.api.nvim_buf_get_name(bufnr)
-                    if name ~= '' then
-                        buf_cache[name] = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-                    end
-                end
-            end
+            local buf_cache = snapshot_buffers()
             find_references_async(resolved_source, cur_file, buf_cache, function(refs)
                 if #refs > 0 then
                     open_review(refs, opts.goal_path)
@@ -1106,15 +1116,7 @@ M.deadLinks = function(scope)
     local base_dir = mkdn().root_dir or mkdn().initial_dir or vim.fn.getcwd()
 
     -- Snapshot loaded buffer content before entering async
-    local buf_cache = {}
-    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.api.nvim_buf_is_loaded(bufnr) then
-            local name = vim.api.nvim_buf_get_name(bufnr)
-            if name ~= '' then
-                buf_cache[name] = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-            end
-        end
-    end
+    local buf_cache = snapshot_buffers()
 
     local dead_links = {}
 
@@ -1167,6 +1169,17 @@ M.deadLinks = function(scope)
             end
         end
     end)
+end
+
+---@param target_path string Resolved absolute path to find references to
+---@param skip_filepath? string Absolute path to skip (nil = skip nothing)
+---@param buffer_cache? table Pre-built cache (nil = snapshot automatically)
+---@param on_done fun(refs: table[]) Callback with reference entries
+M.findReferencesAsync = function(target_path, skip_filepath, buffer_cache, on_done)
+    if not buffer_cache then
+        buffer_cache = snapshot_buffers()
+    end
+    find_references_async(target_path, skip_filepath, buffer_cache, on_done)
 end
 
 M._test = {

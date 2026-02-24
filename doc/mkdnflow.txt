@@ -631,6 +631,15 @@ modules.notebook                            *Mkdnflow-config-modules-notebook*
 
     `false`: Disable `notebook` module functionality.
 
+modules.backlinks                          *Mkdnflow-config-modules-backlinks*
+    Type: boolean
+
+    `true`: (default): `backlinks` module is enabled. Provides a side panel
+    showing all files in the notebook that link to the current file. Requires
+    the `notebook` module.
+
+    `false`: Disable `backlinks` module functionality.
+
 
 
 create_dirs ~
@@ -2115,6 +2124,20 @@ Configuration options.
     Skipped: URLs, citations (`@citekey`), same-file anchors (`#heading`), and
     links using registered `uri_handler` schemes.
 
+:MkdnBacklinks                                    *Mkdnflow-cmd-MkdnBacklinks*
+
+    Toggle the backlinks panel, which shows all files in the notebook that
+    contain links pointing to the current buffer's file. Press `` on a result
+    line to jump to that location. The panel auto-refreshes when you switch
+    buffers (configurable via `backlinks.auto_refresh`). Requires the
+    `notebook` module.
+
+:MkdnBacklinksRefresh                      *Mkdnflow-cmd-MkdnBacklinksRefresh*
+
+    Force a refresh of the backlinks panel content. Useful when
+    `backlinks.auto_refresh` is disabled or after editing files externally.
+    The panel must already be open.
+
 :MkdnYankAnchorLink                          *Mkdnflow-cmd-MkdnYankAnchorLink*
     Default mapping: { 'n', 'yaa' }
 
@@ -2391,7 +2414,7 @@ Configuration options.
 
     Available groups: `link`, `nav`, `heading`, `todo`, `list`, `table`,
 
-    `fold`, `yank`, `start`, `config`, `enter`, `tab`, `shift-tab`.
+    `fold`, `yank`, `view`, `start`, `config`, `enter`, `tab`, `shift-tab`.
 
     Examples:
 

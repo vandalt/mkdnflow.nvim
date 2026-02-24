@@ -73,6 +73,8 @@ local descriptions = {
     MkdnCreateFootnote = 'Create footnote reference and definition',
     MkdnRenumberFootnotes = 'Renumber footnotes sequentially by order of appearance',
     MkdnRefreshFootnotes = 'Refresh footnote numbering and consolidate definitions',
+    MkdnBacklinks = 'Toggle backlinks panel for current file',
+    MkdnBacklinksRefresh = 'Refresh backlinks panel',
 }
 
 -- Operator commands that need special handling (expression mappings for dot-repeat)

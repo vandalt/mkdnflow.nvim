@@ -92,6 +92,12 @@ modules:
       **`true`** (default): `notebook` module is enabled. Provides shared cross-file primitives for scanning notebook files, headings, and links. This module has zero cost at load time (no autocommands, keymaps, or side effects) and serves as infrastructure for other features.
       `false`: Disable `notebook` module functionality.
 
+  - name: modules.backlinks
+    type: boolean
+    description: |
+      **`true`** (default): `backlinks` module is enabled. Provides a side panel showing all files in the notebook that link to the current file. Requires the `notebook` module.
+      `false`: Disable `backlinks` module functionality.
+
 create_dirs:
   - name: create_dirs
     type: boolean
@@ -643,6 +649,13 @@ tables:
       **`true`** (default): Apply the cell alignment indicated in the separator row when formatting the table.
       `false`: Always visually left-align cell contents when formatting a table.
       Previously named `tables.style.mimic_alignment`.
+
+backlinks:
+  - name: backlinks.auto_refresh
+    type: boolean
+    description: |
+      **`true`** (default): The backlinks panel automatically refreshes when you switch to a different buffer.
+      `false`: The backlinks panel only updates when you manually run `:MkdnBacklinksRefresh` or re-toggle with `:MkdnBacklinks`.
 
 yaml:
   - name: yaml.bib.override

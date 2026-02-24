@@ -221,6 +221,18 @@ local groups = {
             desc = 'Yank heading as full file anchor link',
         },
     },
+    view = {
+        {
+            action = 'backlinks',
+            cmd = 'MkdnBacklinks',
+            desc = 'Toggle backlinks panel for current file',
+        },
+        {
+            action = 'backlinks-refresh',
+            cmd = 'MkdnBacklinksRefresh',
+            desc = 'Refresh backlinks panel',
+        },
+    },
     start = {
         { action = '_default', cmd = '_forceStart', desc = 'Force-start Mkdnflow' },
     },
@@ -260,6 +272,7 @@ local group_descriptions = {
     table = 'Table creation and formatting',
     fold = 'Section folding',
     yank = 'Yank formatted links',
+    view = 'Panel views (backlinks, outline)',
     start = 'Force-start Mkdnflow on current buffer',
     config = 'Configuration utilities',
     enter = 'Multi-function enter key',

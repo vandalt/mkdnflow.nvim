@@ -37,6 +37,7 @@ local default_config = {
         yaml = false,
         cmp = false,
         notebook = true,
+        backlinks = true,
     },
     path_resolution = {
         primary = 'first',
@@ -214,6 +215,9 @@ local default_config = {
             apply_alignment = true,
         },
     },
+    backlinks = {
+        auto_refresh = true,
+    },
     panels = {
         position = 'right',
         width = 40,
@@ -283,6 +287,8 @@ local default_config = {
         MkdnCreateFootnote = false,
         MkdnRenumberFootnotes = false,
         MkdnRefreshFootnotes = false,
+        MkdnBacklinks = false,
+        MkdnBacklinksRefresh = false,
     },
 }
 
@@ -624,6 +630,7 @@ local function activate()
     init.yaml = load_module('yaml', init.config.modules.yaml)
     init.cmp = load_module('cmp', init.config.modules.cmp)
     init.notebook = load_module('notebook', init.config.modules.notebook)
+    init.backlinks = load_module('backlinks', init.config.modules.backlinks)
     init.to_do = load_module('to_do', init.config.modules.to_do)
     -- Set up on_attach autocmd (fires per buffer, independent of maps module)
     local on_attach = init.config.on_attach
@@ -651,6 +658,8 @@ init.command_deps = {
     MkdnGoForward = { 'buffers' },
     MkdnMoveSource = { 'paths', 'links' },
     MkdnDeadLinks = { 'paths', 'links' },
+    MkdnBacklinks = { 'backlinks', 'paths', 'notebook' },
+    MkdnBacklinksRefresh = { 'backlinks', 'paths', 'notebook' },
     MkdnNextLink = { 'links', 'cursor' },
     MkdnPrevLink = { 'links', 'cursor' },
     MkdnCreateLink = { 'links' },

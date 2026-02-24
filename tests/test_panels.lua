@@ -97,6 +97,27 @@ T['open']['creates scratch buffer with correct options'] = function()
     eq(buflisted, false)
 end
 
+T['open']['disables gutter and wrap on split panels'] = function()
+    -- Set gutter options globally so they'd bleed in without the fix
+    child.lua([[
+        vim.o.number = true
+        vim.o.relativenumber = true
+        vim.o.signcolumn = 'yes'
+        vim.o.foldcolumn = '1'
+        vim.o.wrap = true
+        _G._handle = require('mkdnflow.panels').open({
+            name = 'test_gutter',
+            position = 'right',
+            lines = { 'no gutter' },
+        })
+    ]])
+    eq(child.lua_get([[vim.wo[_G._handle.win].number]]), false)
+    eq(child.lua_get([[vim.wo[_G._handle.win].relativenumber]]), false)
+    eq(child.lua_get([[vim.wo[_G._handle.win].signcolumn]]), 'no')
+    eq(child.lua_get([[vim.wo[_G._handle.win].foldcolumn]]), '0')
+    eq(child.lua_get([[vim.wo[_G._handle.win].wrap]]), false)
+end
+
 T['open']['sets buffer filetype when specified'] = function()
     child.lua([[
         _G._handle = require('mkdnflow.panels').open({
@@ -118,9 +139,7 @@ T['open']['sets initial content lines'] = function()
             modifiable = true,
         })
     ]])
-    local lines = child.lua_get(
-        [[vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)]]
-    )
+    local lines = child.lua_get([[vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)]])
     eq(lines, { 'line 1', 'line 2', 'line 3' })
 end
 
@@ -170,9 +189,7 @@ T['open']['re-opens if same name already open'] = function()
     -- Second should be open with new content
     local win2_valid = child.lua_get([[vim.api.nvim_win_is_valid(_G._handle2.win)]])
     eq(win2_valid, true)
-    local lines = child.lua_get(
-        [[vim.api.nvim_buf_get_lines(_G._handle2.buf, 0, -1, false)]]
-    )
+    local lines = child.lua_get([[vim.api.nvim_buf_get_lines(_G._handle2.buf, 0, -1, false)]])
     eq(lines, { 'second' })
     -- Only one entry in registry
     child.lua([[
@@ -249,16 +266,12 @@ T['refresh']['updates panel content'] = function()
         _G._result = panels.refresh('test_refresh', { 'new content', 'more lines' })
     ]])
     eq(child.lua_get([[_G._result]]), true)
-    local lines = child.lua_get(
-        [[vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)]]
-    )
+    local lines = child.lua_get([[vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)]])
     eq(lines, { 'new content', 'more lines' })
 end
 
 T['refresh']['returns false for unknown panel'] = function()
-    local result = child.lua_get(
-        [[require('mkdnflow.panels').refresh('nonexistent', { 'x' })]]
-    )
+    local result = child.lua_get([[require('mkdnflow.panels').refresh('nonexistent', { 'x' })]])
     eq(result, false)
 end
 
@@ -277,9 +290,7 @@ T['refresh']['restores modifiable state'] = function()
     local modifiable = child.lua_get([[vim.bo[_G._handle.buf].modifiable]])
     eq(modifiable, false)
     -- But content should be updated
-    local lines = child.lua_get(
-        [[vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)]]
-    )
+    local lines = child.lua_get([[vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)]])
     eq(lines, { 'updated' })
 end
 
@@ -341,9 +352,7 @@ T['isOpen']['returns false after close'] = function()
         panels.open({ name = 'test_isopen_close', position = 'float' })
         panels.close('test_isopen_close')
     ]])
-    local result = child.lua_get(
-        [[require('mkdnflow.panels').isOpen('test_isopen_close')]]
-    )
+    local result = child.lua_get([[require('mkdnflow.panels').isOpen('test_isopen_close')]])
     eq(result, false)
 end
 
@@ -353,9 +362,7 @@ T['isOpen']['returns false if window was externally closed'] = function()
         _G._handle = panels.open({ name = 'test_ext_close', position = 'float' })
         vim.api.nvim_win_close(_G._handle.win, true)
     ]])
-    local result = child.lua_get(
-        [[require('mkdnflow.panels').isOpen('test_ext_close')]]
-    )
+    local result = child.lua_get([[require('mkdnflow.panels').isOpen('test_ext_close')]])
     eq(result, false)
 end
 
@@ -377,9 +384,7 @@ T['cleanup']['cleans up buffer when window closed via API'] = function()
         vim.api.nvim_win_close(_G._handle.win, true)
     ]])
     -- Registry should be cleaned up
-    local is_open = child.lua_get(
-        [[require('mkdnflow.panels').isOpen('test_winclosed')]]
-    )
+    local is_open = child.lua_get([[require('mkdnflow.panels').isOpen('test_winclosed')]])
     eq(is_open, false)
     -- Buffer should be wiped
     local buf_valid = child.lua_get([[vim.api.nvim_buf_is_valid(_G._buf)]])
@@ -399,9 +404,7 @@ T['cleanup']['cleans up via close keymap'] = function()
     ]])
     -- The panel window should be focused; press q
     child.type_keys('q')
-    local is_open = child.lua_get(
-        [[require('mkdnflow.panels').isOpen('test_keymap_close')]]
-    )
+    local is_open = child.lua_get([[require('mkdnflow.panels').isOpen('test_keymap_close')]])
     eq(is_open, false)
     local buf_valid = child.lua_get([[vim.api.nvim_buf_is_valid(_G._buf)]])
     eq(buf_valid, false)
@@ -532,6 +535,104 @@ T['float_sizing']['fractional width/height resolved relative to editor'] = funct
     local win_height = child.lua_get([[vim.api.nvim_win_get_height(_G._handle.win)]])
     eq(win_width, expected_width)
     eq(win_height, expected_height)
+end
+
+-- =============================================================================
+-- Rich lines (highlights)
+-- =============================================================================
+T['rich_lines'] = new_set()
+
+T['rich_lines']['open renders mixed plain and rich lines'] = function()
+    child.lua([[
+        _G._handle = require('mkdnflow.panels').open({
+            name = 'test_rich_open',
+            position = 'float',
+            lines = {
+                'plain line',
+                { { 'bold ', 'Title' }, { 'text' } },
+                { { 'all highlighted', 'Comment' } },
+            },
+            modifiable = true,
+        })
+    ]])
+    local lines = child.lua_get([[vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)]])
+    eq(lines, { 'plain line', 'bold text', 'all highlighted' })
+end
+
+T['rich_lines']['open applies highlight groups'] = function()
+    child.lua([=[
+        local panels = require('mkdnflow.panels')
+        _G._handle = panels.open({
+            name = 'test_rich_hl',
+            position = 'float',
+            lines = {
+                { { 'header', 'MkdnflowPanelHeader' }, { ' rest' } },
+            },
+        })
+        -- Retrieve extmarks from the panels namespace
+        local ns = panels._ns
+        _G._marks = vim.api.nvim_buf_get_extmarks(
+            _G._handle.buf, ns, 0, -1, { details = true }
+        )
+    ]=])
+    local marks = child.lua_get('_G._marks')
+    -- Should have exactly one highlight (for 'header')
+    eq(#marks, 1)
+    -- Check the highlight group
+    eq(marks[1][4].hl_group, 'MkdnflowPanelHeader')
+    -- Check column range: 'header' is bytes 0-6
+    eq(marks[1][3], 0) -- start col
+    eq(marks[1][4].end_col, 6)
+end
+
+T['rich_lines']['refresh with rich lines updates highlights'] = function()
+    child.lua([=[
+        local panels = require('mkdnflow.panels')
+        _G._handle = panels.open({
+            name = 'test_rich_refresh',
+            position = 'float',
+            lines = { 'initial plain' },
+        })
+        -- Refresh with rich lines
+        panels.refresh('test_rich_refresh', {
+            { { 'file.md', 'MkdnflowPanelFile' }, { ':' }, { '10', 'MkdnflowPanelLineNr' } },
+        })
+        local ns = panels._ns
+        _G._marks = vim.api.nvim_buf_get_extmarks(
+            _G._handle.buf, ns, 0, -1, { details = true }
+        )
+        _G._lines = vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)
+    ]=])
+    local lines = child.lua_get('_G._lines')
+    eq(lines, { 'file.md:10' })
+
+    local marks = child.lua_get('_G._marks')
+    -- Should have 2 highlights: file and line number (colon has no hl group)
+    eq(#marks, 2)
+end
+
+T['rich_lines']['refresh clears old highlights'] = function()
+    child.lua([=[
+        local panels = require('mkdnflow.panels')
+        _G._handle = panels.open({
+            name = 'test_rich_clear',
+            position = 'float',
+            lines = {
+                { { 'old highlight', 'MkdnflowPanelHeader' } },
+            },
+        })
+        -- Refresh with plain string — old highlights should be gone
+        panels.refresh('test_rich_clear', { 'no highlights' })
+        local ns = panels._ns
+        _G._marks = vim.api.nvim_buf_get_extmarks(
+            _G._handle.buf, ns, 0, -1, { details = true }
+        )
+        _G._lines = vim.api.nvim_buf_get_lines(_G._handle.buf, 0, -1, false)
+    ]=])
+    local marks = child.lua_get('_G._marks')
+    eq(#marks, 0)
+    local lines = child.lua_get('_G._lines')
+    eq(lines, { 'no highlights' })
 end
 
 return T
