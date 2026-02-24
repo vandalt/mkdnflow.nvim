@@ -480,6 +480,12 @@ local resolve_link_source = function(source, from_filepath)
         return resolved
     end
 
+    -- Parent-relative paths (starting with ..) must resolve from the
+    -- containing file's directory, regardless of the path_resolution strategy
+    if resolved:match('^%.%.') then
+        return vim.fs.dirname(from_filepath) .. s .. resolved
+    end
+
     if path_resolution.primary == 'root' and mkdn().root_dir then
         return mkdn().root_dir .. s .. resolved
     elseif

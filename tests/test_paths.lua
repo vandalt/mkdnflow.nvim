@@ -2125,6 +2125,63 @@ T['moveSource_references']['resolve_link_source adds extension and resolves'] = 
     eq(result, initial_dir .. '/page.md')
 end
 
+-- resolve_link_source: parent-relative paths resolve from file directory, not root
+T['moveSource_references']['resolve_link_source resolves .. from file directory'] = function()
+    -- The test setup uses primary = 'first'. sub/ref.md contains [page](../page.md).
+    -- ../page.md from sub/ref.md should resolve to <tmpdir>/page.md, not <tmpdir>/../page.md.
+    child.lua([=[
+        local rls = require('mkdnflow.paths')._test.resolve_link_source
+        _G._result = rls('../page', _G._tmpdir .. '/sub/ref.md')
+    ]=])
+    local result = child.lua_get('_G._result')
+    local tmpdir = child.lua_get('_G._tmpdir')
+    eq(result, tmpdir .. '/sub/../page.md')
+    -- Verify it resolves to an existing file
+    local exists = child.lua_get('vim.fn.filereadable("' .. result .. '")')
+    eq(exists, 1)
+end
+
+-- resolve_link_source: parent-relative also works under root strategy
+T['moveSource_references']['resolve_link_source resolves .. under root strategy'] = function()
+    -- Reconfigure to root strategy
+    child.lua([=[
+        require('mkdnflow').config.path_resolution.primary = 'root'
+        require('mkdnflow').root_dir = _G._tmpdir
+
+        local rls = require('mkdnflow.paths')._test.resolve_link_source
+        _G._result = rls('../page', _G._tmpdir .. '/sub/ref.md')
+    ]=])
+    local result = child.lua_get('_G._result')
+    local tmpdir = child.lua_get('_G._tmpdir')
+    -- Should resolve from sub/, not from root
+    eq(result, tmpdir .. '/sub/../page.md')
+    local exists = child.lua_get('vim.fn.filereadable("' .. result .. '")')
+    eq(exists, 1)
+end
+
+-- find_references_async: finds subdirectory files with .. links
+T['moveSource_references']['find_references finds .. links from subdirs'] = function()
+    -- sub/ref.md has [page](../page.md) which should resolve to page.md
+    child.lua([[
+        _G._refs = nil
+        require('mkdnflow.paths')._test.find_references_async(
+            _G._tmpdir .. '/page.md',
+            nil,
+            {},
+            function(refs) _G._refs = refs end
+        )
+        vim.wait(5000, function() return _G._refs ~= nil end, 50)
+    ]])
+    local refs = child.lua_get('_G._refs')
+    local found_sub_ref = false
+    for _, ref in ipairs(refs) do
+        if ref.filepath:match('sub/ref%.md$') or ref.filepath:match('sub\\ref%.md$') then
+            found_sub_ref = true
+        end
+    end
+    eq(found_sub_ref, true)
+end
+
 -- find_references_async with empty notebook
 T['moveSource_references']['find_references handles empty results'] = function()
     child.lua([[
