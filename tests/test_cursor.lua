@@ -370,12 +370,12 @@ T['yankAsAnchorLink_resolution'] = new_set()
 T['yankAsAnchorLink_resolution']['uses root-relative path when primary=root'] = function()
     child.lua([[
         local init = require('mkdnflow')
-        init.root_dir = '/fake/notebook'
         init.setup({
             path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
             links = { transform_on_create = false },
             silent = true,
         })
+        init.root_dir = '/fake/notebook'
         vim.api.nvim_buf_set_name(0, '/fake/notebook/subdir/note.md')
     ]])
     set_lines({ '# Heading' })
@@ -425,12 +425,12 @@ end
 T['yankAsAnchorLink_resolution']['bracketed span uses relative path'] = function()
     child.lua([[
         local init = require('mkdnflow')
-        init.root_dir = '/fake/notebook'
         init.setup({
             path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
             links = { transform_on_create = false },
             silent = true,
         })
+        init.root_dir = '/fake/notebook'
         vim.api.nvim_buf_set_name(0, '/fake/notebook/docs/ref.md')
     ]])
     set_lines({ '[Span Text]{#span-id}' })

@@ -721,6 +721,9 @@ init.command_deps = {
 init.setup = function(user_config)
     user_config = user_config or {}
 
+    -- Allow re-initialization when setup() is called again (e.g. hot-reload)
+    init.loaded = nil
+
     -- Pure configuration: merge, resolve filetypes, compute jump_patterns
     configure(user_config)
 

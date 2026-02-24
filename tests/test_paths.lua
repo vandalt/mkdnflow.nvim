@@ -1334,11 +1334,11 @@ T['getBaseDir'] = new_set()
 T['getBaseDir']['returns root_dir when primary=root'] = function()
     child.lua([[
         local init = require('mkdnflow')
-        init.root_dir = '/fake/notebook'
         init.setup({
             path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
             links = { transform_on_create = false, transform_on_follow = false },
         })
+        init.root_dir = '/fake/notebook'
     ]])
     local result = child.lua_get([[require('mkdnflow.paths').getBaseDir()]])
     eq(result, '/fake/notebook')
@@ -1419,11 +1419,11 @@ T['relativeToBase'] = new_set()
 T['relativeToBase']['strips root_dir when primary=root'] = function()
     child.lua([[
         local init = require('mkdnflow')
-        init.root_dir = '/fake/notebook'
         init.setup({
             path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
             links = { transform_on_create = false, transform_on_follow = false },
         })
+        init.root_dir = '/fake/notebook'
     ]])
     local result =
         child.lua_get([[require('mkdnflow.paths').relativeToBase('/fake/notebook/sub/file.md')]])
@@ -1462,11 +1462,11 @@ end
 T['relativeToBase']['returns basename when path not under base'] = function()
     child.lua([[
         local init = require('mkdnflow')
-        init.root_dir = '/fake/notebook'
         init.setup({
             path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
             links = { transform_on_create = false, transform_on_follow = false },
         })
+        init.root_dir = '/fake/notebook'
     ]])
     local result =
         child.lua_get([[require('mkdnflow.paths').relativeToBase('/other/path/file.md')]])
@@ -1476,11 +1476,11 @@ end
 T['relativeToBase']['handles file directly in base directory'] = function()
     child.lua([[
         local init = require('mkdnflow')
-        init.root_dir = '/fake/notebook'
         init.setup({
             path_resolution = { primary = 'root', root_marker = '.root', fallback = 'first' },
             links = { transform_on_create = false, transform_on_follow = false },
         })
+        init.root_dir = '/fake/notebook'
     ]])
     local result =
         child.lua_get([[require('mkdnflow.paths').relativeToBase('/fake/notebook/index.md')]])

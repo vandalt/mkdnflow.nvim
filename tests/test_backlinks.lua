@@ -253,9 +253,8 @@ T['toggleBacklinks']['panel buffer has mkdnflow-backlinks filetype'] = function(
         'vim.wait(1000, function() return require("mkdnflow.panels").isOpen("backlinks") end)'
     )
 
-    local ft = child.lua_get(
-        [[vim.bo[require('mkdnflow.panels')._registry['backlinks'].buf].filetype]]
-    )
+    local ft =
+        child.lua_get([[vim.bo[require('mkdnflow.panels')._registry['backlinks'].buf].filetype]])
     eq(ft, 'mkdnflow-backlinks')
 end
 
@@ -490,6 +489,35 @@ T['edge_cases']['warns when notebook module disabled'] = function()
     local notifications = child.lua_get('_G._notifications')
     eq(#notifications > 0, true)
     eq(notifications[1].msg:match('notebook') ~= nil, true)
+end
+
+T['edge_cases']['re-setup with module disabled clears old state'] = function()
+    child.restart({ '-u', 'scripts/minimal_init.lua' })
+    child.lua([[
+        vim.cmd('runtime plugin/mkdnflow.lua')
+        vim.api.nvim_buf_set_name(0, 'test.md')
+        vim.bo.filetype = 'markdown'
+        -- First setup: notebook enabled
+        require('mkdnflow').setup({
+            modules = { notebook = true, backlinks = true },
+            silent = true,
+        })
+    ]])
+    -- Verify notebook is loaded
+    local notebook_truthy = child.lua_get([[require('mkdnflow').notebook ~= false]])
+    eq(notebook_truthy, true)
+
+    -- Re-setup: notebook disabled
+    child.lua([[
+        require('mkdnflow').setup({
+            modules = { notebook = false, backlinks = false },
+            silent = true,
+        })
+    ]])
+    local notebook_after = child.lua_get([[require('mkdnflow').notebook]])
+    eq(notebook_after, false)
+    local backlinks_after = child.lua_get([[require('mkdnflow').backlinks]])
+    eq(backlinks_after, false)
 end
 
 return T
