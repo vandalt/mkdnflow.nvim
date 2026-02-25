@@ -1213,4 +1213,58 @@ T['create_on_toggle_false']['still toggles in visual range'] = function()
     eq(get_line(3), '- plain item') -- unchanged
 end
 
+T['create_on_toggle_false']['returns false on non-to-do line'] = function()
+    set_lines({ '- plain item' })
+    set_cursor(1, 0)
+    local acted = child.lua_get([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(acted, false)
+end
+
+T['create_on_toggle_false']['returns true on existing to-do'] = function()
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    local acted = child.lua_get([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(acted, true)
+end
+
+-- =============================================================================
+-- toggle_to_do return value (default config)
+-- =============================================================================
+T['toggle_return'] = new_set()
+
+T['toggle_return']['returns true when toggling existing to-do'] = function()
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    local acted = child.lua_get([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(acted, true)
+end
+
+T['toggle_return']['returns true when converting list item'] = function()
+    set_lines({ '- plain item' })
+    set_cursor(1, 0)
+    local acted = child.lua_get([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(acted, true)
+end
+
+T['toggle_return']['returns true when converting plain text'] = function()
+    set_lines({ 'some text' })
+    set_cursor(1, 0)
+    local acted = child.lua_get([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(acted, true)
+end
+
+T['toggle_return']['returns false on empty line'] = function()
+    set_lines({ '' })
+    set_cursor(1, 0)
+    local acted = child.lua_get([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(acted, false)
+end
+
+T['toggle_return']['returns false on heading'] = function()
+    set_lines({ '# Heading' })
+    set_cursor(1, 0)
+    local acted = child.lua_get([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(acted, false)
+end
+
 return T

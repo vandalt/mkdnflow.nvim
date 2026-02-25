@@ -810,10 +810,12 @@ end
 --- Toggle a single line. Rotates an existing to-do item's status. If the line is not a to-do
 --- item and `to_do.create_on_toggle` is true, converts a plain list item or text into one.
 --- @param line_nr integer A (one-based) buffer line number
+--- @return boolean acted Whether the line was toggled or converted
 local function toggle_line(line_nr)
     local item = M.get_to_do_item(line_nr)
     if item.valid then
         item:rotate_status()
+        return true
     elseif require('mkdnflow').config.to_do.create_on_toggle then
         -- Convert a plain list item to a to-do item (#292)
         local lists = require('mkdnflow').lists
@@ -830,6 +832,7 @@ local function toggle_line(line_nr)
                 last,
                 { ' [' .. not_started_marker .. ']' }
             )
+            return true
         elseif line:match('%S') then
             -- Convert plain text to a to-do item (#299)
             local utils = require('mkdnflow.utils')
@@ -850,9 +853,11 @@ local function toggle_line(line_nr)
                 vim.api.nvim_buf_set_lines(0, line_nr - 1, line_nr, false, {
                     indent .. '- [' .. not_started_marker .. '] ' .. text,
                 })
+                return true
             end
         end
     end
+    return false
 end
 
 --- Toggle a range of lines, skipping children whose parent is also in the range.
@@ -860,6 +865,7 @@ end
 --- double-toggling that would produce incorrect results.
 --- @param first integer Start line (one-based, inclusive)
 --- @param last integer End line (one-based, inclusive)
+--- @return boolean acted Whether any line in the range was toggled or converted
 local function toggle_range(first, last)
     -- Pre-scan: identify to-do items whose parent is also in the range using
     -- the cheap read() (line-level parse only, no relationship building).
@@ -881,24 +887,30 @@ local function toggle_range(first, last)
         end
     end
 
+    local acted = false
     for line_nr = first, last do
         if not skip[line_nr] then
-            toggle_line(line_nr)
+            if toggle_line(line_nr) then
+                acted = true
+            end
         end
     end
+    return acted
 end
 
 --- Function to cycle through the to-do status markers for the item on the current line
 --- @param opts? {line1: integer, line2: integer} Optional range (e.g. from a visual-mode command)
+--- @return boolean acted Whether any line was toggled or converted
 function M.toggle_to_do(opts)
     -- Initialize the cache for this operation
     init_cache()
 
     opts = opts or {}
     local line1, line2 = opts.line1, opts.line2
+    local acted
 
     if line1 and line2 then
-        toggle_range(line1, line2)
+        acted = toggle_range(line1, line2)
     else
         local mode = vim.api.nvim_get_mode()['mode']
         -- If we're in any visual mode (direct call, not via command), toggle selected lines.
@@ -908,17 +920,18 @@ function M.toggle_to_do(opts)
             local first, last =
                 (pos_a < pos_b and pos_a) or pos_b, (pos_b > pos_a and pos_b) or pos_a
             if first == 0 or last == 0 then
-                toggle_line(pos_b)
+                acted = toggle_line(pos_b)
             else
-                toggle_range(first, last)
+                acted = toggle_range(first, last)
             end
         else
-            toggle_line(vim.api.nvim_win_get_cursor(0)[1])
+            acted = toggle_line(vim.api.nvim_win_get_cursor(0)[1])
         end
     end
 
     -- Clear the cache after the operation
     clear_cache()
+    return acted or false
 end
 
 --- Sort the to-do list containing the cursor

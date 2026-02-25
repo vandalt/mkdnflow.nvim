@@ -358,7 +358,7 @@ listmanagement:
 
 todolistmanagement:
   - signature: "require('mkdnflow').to_do.toggle_to_do()"
-    description: Toggle (rotate) to-do statuses for a to-do item under the cursor.
+    description: Toggle (rotate) to-do statuses for a to-do item under the cursor. Returns `true` if a to-do item was toggled or created, `false` otherwise. This is useful for composing context-sensitive mappings that fall through to another action when the cursor is not on a to-do item.
 
   - signature: "require('mkdnflow').to_do.get_to_do_item(line_nr)"
     description: Retrieves a to-do item from the specified line number.

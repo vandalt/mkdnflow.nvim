@@ -1642,7 +1642,7 @@ Updates the numbering of the list items in the current list.
 
 `require('mkdnflow').to_do.toggle_to_do()`
 
-Toggle (rotate) to-do statuses for a to-do item under the cursor.
+Toggle (rotate) to-do statuses for a to-do item under the cursor. Returns `true` if a to-do item was toggled or created, `false` otherwise. This is useful for composing context-sensitive mappings that fall through to another action when the cursor is not on a to-do item.
 
 `require('mkdnflow').to_do.get_to_do_item(line_nr)`
 
