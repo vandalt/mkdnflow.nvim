@@ -807,13 +807,14 @@ local function is_thematic_break(line)
         or false
 end
 
---- Toggle or convert a single line: rotate an existing to-do, or convert a plain list item.
+--- Toggle a single line. Rotates an existing to-do item's status. If the line is not a to-do
+--- item and `to_do.create_on_toggle` is true, converts a plain list item or text into one.
 --- @param line_nr integer A (one-based) buffer line number
 local function toggle_line(line_nr)
     local item = M.get_to_do_item(line_nr)
     if item.valid then
         item:rotate_status()
-    else
+    elseif require('mkdnflow').config.to_do.create_on_toggle then
         -- Convert a plain list item to a to-do item (#292)
         local lists = require('mkdnflow').lists
         local line = vim.api.nvim_buf_get_lines(0, line_nr - 1, line_nr, false)[1]

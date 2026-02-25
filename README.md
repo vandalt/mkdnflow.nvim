@@ -780,6 +780,7 @@ require('mkdnflow').setup({
 
 | Option | Type | Description |
 | --- | --- | --- |
+| `to_do.create_on_toggle` | `boolean` | **`true`** (default): When toggling a line that is not already a to-do item, convert it into one (adding a checkbox to plain list items or wrapping plain text in `- [ ] `).<br>`false`: Only rotate the status of existing to-do items. Lines without a checkbox are left unchanged. This is useful when mapping `MkdnToggleToDo` to a key like `<CR>` alongside other context-sensitive actions — the command becomes a no-op on non-to-do lines, allowing subsequent actions to fire instead. |
 | `to_do.highlight` | `boolean` | `true`: Apply highlighting to to-do status markers and/or content (as defined in `to_do.statuses[*].highlight`).<br>**`false`** (default): Do not apply any highlighting. |
 | `to_do.status_propagation.up` | `boolean` | **`true`** (default): Update ancestor statuses (recursively) when a descendant status is changed or when a new to-do item is added to a list (e.g. a completed parent reverts to in-progress when a new uncompleted child is added). Updated according to logic provided in `to_do.statuses[*].propagate.up`.<br>`false`: Ancestor statuses are not affected by descendant status changes or new item creation. |
 | `to_do.status_propagation.down` | `boolean` | **`true`** (default): Update descendant statuses (recursively) when an ancestor's status is changed. Updated according to logic provided in `to_do.statuses[*].propagate.down`.<br>`false`: Descendant statuses are not affected by ancestor status changes. |

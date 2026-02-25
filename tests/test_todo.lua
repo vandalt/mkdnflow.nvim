@@ -1172,4 +1172,45 @@ T['visual_toggle_nested']['mixed plain items and nested to-dos'] = function()
     eq(get_line(3), '    - [ ] Child')
 end
 
+-- =============================================================================
+-- create_on_toggle = false (#321)
+-- =============================================================================
+T['create_on_toggle_false'] = new_set({
+    hooks = {
+        pre_case = function()
+            child.restart({ '-u', 'scripts/minimal_init.lua' })
+            setup_fresh([[require('mkdnflow').setup({ to_do = { create_on_toggle = false } })]])
+        end,
+    },
+})
+
+T['create_on_toggle_false']['does not convert plain list item'] = function()
+    set_lines({ '- plain item' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- plain item')
+end
+
+T['create_on_toggle_false']['does not convert plain text'] = function()
+    set_lines({ 'some text' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), 'some text')
+end
+
+T['create_on_toggle_false']['still toggles existing to-do'] = function()
+    set_lines({ '- [ ] task' })
+    set_cursor(1, 0)
+    child.lua([[require('mkdnflow.to_do').toggle_to_do()]])
+    eq(get_line(1), '- [-] task')
+end
+
+T['create_on_toggle_false']['still toggles in visual range'] = function()
+    set_lines({ '- [ ] first', '- [X] second', '- plain item' })
+    child.lua([[require('mkdnflow.to_do').toggle_to_do({ line1 = 1, line2 = 3 })]])
+    eq(get_line(1), '- [-] first')
+    eq(get_line(2), '- [ ] second')
+    eq(get_line(3), '- plain item') -- unchanged
+end
+
 return T

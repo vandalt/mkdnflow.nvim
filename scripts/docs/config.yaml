@@ -426,6 +426,12 @@ new_file_template:
       A string, optionally containing placeholder names, that will be inserted into a new file. Default: `'# {{ title }}'`
 
 to_do:
+  - name: to_do.create_on_toggle
+    type: boolean
+    description: |
+      **`true`** (default): When toggling a line that is not already a to-do item, convert it into one (adding a checkbox to plain list items or wrapping plain text in `- [ ] `).
+      `false`: Only rotate the status of existing to-do items. Lines without a checkbox are left unchanged. This is useful when mapping `MkdnToggleToDo` to a key like `<CR>` alongside other context-sensitive actions — the command becomes a no-op on non-to-do lines, allowing subsequent actions to fire instead.
+
   - name: to_do.highlight
     type: boolean
     description: |

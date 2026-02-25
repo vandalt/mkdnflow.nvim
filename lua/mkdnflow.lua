@@ -112,6 +112,7 @@ local default_config = {
         template = '# {{title}}',
     },
     to_do = {
+        create_on_toggle = true,
         highlight = false,
         statuses = {
             not_started = {

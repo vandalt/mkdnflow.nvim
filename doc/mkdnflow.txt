@@ -1394,6 +1394,19 @@ to_do ~
     })
 <
 
+to_do.create_on_toggle                *Mkdnflow-config-to-do-create-on-toggle*
+    Type: boolean
+
+    `true`: (default): When toggling a line that is not already a to-do item,
+    convert it into one (adding a checkbox to plain list items or wrapping
+    plain text in `- [ ] `).
+
+    `false`: Only rotate the status of existing to-do items. Lines without a
+    checkbox are left unchanged. This is useful when mapping `MkdnToggleToDo`
+    to a key like `` alongside other context-sensitive actions — the command
+    becomes a no-op on non-to-do lines, allowing subsequent actions to fire
+    instead.
+
 to_do.highlight                              *Mkdnflow-config-to-do-highlight*
     Type: boolean
 
