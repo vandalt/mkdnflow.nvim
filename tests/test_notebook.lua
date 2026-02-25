@@ -177,7 +177,8 @@ end
 T['scanFilesSync']['deduplicates symlinked files'] = function()
     child.lua([[
         -- Create a symlink to note1.md
-        vim.uv.fs_symlink(_G._tmpdir .. '/note1.md', _G._tmpdir .. '/symlink_note1.md')
+        local uv = vim.uv or vim.loop
+        uv.fs_symlink(_G._tmpdir .. '/note1.md', _G._tmpdir .. '/symlink_note1.md')
         _G._count = #require('mkdnflow.notebook').scanFilesSync(_G._tmpdir)
     ]])
     -- Should still be 6 (symlink resolves to same realpath as note1.md)
@@ -469,7 +470,8 @@ end
 
 T['scanFiles']['deduplicates symlinked files'] = function()
     child.lua([[
-        vim.uv.fs_symlink(_G._tmpdir .. '/note1.md', _G._tmpdir .. '/async_symlink.md')
+        local uv = vim.uv or vim.loop
+        uv.fs_symlink(_G._tmpdir .. '/note1.md', _G._tmpdir .. '/async_symlink.md')
         local nb = require('mkdnflow.notebook')
         _G._async_result = 'pending'
         nb.scanFiles(_G._tmpdir, function(files)

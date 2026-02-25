@@ -130,7 +130,8 @@ T['format_panel']['shows result lines with correct format'] = function()
         local lines, map = backlinks._test.format_panel(refs, '/tmp/test/index.md')
         _G._fp_count = #lines
         _G._fp_line4 = lines[4]
-        _G._fp_map = map
+        -- Extract specific key to avoid serializing sparse table (fails on 0.9.5)
+        _G._fp_map_4 = map[4]
     ]=])
     -- Should have header (3 lines) + 1 result = 4 lines
     eq(child.lua_get('_G._fp_count'), 4)
@@ -143,8 +144,7 @@ T['format_panel']['shows result lines with correct format'] = function()
     eq(line4[5][1], '[link](index.md)') -- match text
     eq(line4[5][2], 'MkdnflowPanelMatch') -- match highlight
     -- line_map should map line 4 → index 1
-    local line_map = child.lua_get('_G._fp_map')
-    eq(line_map[4] or line_map['4'], 1)
+    eq(child.lua_get('_G._fp_map_4'), 1)
 end
 
 T['format_panel']['truncates long match text'] = function()
@@ -291,10 +291,15 @@ T['toggleBacklinks']['populates panel with results'] = function()
         'vim.wait(2000, function() return require("mkdnflow.backlinks")._test.get_state().current_target ~= nil end)'
     )
 
-    local state = child.lua_get([[require('mkdnflow.backlinks')._test.get_state()]])
-    eq(state.current_target ~= nil, true)
+    -- Extract fields inside child.lua to avoid serializing sparse current_line_map (fails on 0.9.5)
+    child.lua([[
+        local state = require('mkdnflow.backlinks')._test.get_state()
+        _G._bl_has_target = state.current_target ~= nil
+        _G._bl_result_count = #state.current_results
+    ]])
+    eq(child.lua_get('_G._bl_has_target'), true)
     -- Should have found backlinks
-    eq(#state.current_results > 0, true)
+    eq(child.lua_get('_G._bl_result_count') > 0, true)
 end
 
 -- =============================================================================
