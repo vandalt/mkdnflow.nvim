@@ -100,7 +100,7 @@ end
 
 M.schema = {
     path_resolution = {
-        primary = { enum = { 'first', 'root' } },
+        primary = { enum = { 'first', 'current', 'root' } },
         fallback = { enum = { 'current', 'first' } },
         root_marker = { types = { 'boolean', 'string', 'table' } },
     },

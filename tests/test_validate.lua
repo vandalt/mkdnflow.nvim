@@ -196,15 +196,17 @@ end
 
 T['enum']['detects invalid path_resolution.primary value'] = function()
     child.lua([[ require('mkdnflow').setup({ silent = true }) ]])
-    local diags = validate("{ path_resolution = { primary = 'current' } }")
+    local diags = validate("{ path_resolution = { primary = 'bogus' } }")
     eq(#diags, 1)
     eq(diags[1].path, 'path_resolution.primary')
 end
 
-T['enum']['accepts valid path_resolution.primary value'] = function()
+T['enum']['accepts valid path_resolution.primary values'] = function()
     child.lua([[ require('mkdnflow').setup({ silent = true }) ]])
-    local diags = validate("{ path_resolution = { primary = 'root' } }")
-    eq(#diags, 0)
+    for _, val in ipairs({ 'first', 'current', 'root' }) do
+        local diags = validate("{ path_resolution = { primary = '" .. val .. "' } }")
+        eq(#diags, 0)
+    end
 end
 
 T['enum']['detects invalid foldtext.object_count_icon_set value'] = function()
