@@ -1044,28 +1044,21 @@ class ReadmeFormatter(Formatter):
         ).strip()
 
     def _collect_toc(self, sections: List[Section], level: int):
-        """Recursively collect TOC entries."""
+        """Recursively collect TOC entries (top-level only for README)."""
         for section in sections:
             self.toc_counter += 1
-            if level <= 2:  # Only top 2 levels in TOC
+            if level == 1:
                 self.toc_entries.append((section.title, section.emoji, section.tag, level, self.toc_counter))
             if section.children:
                 self._collect_toc(section.children, level + 1)
 
     def format_toc(self) -> str:
-        """Format table of contents."""
+        """Format table of contents (top-level sections only)."""
         lines = ["### Contents", ""]
-        counter = 0
-        for title, emoji, tag, depth, _ in self.toc_entries:
-            if depth == 1:
-                counter += 1
-            indent_str = "    " * (depth - 1)
+        for i, (title, emoji, tag, depth, _) in enumerate(self.toc_entries, 1):
             anchor = self._make_anchor(title, emoji)
             emoji_prefix = f"{emoji} " if emoji else ""
-            if depth == 1:
-                lines.append(f"{counter}. [{emoji_prefix}{title}](#{anchor})")
-            else:
-                lines.append(f"{indent_str}1. [{emoji_prefix}{title}](#{anchor})")
+            lines.append(f"{i}. [{emoji_prefix}{title}](#{anchor})")
         return "\n".join(lines)
 
     def _make_anchor(self, title: str, emoji: str = "") -> str:
