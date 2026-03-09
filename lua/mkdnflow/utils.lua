@@ -276,4 +276,12 @@ M.cursorInCodeBlock = function(cursor_row, reverse)
     return true
 end
 
+M.getHeadingLevel = function(line)
+    local level
+    if line then
+        level = line:match('^%s-(#+)')
+    end
+    return (level and string.len(level)) or 99
+end
+
 return M
