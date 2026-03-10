@@ -448,6 +448,8 @@ the help files.
         MkdnYankFileAnchorLink = { 'n', 'yfa' },
         MkdnNextHeading = { 'n', ']]' },
         MkdnPrevHeading = { 'n', '[[' },
+        MkdnNextHeadingSame = { 'n', '][' },
+        MkdnPrevHeadingSame = { 'n', '[]' },
         MkdnIncreaseHeading = { { 'n', 'v' }, '+' },
         MkdnDecreaseHeading = { { 'n', 'v' }, '-' },
         MkdnIncreaseHeadingOp = { { 'n', 'v' }, 'g+' },

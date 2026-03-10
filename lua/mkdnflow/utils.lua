@@ -276,6 +276,7 @@ M.cursorInCodeBlock = function(cursor_row, reverse)
     return true
 end
 
+-- TODO: Add annotations
 M.getHeadingLevel = function(line)
     local level
     if line then
