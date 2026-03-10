@@ -343,14 +343,12 @@ end
 ---@param anchor_text? string The anchor link text to match (e.g., "#my-heading"); if nil, jumps to next heading
 ---@param reverse? boolean If true, search backward
 ---@param level? number Level of the heading to jump to
+---@return boolean found Whether a matching heading was found
 ---@private
 local go_to_heading = function(anchor_text, reverse, level)
     local links = require('mkdnflow').links
     local silent = require('mkdnflow').config.silent
     local wrap = require('mkdnflow').config.wrap
-    -- TODO: Send back to starting_row and show message if final level does not match and level not nil?
-    -- Maybe just need to skip to continue because it already circles around?
-    -- TODO: Handle mark (I think anchor does it but not reverse)
 
     -- Record which line we're on; chances are the link goes to something later,
     -- so we'll start looking from here onwards and then circle back to the beginning
@@ -359,12 +357,10 @@ local go_to_heading = function(anchor_text, reverse, level)
     local in_fenced_code_block = utils.cursorInCodeBlock(starting_row, reverse)
     local row = (reverse and starting_row - 1) or starting_row + 1
     if level ~= nil and anchor_text ~= nil then
-        -- TODO: Keep this or less invasive?
         local message = "You can only specify one of level or anchor_text!"
         vim.notify_once(message, vim.log.levels.ERROR)
     end
     while continue do
-        -- TODO: Should second clause have +1 instead?
         local line = (reverse and vim.api.nvim_buf_get_lines(0, row - 1, row, false))
             or vim.api.nvim_buf_get_lines(0, row - 1, row, false)
         -- If the line has contents, do the thing
@@ -380,7 +376,6 @@ local go_to_heading = function(anchor_text, reverse, level)
                 if anchor_text == nil then
                     -- Send the cursor to the heading
                     vim.api.nvim_win_set_cursor(0, { row, 0 })
-                    -- TODO: Re-use line variable?
                     local new_line = vim.api.nvim_get_current_line()
                     local heading_level = utils.getHeadingLevel(new_line)
                     if level == nil or heading_level == level then
@@ -442,22 +437,25 @@ local go_to_heading = function(anchor_text, reverse, level)
             end
         end
     end
+    return (not continue) and (continue ~= nil)
 end
 
--- TODO: Go to parent heading would also be useful
--- TODO: Annotations
+--- Go to the next or previous heading of the same level
+---@param reverse? boolean If true, search backward
 M.goToSame = function(reverse)
+    local start_pos = vim.api.nvim_win_get_cursor(0)
     local line = vim.api.nvim_get_current_line()
-    vim.notify(line)
     local is_heading = string.find(line, '^#')
     -- If not on a heading, go back to current section's heading
     if not is_heading then
-        -- TODO: If not on heading, could also just go to next and stay there
         go_to_heading(nil, true)
     end
     line = vim.api.nvim_get_current_line()
     local level = utils.getHeadingLevel(line)
-    go_to_heading(nil, reverse, level)
+    local found = go_to_heading(nil, reverse, level)
+    if not found then
+        vim.api.nvim_win_set_cursor(0, start_pos)
+    end
 end
 
 --- Jump to a Pandoc-style bracketed span or heading with a matching ID attribute
