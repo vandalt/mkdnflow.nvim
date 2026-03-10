@@ -276,7 +276,9 @@ M.cursorInCodeBlock = function(cursor_row, reverse)
     return true
 end
 
--- TODO: Add annotations
+--- Get the heading level of a markdown line
+---@param line? string The line text to check
+---@return integer level The heading level (1-6), or 99 if not a heading
 M.getHeadingLevel = function(line)
     local level
     if line then
