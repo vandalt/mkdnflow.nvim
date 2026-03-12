@@ -356,10 +356,6 @@ local go_to_heading = function(anchor_text, reverse, level)
     local starting_row, continue = position[1], true
     local in_fenced_code_block = utils.cursorInCodeBlock(starting_row, reverse)
     local row = (reverse and starting_row - 1) or starting_row + 1
-    if level ~= nil and anchor_text ~= nil then
-        local message = "You can only specify one of level or anchor_text!"
-        vim.notify_once(message, vim.log.levels.ERROR)
-    end
     while continue do
         local line = (reverse and vim.api.nvim_buf_get_lines(0, row - 1, row, false))
             or vim.api.nvim_buf_get_lines(0, row - 1, row, false)
