@@ -444,11 +444,19 @@ M.goToSame = function(reverse)
     local is_heading = string.find(line, '^#')
     -- If not on a heading, go back to current section's heading
     if not is_heading then
-        go_to_heading(nil, true)
+        local row = vim.api.nvim_win_get_cursor(0)[1]
+        while not is_heading and row > 0 do
+            line = vim.api.nvim_buf_get_lines(0, row-1, row, false)[1]
+            is_heading = string.find(line, '^#')
+            row = row - 1
+        end
+        if row == 0 and not is_heading then
+            return
+        end
     end
-    line = vim.api.nvim_get_current_line()
     local level = utils.getHeadingLevel(line)
     local found = go_to_heading(nil, reverse, level)
+    -- TODO: Ideally remove this and don't jump needlessly in go_to_heading
     if not found then
         vim.api.nvim_win_set_cursor(0, start_pos)
     end
