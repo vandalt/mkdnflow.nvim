@@ -371,10 +371,12 @@ local go_to_heading = function(anchor_text, reverse, level)
             if has_heading and not in_fenced_code_block then
                 if anchor_text == nil then
                     -- Send the cursor to the heading
-                    vim.api.nvim_win_set_cursor(0, { row, 0 })
-                    local new_line = vim.api.nvim_get_current_line()
+                    -- local new_line = vim.api.nvim_get_current_line()
+                    -- local heading_level = utils.getHeadingLevel(new_line)
+                    local new_line = vim.api.nvim_buf_get_lines(0, row-1, row, false)[1]
                     local heading_level = utils.getHeadingLevel(new_line)
                     if level == nil or heading_level == level then
+                        vim.api.nvim_win_set_cursor(0, { row, 0 })
                         return true
                     end
                 else
@@ -457,12 +459,7 @@ M.goToSame = function(reverse)
         return
     end
     -- Now search for the next heading
-    local found = go_to_heading(nil, reverse, level)
-    -- If no next heading, jump back to initial position
-    -- TODO: Ideally remove this and don't jump needlessly in go_to_heading
-    if not found then
-        vim.api.nvim_win_set_cursor(0, start_pos)
-    end
+    go_to_heading(nil, reverse, level)
 end
 
 --- Jump to a Pandoc-style bracketed span or heading with a matching ID attribute
