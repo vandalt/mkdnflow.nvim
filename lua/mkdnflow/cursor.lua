@@ -375,7 +375,7 @@ local go_to_heading = function(anchor_text, reverse, level)
                     local new_line = vim.api.nvim_get_current_line()
                     local heading_level = utils.getHeadingLevel(new_line)
                     if level == nil or heading_level == level then
-                        continue = false
+                        return true
                     end
                 else
                     -- Format current heading to see if it matches our search term
@@ -391,7 +391,7 @@ local go_to_heading = function(anchor_text, reverse, level)
                         vim.api.nvim_buf_set_mark(0, '`', position[1], position[2], {})
                         -- Send the cursor to the row w/ the matching heading
                         vim.api.nvim_win_set_cursor(0, { row, 0 })
-                        continue = false
+                        return true
                     end
                 end
             end
@@ -433,7 +433,7 @@ local go_to_heading = function(anchor_text, reverse, level)
             end
         end
     end
-    return (not continue) and (continue ~= nil)
+    return false
 end
 
 --- Go to the next or previous heading of the same level
